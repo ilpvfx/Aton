@@ -76,106 +76,95 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     
                     // Set current frame
                     node->m_current_frame = _frame;
-                    
-                    std::vector<double>& m_frs = node->m_frames;
-                    std::vector<RenderBuffer>& m_fbs = node->m_framebuffers;
 
                     // Adding new session
-                    if (node->M_FRAMEBUFFERS.empty() || s_index != _index)
+                    if (node->m_framebuffers.empty() || s_index != _index)
                     {
-                        FrameBuffer fb(_frame, _xres, _yres);
+                        FrameBuffer fb;
                         WriteGuard lock(node->m_mutex);
-                        node->M_FRAMEBUFFERS.push_back(fb);
+                        node->m_framebuffers.push_back(fb);
                         s_index = _index;
                     }
                     
-                    FrameBuffer& fb = node->M_FRAMEBUFFERS.back();
-                    
+                    FrameBuffer& fb = node->m_framebuffers.back();
+                    node->m_output.push_back(node->getDateTime());
+
                     // Create RenderBuffer
                     if (node->m_multiframes)
                     {
-                        // If the Frame not exists
-                        if (std::find(m_frs.begin(), m_frs.end(), _frame) == m_frs.end())
+                        if (!fb.frame_exists(_frame))
                         {
-                            RenderBuffer fB(_frame, _xres, _yres);
-                            if (!m_frs.empty())
-                                fB = m_fbs.back();
                             WriteGuard lock(node->m_mutex);
-                            m_frs.push_back(_frame);
-                            m_fbs.push_back(fB);
+                            fb.add(_frame, _xres, _yres);
                         }
                     }
                     else
                     {
-                        RenderBuffer fB(_frame, _xres, _yres);
-                        if (!node->m_frames.empty())
+                        if (!fb.empty())
                         {
-                            f_index = node->getFrameIndex(node->m_frames, node->m_current_frame);
-                            fB = m_fbs[f_index];
+                            WriteGuard lock(node->m_mutex);
+                            fb.clear_all_apart(_frame);
                         }
-                        WriteGuard lock(node->m_mutex);
-                        m_frs = std::vector<double>();
-                        m_fbs = std::vector<RenderBuffer>();
-                        m_frs.push_back(_frame);
-                        m_fbs.push_back(fB);
                     }
                     
                     // Get current RenderBuffer
-                    f_index = node->getFrameIndex(node->m_frames, _frame);
-                    RenderBuffer& fB = m_fbs[f_index];
+                    RenderBuffer& rb = fb.get_frame(_frame);
                     
                     // Reset Frame and Buffers if changed
-                    if (!fB.empty() && !active_aovs.empty())
+                    if (!rb.empty() && !active_aovs.empty())
                     {
-                        if (fB.isFrameChanged(_frame))
+                        if (rb.isFrameChanged(_frame))
                         {
                             WriteGuard lock(node->m_mutex);
-                            fB.setFrame(_frame);
+                            rb.setFrame(_frame);
                         }
-                        if(fB.isAovsChanged(active_aovs))
+                        if(rb.isAovsChanged(active_aovs))
                         {
                             WriteGuard lock(node->m_mutex);
-                            fB.resize(1);
-                            fB.ready(false);
+                            rb.resize(1);
+                            rb.ready(false);
                             node->resetChannels(node->m_channels);
                         }
                     }
                     
                     // Setting Camera
-                    if (fB.isCameraChanged(_fov, _matrix))
+                    if (rb.isCameraChanged(_fov, _matrix))
                     {
                         WriteGuard lock(node->m_mutex);
-                        fB.setCamera(_fov, _matrix);
-                        node->setCameraKnobs(fB.getCameraFov(),
-                                             fB.getCameraMatrix());
+                        rb.setCamera(_fov, _matrix);
+                        node->setCameraKnobs(rb.getCameraFov(),
+                                             rb.getCameraMatrix());
                     }
 
                     // Set Version
-                    if (fB.getVersionInt() != _version)
-                        fB.setVersion(_version);
+                    if (rb.getVersionInt() != _version)
+                        rb.setVersion(_version);
                     
                     // Set Samples
-                    if (fB.getSamplesInt() != _samples)
-                        fB.setSamples(_samples);
+                    if (rb.getSamplesInt() != _samples)
+                        rb.setSamples(_samples);
                     
                     // Reset active AOVs
-                    if(!active_aovs.empty()) active_aovs.clear();
+                    if(!active_aovs.empty())
+                        active_aovs.clear();
                     break;
                 }
                 case 1: // Write image data
                 {
                     DataPixels dp = node->m_server.listenPixels();
 
-                    // Get frame buffer
-                    RenderBuffer& fB = node->m_framebuffers[f_index];
+                    // Get Render Buffer
+                    FrameBuffer& fb = node->m_framebuffers.back();
+                    RenderBuffer& rb = fb.get_frame(node->m_current_frame);
+                    
                     const char* _aov_name = dp.aovName();
                     const int& _xres = dp.xres();
                     const int& _yres = dp.yres();
 
-                    if(fB.isResolutionChanged(_xres, _yres))
+                    if(rb.isResolutionChanged(_xres, _yres))
                     {
                         WriteGuard lock(node->m_mutex);
-                        fB.setResolution(_xres, _yres);
+                        rb.setResolution(_xres, _yres);
                     }
 
                     // Get active aov names
@@ -205,18 +194,18 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                         _active_time = _time;
                         
                         // Get framebuffer width and height
-                        const int& w = fB.getWidth();
-                        const int& h = fB.getHeight();
+                        const int& w = rb.getWidth();
+                        const int& h = rb.getHeight();
 
                         // Adding buffer
                         node->m_mutex.writeLock();
-                        if(!fB.isBufferExist(_aov_name) && (node->m_enable_aovs || fB.empty()))
-                            fB.addBuffer(_aov_name, _spp);
+                        if(!rb.isBufferExist(_aov_name) && (node->m_enable_aovs || rb.empty()))
+                            rb.addBuffer(_aov_name, _spp);
                         else
-                            fB.ready(true);
+                            rb.ready(true);
                         
                         // Get buffer index
-                        const int b = fB.getBufferIndex(_aov_name);
+                        const int b = rb.getBufferIndex(_aov_name);
                     
                         // Writing to buffer
                         int x, y, c, xpos, ypos, offset;
@@ -230,14 +219,14 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                                     xpos = x + _x;
                                     ypos = h - (y + _y + 1);
                                     const float& _pix = dp.pixel(offset + c);
-                                    fB.setBufferPix(b, xpos, ypos, _spp, c, _pix);
+                                    rb.setBufferPix(b, xpos, ypos, _spp, c, _pix);
                                 }
                             }
                         }
                         node->m_mutex.unlock();
                         
                         // Update only on first aov
-                        if(!node->m_capturing && fB.isFirstBufferName(_aov_name))
+                        if(!node->m_capturing && rb.isFirstBufferName(_aov_name))
                         {
                             // Calculate the progress percentage
                             regionArea -= _width * _height;
@@ -245,9 +234,9 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
 
                             // Set status parameters
                             node->m_mutex.writeLock();
-                            fB.setProgress(progress);
-                            fB.setRAM(_ram);
-                            fB.setTime(_time, delta_time);
+                            rb.setProgress(progress);
+                            rb.setRAM(_ram);
+                            rb.setTime(_time, delta_time);
                             node->m_mutex.unlock();
                             
                             // Update the image

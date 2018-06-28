@@ -62,7 +62,7 @@ void Aton::detach()
     m_legit = false;
     disconnect();
     m_node->m_frames = std::vector<double>();
-    m_node->m_framebuffers = std::vector<RenderBuffer>();
+    m_node->m_framebuffers = std::vector<FrameBuffer>();
 }
 
 void Aton::flagForUpdate(const Box& box)
@@ -137,7 +137,15 @@ void Aton::append(Hash& hash)
 
 void Aton::_validate(bool for_real)
 {
-    // Do we need to open a port?
+    // Setup dynamic knob
+    SceneView_KnobI* outputKnob = m_outputKnob->sceneViewKnob();
+    if (m_output.size() != outputKnob->getItemCount())
+    {
+        outputKnob->menu(m_output);
+        outputKnob->removeItems(m_output);
+        outputKnob->addItems(m_output);
+    }
+    
     if (!m_node->m_server.isConnected() && !m_inError && m_legit)
         changePort(m_port);
     
@@ -147,8 +155,8 @@ void Aton::_validate(bool for_real)
 
     if (!m_node->m_framebuffers.empty())
     {
-        const int f_index = getFrameIndex(m_node->m_frames, uiContext().frame());
-        RenderBuffer& fB = m_node->m_framebuffers[f_index];
+        FrameBuffer& fb = m_node->m_framebuffers.back();
+        RenderBuffer& fB = fb.get_frame(uiContext().frame());
         
         if (!fB.empty())
         {
@@ -259,7 +267,9 @@ void Aton::_validate(bool for_real)
 void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
 {
     const int f = getFrameIndex(m_node->m_frames, uiContext().frame());
-    std::vector<RenderBuffer>& fBs = m_node->m_framebuffers;
+
+    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
+    std::vector<RenderBuffer>& rbs = fbs.back().get_buffers();
     
     foreach(z, channels)
     {
@@ -270,19 +280,19 @@ void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
         const float* END = cOut + (r - x);
         
         ReadGuard lock(m_mutex);
-        if (m_enable_aovs && !fBs.empty() && fBs[f].isReady())
-            b = fBs[f].getBufferIndex(z);
+        if (m_enable_aovs && !fbs.empty() && rbs[f].isReady())
+            b = rbs[f].getBufferIndex(z);
         
         while (cOut < END)
         {
-            if (fBs.empty() || !fBs[f].isReady() ||
-                x >= fBs[f].getWidth() ||
-                y >= fBs[f].getHeight() || r > fBs[f].getWidth())
+            if (fbs.empty() || !rbs[f].isReady() ||
+                x >= rbs[f].getWidth() ||
+                y >= rbs[f].getHeight() || r > rbs[f].getWidth())
             {
                 *cOut = 0.0f;
             }
             else
-                *cOut = fBs[f].getBufferPix(b, xx, y, c);
+                *cOut = rbs[f].getBufferPix(b, xx, y, c);
             ++cOut;
             ++xx;
         }
@@ -296,13 +306,14 @@ void Aton::knobs(Knob_Callback f)
     Bool_knob(f, &m_capturing, "capturing_knob");
     Float_knob(f, &m_cam_fov, "cam_fov_knob", " cFov");
     
-    int enumKnob = 3;
-    static const char* names[]  = { "masterLayer", "Layer 1", "Layer 2" };
-    
     Divider(f, "Snapshots");
-    Enumeration_knob(f, &enumKnob, names, "Output");
+    static const char* output_name[] = {"",  0};
+    Knob * outputKnob = SceneView_knob(f, 0, output_name, "", "Output");
+    if(outputKnob) m_outputKnob = outputKnob;
+    SetFlags(f, Knob::SAVE_MENU);
     
     // Main knobs
+    Newline(f);
     Button(f, "clear_knob", "Clear");
     Button(f, "clear_all_knob", "Clear All");
     
@@ -310,16 +321,11 @@ void Aton::knobs(Knob_Callback f)
     Knob* region_knob = BBox_knob(f, m_cropBox, "Area");
     Button(f, "copy_clipboard", "Copy");
 
-
     Divider(f, "Write to Files");
     Knob* write_aovs_knob = Bool_knob(f, &m_all_frames, "write_aovs_knob", "Write AOVs");
     Knob* write_multi_frame_knob = Bool_knob(f, &m_all_frames, "write_multi_frame_knob", "Write Multiple Frames");
     Knob* path_knob = File_knob(f, &m_path, "path_knob", "Path");
 
-//    Divider(f);
-//    Knob* stamp_knob = Bool_knob(f, &m_stamp, "stamp_knob", "Add Stamp");
-//    Knob* stamp_scale_knob = Float_knob(f, &m_stamp_scale, "stamp_scale_knob", "Scale");
-//    Knob* comment_knob = String_knob(f, &m_comment, "comment_knob", "Comment");
     Newline(f);
     Button(f, "capture_knob", "Render");
     Button(f, "import_latest_knob", "Read Latest");
@@ -338,8 +344,6 @@ void Aton::knobs(Knob_Callback f)
     Bool_knob(f, &m_multiframes, "multi_frame_knob", "Read Multiple Frames");
     Knob* live_cam_knob = Bool_knob(f, &m_live_camera, "live_camera_knob", "Read Camera");
     EndToolbar(f);
-
-
     
     // Status Bar
     BeginToolbar(f, "status_bar");
@@ -350,9 +354,6 @@ void Aton::knobs(Knob_Callback f)
     path_knob->set_flag(Knob::NO_RERENDER, true);
     live_cam_knob->set_flag(Knob::NO_RERENDER, true);
     write_multi_frame_knob->set_flag(Knob::NO_RERENDER, true);
-//    stamp_knob->set_flag(Knob::NO_RERENDER, true);
-//    stamp_scale_knob->set_flag(Knob::NO_RERENDER, true);
-//    comment_knob->set_flag(Knob::NO_RERENDER, true);
     statusKnob->set_flag(Knob::NO_RERENDER, true);
     statusKnob->set_flag(Knob::DISABLED, true);
     statusKnob->set_flag(Knob::OUTPUT_ONLY, true);
@@ -551,19 +552,20 @@ std::vector<std::string> Aton::getCaptures()
 
 void Aton::clearAllCmd()
 {
-    std::vector<RenderBuffer>& fBs  = m_node->m_framebuffers;
+
+    std::vector<FrameBuffer>& fBs = m_node->m_framebuffers;
     std::vector<double>& frames  = m_node->m_frames;
 
     if (!fBs.empty() && !frames.empty())
     {
-        std::vector<RenderBuffer>::iterator it;
-        for(it = fBs.begin(); it != fBs.end(); ++it)
-            it->ready(false);
+//        std::vector<RenderBuffer>::iterator it;
+//        for(it = fBs.begin(); it != fBs.end(); ++it)
+//            it->ready(false);
         
         m_node->m_legit = false;
         m_node->disconnect();
         
-        fBs =  std::vector<RenderBuffer>();
+        fBs =  std::vector<FrameBuffer>();
         frames = std::vector<double>();
         
         resetChannels(m_node->m_channels);

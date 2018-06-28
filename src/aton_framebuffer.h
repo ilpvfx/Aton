@@ -57,7 +57,6 @@ class RenderBuffer
 friend class FrameBuffer;
     
 public:
-    RenderBuffer() {};
     RenderBuffer(const double& currentFrame = 0,
                  const int& w = 0,
                  const int& h = 0);
@@ -196,24 +195,30 @@ private:
 class FrameBuffer
 {
 public:
-    FrameBuffer(double frame, int xres, int yres);
+    FrameBuffer() {};
     
-    // Get RenderBuffer for given Frame
-    const RenderBuffer& at(double frame);
+    RenderBuffer& get_frame(double frame);
+    
+    std::vector<RenderBuffer>& get_buffers() { return _renderbuffers; }
     
     // Add New RenderBuffer
+    void add(RenderBuffer rb);
     void add(double frame, int xres, int yres);
     
     // Clear All Data
     void clear_all();
     
+    void clear_all_apart(double frame);
+    
     bool empty() { return (_frames.empty() && _renderbuffers.empty()); }
     
     // Check if RenderBuffer already exists
-    bool exists(double frame);
-    
+    bool frame_exists(double frame);
     
 private:
+    // Get RenderBuffer index for given Frame
+    const int _get_index(double frame);
+    
     std::vector<double> _frames;
     std::vector<RenderBuffer> _renderbuffers;
 };

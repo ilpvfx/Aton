@@ -30,8 +30,8 @@ node_parameters
 {
     AiParameterStr("host", get_host().c_str());
     AiParameterInt("port", get_port());
-    AiParameterStr("intput", "");
     AiParameterStr("output", "");
+    AiParameterStr("user_intput", "");
     
 #ifdef ARNOLD_5
     AiMetaDataSetStr(nentry, NULL, "maya.translator", "aton");
@@ -44,14 +44,13 @@ node_parameters
     AiMetaDataSetBool(mds, NULL, "display_driver", true);
     AiMetaDataSetBool(mds, NULL, "single_layer_driver", false);
 #endif
-    
 }
 
 node_initialize
 {
     ShaderData* data = (ShaderData*)AiMalloc(sizeof(ShaderData));
     data->client = NULL;
-    data->index = gen_unique_id();
+    data->index = get_unique_id();
 
 #ifdef ARNOLD_5
     AiDriverInitialize(node, true);
@@ -59,8 +58,6 @@ node_initialize
 #else
     AiDriverInitialize(node, true, data);
 #endif
-    
-
 }
 
 node_update {}
@@ -110,7 +107,7 @@ driver_open
     AiGetVersion(arch, major, minor, fix);
     const int version = pack_4_int(atoi(arch), atoi(major), atoi(minor), atoi(fix));
         
-    // Get  Frame
+    // Get Frame
     const float frame = AiNodeGetFlt(options, "frame");
     
     // Get Camera Field of view

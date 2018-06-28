@@ -40,7 +40,7 @@ const bool host_exists(const char* host)
     return !ec;
 }
 
-const unsigned int gen_unique_id()
+const unsigned int get_unique_id()
 {
     srand(static_cast<unsigned int>(time(NULL)));
     return rand() % 1000000 + 1;

@@ -313,16 +313,56 @@ void RenderBuffer::setCamera(const float& fov, const Matrix4& matrix)
 }
 
 
-FrameBuffer::FrameBuffer(double frame, int xres, int yres)
+
+
+
+RenderBuffer& FrameBuffer::get_frame(double frame)
 {
-    RenderBuffer rb(frame, xres, yres);
-    
-    _frames.push_back(frame);
+    return _renderbuffers[_get_index(frame)];
+}
+
+
+// Add New RenderBuffer
+void FrameBuffer::add(RenderBuffer rb)
+{
+    _frames.push_back(rb.getFrame());
     _renderbuffers.push_back(rb);
 }
 
+
+void FrameBuffer::add(double frame, int xres, int yres)
+{
+        RenderBuffer rb(frame, xres, yres);
+        
+        if (!_frames.empty())
+            rb = _renderbuffers.back();
+        
+        _frames.push_back(frame);
+        _renderbuffers.push_back(rb);
+}
+
+// Clear All Data
+void FrameBuffer::clear_all()
+{
+    _frames = std::vector<double>();
+    _renderbuffers = std::vector<RenderBuffer>();
+}
+
+void FrameBuffer::clear_all_apart(double frame)
+{
+    std::swap(_renderbuffers.at(0), _renderbuffers.at(_get_index(frame)));
+    _renderbuffers.erase(_renderbuffers.begin()+1, _renderbuffers.end());
+}
+
+
+// Check if RenderBuffer already exists
+bool FrameBuffer::frame_exists(double frame)
+{
+    return (std::find(_frames.begin(), _frames.end(), frame) != _frames.end());
+}
+
 // Get RenderBuffer for given Frame
-const RenderBuffer& FrameBuffer::at(double frame)
+const int FrameBuffer::_get_index(double frame)
 {
     int index = 0;
     
@@ -352,37 +392,7 @@ const RenderBuffer& FrameBuffer::at(double frame)
             }
         }
     }
-    return _renderbuffers[index];
-}
-
-
-// Add New RenderBuffer
-void FrameBuffer::add(double frame, int xres, int yres)
-{
-    if (exists(frame))
-    {
-        RenderBuffer rb(frame, xres, yres);
-        
-        if (!_frames.empty())
-            rb = _renderbuffers.back();
-        
-        _frames.push_back(frame);
-        _renderbuffers.push_back(rb);
-    }
-}
-
-// Clear All Data
-void FrameBuffer::clear_all()
-{
-    _frames = std::vector<double>();
-    _renderbuffers = std::vector<RenderBuffer>();
-}
-
-
-// Check if RenderBuffer already exists
-bool FrameBuffer::exists(double frame)
-{
-    return (std::find(_frames.begin(), _frames.end(), frame) != _frames.end());
+    return index;
 }
 
 

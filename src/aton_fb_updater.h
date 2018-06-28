@@ -25,8 +25,9 @@ static void FBUpdater(unsigned index, unsigned nthreads, void* data)
         if (node->m_multiframes && fbSize > 1 && uiFrame != prevFrame &&
                                                  uiFrame != opFrame)
         {
-            const int f_index = node->getFrameIndex(node->m_frames, uiFrame);
-            RenderBuffer& fB = node->m_framebuffers[f_index];
+            FrameBuffer& fb = node->m_framebuffers.back();
+            RenderBuffer& fB = fb.get_frame(uiFrame);
+            
             if (node->m_live_camera)
             {
                 node->setCameraKnobs(fB.getCameraFov(),

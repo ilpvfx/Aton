@@ -15,14 +15,15 @@ const int get_port();
 
 const std::string get_host();
 
-
 const bool host_exists(const char* host);
 
-const unsigned int gen_unique_id();
+const unsigned int get_unique_id();
 
 const int pack_4_int(int a, int b, int c, int d);
 
+
 class Client;
+
 
 class DataHeader
 {
