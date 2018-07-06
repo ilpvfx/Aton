@@ -138,13 +138,24 @@ void Aton::append(Hash& hash)
 void Aton::_validate(bool for_real)
 {
     // Setup dynamic knob
-    SceneView_KnobI* outputKnob = m_outputKnob->sceneViewKnob();
-    if (m_output.size() != outputKnob->getItemCount())
+//    Enumeration_KnobI* outputKnob = m_outputKnob->enumerationKnob();
+//    outputKnob->menu(m_output);
+    
+    Table_KnobI* outputKnob = m_node->m_outputKnob->tableKnob();
+
+    std::vector<std::string>& output = m_node->m_output;
+    if (output.size() != outputKnob->getRowCount())
     {
-        outputKnob->menu(m_output);
-        outputKnob->removeItems(m_output);
-        outputKnob->addItems(m_output);
+        outputKnob->deleteAllItems();
+        std::vector<std::string>::iterator it;
+        for(it = output.begin(); it != output.end(); ++it)
+        {
+            int row = outputKnob->addRow();
+            outputKnob->setCellString(row, 0, *it);
+        }
     }
+
+
     
     if (!m_node->m_server.isConnected() && !m_inError && m_legit)
         changePort(m_port);
@@ -266,6 +277,8 @@ void Aton::_validate(bool for_real)
 
 void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
 {
+    Table_KnobI* outputKnob = m_outputKnob->tableKnob();
+    
     const int f = getFrameIndex(m_node->m_frames, uiContext().frame());
 
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
@@ -307,16 +320,19 @@ void Aton::knobs(Knob_Callback f)
     Float_knob(f, &m_cam_fov, "cam_fov_knob", " cFov");
     
     Divider(f, "Snapshots");
-    static const char* output_name[] = {"",  0};
-    Knob * outputKnob = SceneView_knob(f, 0, output_name, "", "Output");
-    if(outputKnob) m_outputKnob = outputKnob;
-    SetFlags(f, Knob::SAVE_MENU);
+    m_outputKnob = Table_knob(f, "output_knob", "Output");
+
+    if (f.makeKnobs())
+    {
+        Table_KnobI* outputKnob = m_outputKnob->tableKnob();
+        outputKnob->addStringColumn("snapshots", "Snapshots", true);
+        outputKnob->setDisplayAllAnimationCurves(false);
+    }
     
     // Main knobs
     Newline(f);
     Button(f, "clear_knob", "Clear");
     Button(f, "clear_all_knob", "Clear All");
-    
     Divider(f, "Render Region");
     Knob* region_knob = BBox_knob(f, m_cropBox, "Area");
     Button(f, "copy_clipboard", "Copy");
@@ -361,6 +377,12 @@ void Aton::knobs(Knob_Callback f)
 
 int Aton::knob_changed(Knob* _knob)
 {
+    if (_knob->is("output_knob"))
+    {
+        flagForUpdate();
+        return 1;
+    }
+    
     if (_knob->is("port_number"))
     {
         changePort(m_port);
@@ -764,13 +786,16 @@ void Aton::setStatus(const long long& progress,
     const size_t f_count = m_node->m_framebuffers.size();
 
     std::string str_status = (boost::format("Arnold %s | "
-                                            "Memory: %sMB / %sMB | "
-                                            "Time: %02ih:%02im:%02is | "
                                             "Frame: %s of %s | "
                                             "Samples: %s | "
-                                            "Progress: %s%%")%version%ram%p_ram
+                                            "Memory: %sMB / %sMB | "
+                                            "Time: %02ih:%02im:%02is | "
+                                            "Progress: %s%%")%version
+                                                             %frame%f_count
+                                                             %samples
+                                                             %ram%p_ram
                                                              %hour%minute%second
-                                                             %frame%f_count%samples%progress).str();
+                                                             %progress).str();
     knob("status_knob")->set_text(str_status.c_str());
 }
 

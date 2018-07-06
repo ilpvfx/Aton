@@ -12,7 +12,8 @@ All rights reserved. See COPYING.txt for more details.
 #include "DDImage/Knobs.h"
 #include "DDImage/Thread.h"
 #include "DDImage/Version.h"
-#include <DDImage/SceneView_KnobI.h>
+#include <DDImage/Enumeration_KnobI.h>
+#include <DDImage/TableKnobI.h>
 
 
 using namespace DD::Image;
