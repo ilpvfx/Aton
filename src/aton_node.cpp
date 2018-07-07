@@ -138,12 +138,8 @@ void Aton::append(Hash& hash)
 void Aton::_validate(bool for_real)
 {
     // Setup dynamic knob
-//    Enumeration_KnobI* outputKnob = m_outputKnob->enumerationKnob();
-//    outputKnob->menu(m_output);
-    
-    Table_KnobI* outputKnob = m_node->m_outputKnob->tableKnob();
-
     std::vector<std::string>& output = m_node->m_output;
+    Table_KnobI* outputKnob = m_node->m_outputKnob->tableKnob();
     if (output.size() != outputKnob->getRowCount())
     {
         outputKnob->deleteAllItems();
@@ -154,8 +150,6 @@ void Aton::_validate(bool for_real)
             outputKnob->setCellString(row, 0, *it);
         }
     }
-
-
     
     if (!m_node->m_server.isConnected() && !m_inError && m_legit)
         changePort(m_port);
