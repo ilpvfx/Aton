@@ -84,6 +84,8 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                         WriteGuard lock(node->m_mutex);
                         node->m_framebuffers.push_back(fb);
                         node->m_output.push_back(node->getDateTime());
+                        node->flagForUpdate();
+                        node->m_outputKnob->set_value(node->m_output.size()-1);
                         s_index = _index;
                     }
                     

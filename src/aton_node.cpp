@@ -147,10 +147,11 @@ void Aton::_validate(bool for_real)
     // Handle any connection error
     if (m_inError)
         error(m_connectionError.c_str());
-
-    if (!m_node->m_framebuffers.empty())
+    
+    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
+    if (!fbs.empty())
     {
-        FrameBuffer& fb = m_node->m_framebuffers.back();
+        FrameBuffer& fb = fbs[outputKnob->getSelectedItemIndex()];
         RenderBuffer& fB = fb.get_frame(uiContext().frame());
         
         if (!fB.empty())
