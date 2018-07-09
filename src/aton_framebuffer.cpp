@@ -318,7 +318,7 @@ void RenderBuffer::setCamera(const float& fov, const Matrix4& matrix)
 
 RenderBuffer& FrameBuffer::get_frame(double frame)
 {
-    return _renderbuffers[_get_index(frame)];
+    return _renderbuffers[get_index(frame)];
 }
 
 
@@ -350,7 +350,7 @@ void FrameBuffer::clear_all()
 
 void FrameBuffer::clear_all_apart(double frame)
 {
-    std::swap(_renderbuffers.at(0), _renderbuffers.at(_get_index(frame)));
+    std::swap(_renderbuffers.at(0), _renderbuffers.at(get_index(frame)));
     _renderbuffers.erase(_renderbuffers.begin()+1, _renderbuffers.end());
 }
 
@@ -362,7 +362,7 @@ bool FrameBuffer::frame_exists(double frame)
 }
 
 // Get RenderBuffer for given Frame
-const int FrameBuffer::_get_index(double frame)
+const int FrameBuffer::get_index(double frame)
 {
     int index = 0;
     

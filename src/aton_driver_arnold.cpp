@@ -74,9 +74,6 @@ driver_open
     ShaderData* data = (ShaderData*)AiDriverGetLocalData(node);
 #endif
     
-    // Get Session index
-    const int index = AiNodeGetInt(node, "index");
-    
     // Get Options Node
     AtNode* options = AiUniverseGetOptions();
     
@@ -143,7 +140,7 @@ driver_open
                              volume_samples};
     
     // Make image header & send to server
-    DataHeader dh(index,
+    DataHeader dh(data->index,
                   data->xres,
                   data->yres,
                   region_area,

@@ -13,7 +13,6 @@ All rights reserved. See COPYING.txt for more details.
 #include "DDImage/Thread.h"
 #include "DDImage/Version.h"
 #include <DDImage/Enumeration_KnobI.h>
-#include <DDImage/TableKnobI.h>
 
 
 using namespace DD::Image;
@@ -149,8 +148,6 @@ class Aton: public Iop
         void resetChannels(ChannelSet& channels);
     
         bool isPathValid(std::string path);
-    
-        int getFrameIndex(std::vector<double>& frames, double currentFrame);
     
         std::string getPath();
     

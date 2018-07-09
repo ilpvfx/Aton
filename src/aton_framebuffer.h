@@ -201,6 +201,9 @@ public:
     
     std::vector<RenderBuffer>& get_buffers() { return _renderbuffers; }
     
+    // Get RenderBuffer index for given Frame
+    const int get_index(double frame);
+    
     // Add New RenderBuffer
     void add(RenderBuffer rb);
     void add(double frame, int xres, int yres);
@@ -216,9 +219,6 @@ public:
     bool frame_exists(double frame);
     
 private:
-    // Get RenderBuffer index for given Frame
-    const int _get_index(double frame);
-    
     std::vector<double> _frames;
     std::vector<RenderBuffer> _renderbuffers;
 };

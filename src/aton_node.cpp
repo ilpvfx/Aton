@@ -138,18 +138,8 @@ void Aton::append(Hash& hash)
 void Aton::_validate(bool for_real)
 {
     // Setup dynamic knob
-    std::vector<std::string>& output = m_node->m_output;
-    Table_KnobI* outputKnob = m_node->m_outputKnob->tableKnob();
-    if (output.size() != outputKnob->getRowCount())
-    {
-        outputKnob->deleteAllItems();
-        std::vector<std::string>::iterator it;
-        for(it = output.begin(); it != output.end(); ++it)
-        {
-            int row = outputKnob->addRow();
-            outputKnob->setCellString(row, 0, *it);
-        }
-    }
+    Enumeration_KnobI* outputKnob = m_node->m_outputKnob->enumerationKnob();
+    outputKnob->menu(m_node->m_output);
     
     if (!m_node->m_server.isConnected() && !m_inError && m_legit)
         changePort(m_port);
@@ -271,12 +261,13 @@ void Aton::_validate(bool for_real)
 
 void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
 {
-    Table_KnobI* outputKnob = m_outputKnob->tableKnob();
+    Enumeration_KnobI* outputKnob = m_node->m_outputKnob->enumerationKnob();
     
-    const int f = getFrameIndex(m_node->m_frames, uiContext().frame());
-
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
-    std::vector<RenderBuffer>& rbs = fbs.back().get_buffers();
+    FrameBuffer& fb = fbs[outputKnob->getSelectedItemIndex()];
+    std::vector<RenderBuffer>& rbs = fb.get_buffers();
+    
+    const int f = 0;
     
     foreach(z, channels)
     {
@@ -314,19 +305,17 @@ void Aton::knobs(Knob_Callback f)
     Float_knob(f, &m_cam_fov, "cam_fov_knob", " cFov");
     
     Divider(f, "Snapshots");
-    m_outputKnob = Table_knob(f, "output_knob", "Output");
+    static const char* output_name[] = {"",  0};
+    Knob* output_knob = Enumeration_knob(f, 0, output_name, "output_knob", "Output");
+    if(output_knob)
+        m_node->m_outputKnob = output_knob;
+    SetFlags(f,  Knob::SAVE_MENU );
 
-    if (f.makeKnobs())
-    {
-        Table_KnobI* outputKnob = m_outputKnob->tableKnob();
-        outputKnob->addStringColumn("snapshots", "Snapshots", true);
-        outputKnob->setDisplayAllAnimationCurves(false);
-    }
-    
     // Main knobs
     Newline(f);
     Button(f, "clear_knob", "Clear");
     Button(f, "clear_all_knob", "Clear All");
+    
     Divider(f, "Render Region");
     Knob* region_knob = BBox_knob(f, m_cropBox, "Area");
     Button(f, "copy_clipboard", "Copy");
@@ -446,43 +435,6 @@ bool Aton::isPathValid(std::string path)
     boost::filesystem::path filepath(path);
     boost::filesystem::path dir = filepath.parent_path();
     return boost::filesystem::exists(dir);
-}
-
-int Aton::getFrameIndex(std::vector<double>& frames, double currentFrame)
-{
-    int f_index = 0;
-    
-    if (frames.size() > 1)
-    {
-        if (!m_multiframes)
-            currentFrame = m_node->m_current_frame;
-        
-        int nearFIndex = INT_MIN;
-        int minFIndex = INT_MAX;
-        
-        ReadGuard lock(m_mutex);
-        std::vector<double>::iterator it;
-        for(it = frames.begin(); it != frames.end(); ++it)
-        {
-            if (currentFrame == *it)
-            {
-                f_index = static_cast<int>(it - frames.begin());
-                break;
-            }
-            else if (currentFrame > *it && nearFIndex < *it)
-            {
-                nearFIndex = static_cast<int>(*it);
-                f_index = static_cast<int>(it - frames.begin());
-                continue;
-            }
-            else if (*it < minFIndex && nearFIndex == INT_MIN)
-            {
-                minFIndex = static_cast<int>(*it);
-                f_index = static_cast<int>(it - frames.begin());
-            }
-        }
-    }
-    return f_index;
 }
 
 std::string Aton::getPath()
@@ -780,16 +732,13 @@ void Aton::setStatus(const long long& progress,
     const size_t f_count = m_node->m_framebuffers.size();
 
     std::string str_status = (boost::format("Arnold %s | "
-                                            "Frame: %s of %s | "
-                                            "Samples: %s | "
                                             "Memory: %sMB / %sMB | "
                                             "Time: %02ih:%02im:%02is | "
-                                            "Progress: %s%%")%version
-                                                             %frame%f_count
-                                                             %samples
-                                                             %ram%p_ram
+                                            "Frame: %s of %s | "
+                                            "Samples: %s | "
+                                            "Progress: %s%%")%version%ram%p_ram
                                                              %hour%minute%second
-                                                             %progress).str();
+                                                             %frame%f_count%samples%progress).str();
     knob("status_knob")->set_text(str_status.c_str());
 }
 
