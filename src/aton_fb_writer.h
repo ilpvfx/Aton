@@ -27,9 +27,6 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
 
         // Our incoming data object
         int dataType = 0;
-
-        // Frame index in RenderBuffers
-        int f_index = 0;
         
         // For progress percentage
         long long progress, regionArea = 0;
