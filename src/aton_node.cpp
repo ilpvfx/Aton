@@ -138,12 +138,21 @@ void Aton::append(Hash& hash)
 void Aton::_validate(bool for_real)
 {
     // Setup dynamic knob
-    Enumeration_KnobI* outputKnob = m_node->m_outputKnob->enumerationKnob();
-    outputKnob->menu(m_node->m_output);
+    SceneView_KnobI* outputKnob = m_node->m_outputKnob->sceneViewKnob();
+    if (m_node->m_output.size() != outputKnob->getItemCount())
+    {
+        outputKnob->menu(m_output);
+        outputKnob->removeItems(m_output);
+        outputKnob->addItems(m_output);
+        
+        std::vector<unsigned int> itemList;
+        itemList.push_back(static_cast<unsigned int>(m_node->m_output.size()-1));
+        outputKnob->setSelectedItems(itemList);
+    }
     
     if (!m_node->m_server.isConnected() && !m_inError && m_legit)
         changePort(m_port);
-    
+
     // Handle any connection error
     if (m_inError)
         error(m_connectionError.c_str());
@@ -151,7 +160,11 @@ void Aton::_validate(bool for_real)
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     if (!fbs.empty())
     {
-        FrameBuffer& fb = fbs[outputKnob->getSelectedItemIndex()];
+        std::vector<unsigned int> itemList;
+        outputKnob->getHighlightedItems(itemList);
+        if (itemList.empty())
+            itemList.push_back(0);
+        FrameBuffer& fb = fbs[itemList[0]];
         RenderBuffer& fB = fb.get_frame(uiContext().frame());
         
         if (!fB.empty())
@@ -262,12 +275,23 @@ void Aton::_validate(bool for_real)
 
 void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
 {
-    Enumeration_KnobI* outputKnob = m_node->m_outputKnob->enumerationKnob();
+//    Enumeration_KnobI* outputKnob = m_node->m_outputKnob->enumerationKnob();
+//
+//    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
+//    FrameBuffer& fb = fbs[outputKnob->getSelectedItemIndex()];
+//    std::vector<RenderBuffer>& rbs = fb.get_buffers();
     
+    SceneView_KnobI* outputKnob = m_node->m_outputKnob->sceneViewKnob();
+
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
-    FrameBuffer& fb = fbs[outputKnob->getSelectedItemIndex()];
+    std::vector<unsigned int> itemList;
+    outputKnob->getHighlightedItems(itemList);
+    if (itemList.empty())
+        itemList.push_back(0);
+    FrameBuffer& fb = fbs[itemList[0]];
     std::vector<RenderBuffer>& rbs = fb.get_buffers();
-    
+
+
     const int f = 0;
     
     foreach(z, channels)
@@ -307,9 +331,17 @@ void Aton::knobs(Knob_Callback f)
     
     Divider(f, "Snapshots");
     static const char* output_name[] = {"",  0};
-    Knob* output_knob = Enumeration_knob(f, 0, output_name, "output_knob", "Output");
+    Knob* output_knob = SceneView_knob(f, 0, output_name, "output_knob", "Output");
     if(output_knob)
         m_node->m_outputKnob = output_knob;
+    
+    if (f.makeKnobs())
+    {
+        SceneView_KnobI* outputKnob = m_node->m_outputKnob->sceneViewKnob();
+        outputKnob->setSelectionMode(SceneView_KnobI::eSelectionModeHighlight);
+        outputKnob->setColumnHeader("Store");
+    }
+    
     SetFlags(f,  Knob::SAVE_MENU );
 
     // Main knobs

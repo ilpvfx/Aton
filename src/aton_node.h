@@ -13,6 +13,8 @@ All rights reserved. See COPYING.txt for more details.
 #include "DDImage/Thread.h"
 #include "DDImage/Version.h"
 #include <DDImage/Enumeration_KnobI.h>
+#include <DDImage/SceneView_KnobI.h>
+
 
 
 using namespace DD::Image;
@@ -100,8 +102,8 @@ class Aton: public Iop
                           m_slimit(20),
                           m_cam_fov(0),
                           m_cam_matrix(0),
-                          m_multiframes(true),
-                          m_enable_aovs(true),
+                          m_multiframes(false),
+                          m_enable_aovs(false),
                           m_live_camera(false),
                           m_all_frames(false),
                           m_stamp(false),

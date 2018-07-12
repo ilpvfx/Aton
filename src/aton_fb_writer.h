@@ -81,8 +81,6 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                         WriteGuard lock(node->m_mutex);
                         node->m_framebuffers.push_back(fb);
                         node->m_output.push_back(node->getDateTime());
-                        node->flagForUpdate();
-                        node->m_outputKnob->set_value(node->m_output.size()-1);
                         s_index = _index;
                     }
                     
@@ -98,12 +96,11 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                         }
                     }
                     else
-                    {
+                    {   WriteGuard lock(node->m_mutex);
                         if (!fb.empty())
-                        {
-                            WriteGuard lock(node->m_mutex);
                             fb.clear_all_apart(_frame);
-                        }
+                        else
+                            fb.add(_frame, _xres, _yres);
                     }
                     
                     // Get current RenderBuffer
