@@ -96,7 +96,8 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                         }
                     }
                     else
-                    {   WriteGuard lock(node->m_mutex);
+                    {
+                        WriteGuard lock(node->m_mutex);
                         if (!fb.empty())
                             fb.clear_all_apart(_frame);
                         else
