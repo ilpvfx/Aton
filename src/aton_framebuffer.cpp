@@ -313,9 +313,6 @@ void RenderBuffer::setCamera(const float& fov, const Matrix4& matrix)
 }
 
 
-
-
-
 RenderBuffer& FrameBuffer::get_frame(double frame)
 {
     return _renderbuffers[get_index(frame)];

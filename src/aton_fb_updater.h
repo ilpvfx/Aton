@@ -25,13 +25,13 @@ static void FBUpdater(unsigned index, unsigned nthreads, void* data)
         if (node->m_multiframes && fbSize > 1 && uiFrame != prevFrame &&
                                                  uiFrame != opFrame)
         {
-            FrameBuffer& fb = node->m_framebuffers.back();
-            RenderBuffer& fB = fb.get_frame(uiFrame);
-            
             if (node->m_live_camera)
+                
             {
-                node->setCameraKnobs(fB.getCameraFov(),
-                                     fB.getCameraMatrix());
+                FrameBuffer& fb = node->current_framebuffer();
+                RenderBuffer& rb = fb.get_frame(uiFrame);
+                node->setCameraKnobs(rb.getCameraFov(),
+                                     rb.getCameraMatrix());
             }
 
             node->flagForUpdate();

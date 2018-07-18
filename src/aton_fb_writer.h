@@ -75,7 +75,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     node->m_current_frame = _frame;
 
                     // Adding new session
-                    if (node->m_framebuffers.empty() || s_index != _index)
+                    if (node->m_framebuffers.empty() || (!node->m_multiframes && s_index != _index))
                     {
                         FrameBuffer fb;
                         WriteGuard lock(node->m_mutex);
@@ -83,9 +83,9 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                         node->m_output.push_back(node->getDateTime());
                         s_index = _index;
                     }
-                    
-                    FrameBuffer& fb = node->m_framebuffers.back();
 
+                    FrameBuffer& fb = node->m_framebuffers.back();
+                    
                     // Create RenderBuffer
                     if (node->m_multiframes)
                     {

@@ -106,7 +106,7 @@ void Aton::changePort(int port)
     if (m_server.isConnected())
     {
         Thread::spawn(::FBWriter, 1, this);
-        Thread::spawn(::FBUpdater, 1, this);
+//        Thread::spawn(::FBUpdater, 1, this);
         
         // Update port in the UI
         if (m_port != m_server.getPort())
@@ -135,6 +135,19 @@ void Aton::append(Hash& hash)
     hash.append(outputContext().frame());
 }
 
+FrameBuffer& Aton::current_framebuffer()
+{
+    SceneView_KnobI* outputKnob = m_node->m_outputKnob->sceneViewKnob();
+    
+    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
+
+    std::vector<unsigned int> itemList;
+    outputKnob->getHighlightedItems(itemList);
+    if (itemList.empty())
+        itemList.push_back(0);
+    return fbs[itemList[0]];
+}
+
 void Aton::_validate(bool for_real)
 {
     // Setup dynamic knob
@@ -160,27 +173,23 @@ void Aton::_validate(bool for_real)
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     if (!fbs.empty())
     {
-        std::vector<unsigned int> itemList;
-        outputKnob->getHighlightedItems(itemList);
-        if (itemList.empty())
-            itemList.push_back(0);
-        FrameBuffer& fb = fbs[itemList[0]];
-        RenderBuffer& fB = fb.get_frame(uiContext().frame());
+        FrameBuffer& fb = current_framebuffer();
+        RenderBuffer& rb = fb.get_frame(uiContext().frame());
         
-        if (!fB.empty())
+        if (!rb.empty())
         {
             // Set the progress
-            setStatus(fB.getProgress(),
-                      fB.getRAM(),
-                      fB.getPRAM(),
-                      fB.getTime(),
-                      fB.getFrame(),
-                      fB.getVersion(),
-                      fB.getSamples());
+            setStatus(rb.getProgress(),
+                      rb.getRAM(),
+                      rb.getPRAM(),
+                      rb.getTime(),
+                      rb.getFrame(),
+                      rb.getVersion(),
+                      rb.getSamples());
             
             // Set the format
-            const int width = fB.getWidth();
-            const int height = fB.getHeight();
+            const int width = rb.getWidth();
+            const int height = rb.getHeight();
             
             if (m_node->m_fmt.width() != width ||
                 m_node->m_fmt.height() != height)
@@ -212,16 +221,16 @@ void Aton::_validate(bool for_real)
             // Set the channels
             ChannelSet& channels = m_node->m_channels;
             
-            if (m_enable_aovs && fB.isReady())
+            if (m_enable_aovs && rb.isReady())
             {
-                const int fb_size = static_cast<int>(fB.size());
+                const int fb_size = static_cast<int>(rb.size());
                 
                 if (channels.size() != fb_size)
                     channels.clear();
 
                 for(int i = 0; i < fb_size; ++i)
                 {
-                    std::string bfName = fB.getBufferName(i);
+                    std::string bfName = rb.getBufferName(i);
                     
                     using namespace chStr;
                     if (bfName == RGBA && !channels.contains(Chan_Red))
@@ -275,24 +284,10 @@ void Aton::_validate(bool for_real)
 
 void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
 {
-//    Enumeration_KnobI* outputKnob = m_node->m_outputKnob->enumerationKnob();
-//
-//    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
-//    FrameBuffer& fb = fbs[outputKnob->getSelectedItemIndex()];
-//    std::vector<RenderBuffer>& rbs = fb.get_buffers();
-    
-    SceneView_KnobI* outputKnob = m_node->m_outputKnob->sceneViewKnob();
-
-    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
-    std::vector<unsigned int> itemList;
-    outputKnob->getHighlightedItems(itemList);
-    if (itemList.empty())
-        itemList.push_back(0);
-    FrameBuffer& fb = fbs[itemList[0]];
+    FrameBuffer& fb = current_framebuffer();
     std::vector<RenderBuffer>& rbs = fb.get_buffers();
-
-
-    const int f = 0;
+    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
+    int f = !fbs.empty() ? fb.get_index(uiContext().frame()) : 0;
     
     foreach(z, channels)
     {
@@ -553,21 +548,17 @@ std::vector<std::string> Aton::getCaptures()
 
 void Aton::clearAllCmd()
 {
-
+    std::vector<std::string>& output = m_node->m_output;
     std::vector<FrameBuffer>& fBs = m_node->m_framebuffers;
-    std::vector<double>& frames  = m_node->m_frames;
-
-    if (!fBs.empty() && !frames.empty())
+    
+    if (!fBs.empty() && !output.empty())
     {
-//        std::vector<RenderBuffer>::iterator it;
-//        for(it = fBs.begin(); it != fBs.end(); ++it)
-//            it->ready(false);
         
         m_node->m_legit = false;
         m_node->disconnect();
         
         fBs =  std::vector<FrameBuffer>();
-        frames = std::vector<double>();
+        output = std::vector<std::string>();
         
         resetChannels(m_node->m_channels);
         m_node->m_legit = true;

@@ -139,6 +139,8 @@ class Aton: public Iop
 
         void append(Hash& hash);
 
+        FrameBuffer& current_framebuffer();
+    
         void _validate(bool for_real);
 
         void engine(int y, int x, int r, ChannelMask channels, Row& out);
