@@ -106,7 +106,7 @@ void Aton::changePort(int port)
     if (m_server.isConnected())
     {
         Thread::spawn(::FBWriter, 1, this);
-//        Thread::spawn(::FBUpdater, 1, this);
+        Thread::spawn(::FBUpdater, 1, this);
         
         // Update port in the UI
         if (m_port != m_server.getPort())
@@ -174,7 +174,8 @@ void Aton::_validate(bool for_real)
     if (!fbs.empty())
     {
         FrameBuffer& fb = current_framebuffer();
-        RenderBuffer& rb = fb.get_frame(uiContext().frame());
+        const double frame = m_node->m_multiframes ? uiContext().frame() : m_node->m_current_frame;
+        RenderBuffer& rb = fb.get_frame(frame);
         
         if (!rb.empty())
         {
@@ -287,7 +288,8 @@ void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
     FrameBuffer& fb = current_framebuffer();
     std::vector<RenderBuffer>& rbs = fb.get_buffers();
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
-    int f = !fbs.empty() ? fb.get_index(uiContext().frame()) : 0;
+    const double frame = m_node->m_multiframes ? uiContext().frame() : m_node->m_current_frame;
+    const int f = !fbs.empty() ? fb.get_index(frame) : 0;
     
     foreach(z, channels)
     {

@@ -219,6 +219,7 @@ public:
     bool frame_exists(double frame);
     
 private:
+    double _current_frame;
     std::vector<double> _frames;
     std::vector<RenderBuffer> _renderbuffers;
 };
