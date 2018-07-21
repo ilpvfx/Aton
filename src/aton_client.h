@@ -222,7 +222,7 @@ public:
     void closeImage();
     
 private:
-    void connect(std::string host, int port);
+    void connect();
     void disconnect();
     void quit();
     

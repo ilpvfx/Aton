@@ -126,11 +126,11 @@ Client::~Client()
     disconnect();
 }
 
-void Client::connect(std::string hostname, int port)
+void Client::connect()
 {
     using boost::asio::ip::tcp;
     tcp::resolver resolver(mIoService);
-    tcp::resolver::query query(hostname.c_str(), boost::lexical_cast<std::string>(port).c_str());
+    tcp::resolver::query query(mHost.c_str(), boost::lexical_cast<std::string>(mPort).c_str());
     tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
     tcp::resolver::iterator end;
     boost::system::error_code error = boost::asio::error::host_not_found;
@@ -151,7 +151,7 @@ void Client::disconnect()
 void Client::openImage(DataHeader& header)
 {
     // Connect to port!
-    connect(mHost, mPort);
+    connect();
 
     // Send image header message with image desc information
     int key = 0;
@@ -226,7 +226,7 @@ void Client::closeImage()
 
 void Client::quit()
 {
-    connect(mHost, mPort);
+    connect();
     int key = 9;
     write(mSocket, buffer(reinterpret_cast<char*>(&key), sizeof(int)));
     disconnect();

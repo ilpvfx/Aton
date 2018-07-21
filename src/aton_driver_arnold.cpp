@@ -150,23 +150,21 @@ driver_open
                   cam_matrix,
                   samples);
 
-    try // Now we can connect to the server and start rendering
+    // Get Host and Port
+    const char* host = AiNodeGetStr(node, "host");
+    const int port = AiNodeGetInt(node, "port");
+    
+    if (data->client == NULL)
+        data->client = new Client(host, port);
+    
+    try
     {
-        if (data->client == NULL)
-        {
-            // Get Host and Port
-            const char* host = AiNodeGetStr(node, "host");
-            const int port = AiNodeGetInt(node, "port");
-            
-            if (host_exists(host))
-                data->client = new Client(host, port);
-        }
         data->client->openImage(dh);
     }
     catch(const std::exception &e)
     {
         const char* err = e.what();
-        AiMsgError("ATON | %s", err);
+        AiMsgError("ATON | Host %s with Port %i was not found! %s", host, port, err);
     }
 }
 
