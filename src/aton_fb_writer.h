@@ -194,13 +194,13 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
 
                         // Adding buffer
                         node->m_mutex.writeLock();
-                        if(!rb.isBufferExist(_aov_name) && (node->m_enable_aovs || rb.empty()))
+                        if(!rb.aov_exist(_aov_name) && (node->m_enable_aovs || rb.empty()))
                             rb.addBuffer(_aov_name, _spp);
                         else
                             rb.ready(true);
                         
                         // Get buffer index
-                        const int b = rb.getBufferIndex(_aov_name);
+                        const int b = rb.aov_index(_aov_name);
                     
                         // Writing to buffer
                         int x, y, c, xpos, ypos, offset;

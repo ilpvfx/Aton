@@ -151,7 +151,7 @@ int RenderBuffer::getBufferIndex(const Channel& z)
 }
 
 // Get the current buffer index
-int RenderBuffer::getBufferIndex(const char* aovName)
+int RenderBuffer::aov_index(const char* aovName)
 {
     int b_index = 0;
     if (_aovs.size() > 1)
@@ -252,7 +252,7 @@ void RenderBuffer::clearAll()
 }
 
 // Check if the given buffer/aov name name is exist
-bool RenderBuffer::isBufferExist(const char* aovName)
+bool RenderBuffer::aov_exist(const char* aovName)
 {
     return std::find(_aovs.begin(), _aovs.end(), aovName) != _aovs.end();
 }
@@ -349,10 +349,10 @@ void FrameBuffer::clear_all()
 void FrameBuffer::clear_all_apart(double frame)
 {
     std::swap(_frames.at(0), _frames.at(get_index(frame)));
-    _frames.erase(_frames.begin()+1, _frames.end());
+    _frames.erase(_frames.begin() + 1, _frames.end());
     
     std::swap(_renderbuffers.at(0), _renderbuffers.at(get_index(frame)));
-    _renderbuffers.erase(_renderbuffers.begin()+1, _renderbuffers.end());
+    _renderbuffers.erase(_renderbuffers.begin() + 1, _renderbuffers.end());
 }
 
 

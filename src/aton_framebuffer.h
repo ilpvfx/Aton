@@ -83,7 +83,7 @@ public:
     int getBufferIndex(const Channel& z);
 
     // Get the current buffer index
-    int getBufferIndex(const char* aovName);
+    int aov_index(const char* aovName);
 
     // Get N buffer/aov name name
     const char* getBufferName(const int& index);
@@ -112,7 +112,7 @@ public:
     void clearAll();
 
     // Check if the given buffer/aov name name is exist
-    bool isBufferExist(const char* aovName);
+    bool aov_exist(const char* aovName);
 
     // Get width of the buffer
     const int& getWidth() const { return _width; }
