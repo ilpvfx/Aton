@@ -131,6 +131,7 @@ void Aton::append(Hash& hash)
         m_node->m_hash_count++;
     
     hash.append(m_node->m_hash_count);
+    hash.append(uiContext().frame());
     hash.append(outputContext().frame());
 }
 
