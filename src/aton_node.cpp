@@ -132,6 +132,13 @@ void Aton::append(Hash& hash)
     hash.append(m_node->m_hash_count);
     hash.append(uiContext().frame());
     hash.append(outputContext().frame());
+    
+    if (m_node->m_live_camera)
+    {
+        RenderBuffer& rb = current_renderbuffer();
+        m_node->setCameraKnobs(rb.getCameraFov(),
+                               rb.getCameraMatrix());
+    }
 }
 
 FrameBuffer& Aton::current_framebuffer()
@@ -145,6 +152,18 @@ FrameBuffer& Aton::current_framebuffer()
         return fbs[itemList[0]];
     else
         return fbs[0];
+}
+
+RenderBuffer& Aton::current_renderbuffer()
+{
+    FrameBuffer& fb = current_framebuffer();
+    
+    double frame;
+    if  (m_multiframes)
+        frame = outputContext().frame();
+    else
+        frame = fb.current_frame();
+    return fb.get_frame(frame);
 }
 
 void Aton::_validate(bool for_real)
@@ -173,8 +192,7 @@ void Aton::_validate(bool for_real)
     if (!fbs.empty())
     {
         FrameBuffer& fb = current_framebuffer();
-        const double frame = m_multiframes ? outputContext().frame() : fb.current_frame();
-        RenderBuffer& rb = fb.get_frame(frame);
+        RenderBuffer& rb = current_renderbuffer();
         
         if (!rb.empty())
         {

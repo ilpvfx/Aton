@@ -132,6 +132,8 @@ class Aton: public Iop
 
         FrameBuffer& current_framebuffer();
     
+        RenderBuffer& current_renderbuffer();
+    
         void _validate(bool for_real);
 
         void engine(int y, int x, int r, ChannelMask channels, Row& out);

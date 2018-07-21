@@ -82,7 +82,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     }
 
                     FrameBuffer& fb = node->m_framebuffers.back();
-                    
+
                     // Create RenderBuffer
                     if (node->m_multiframes)
                     {
@@ -91,6 +91,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                             WriteGuard lock(node->m_mutex);
                             fb.add(_frame, _xres, _yres);
                         }
+                        node->m_output.back() = node->getDateTime();
                     }
                     else
                     {
