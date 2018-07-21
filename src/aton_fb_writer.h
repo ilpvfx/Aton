@@ -55,7 +55,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     DataHeader dh = node->m_server.listenHeader();
                     
                     // Copy data from d
-                    const int _index = dh.index();
+                    const int& _index = dh.index();
                     const int& _xres = dh.xres();
                     const int& _yres = dh.yres();
                     const long long& _area = dh.rArea();

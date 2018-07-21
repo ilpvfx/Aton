@@ -6,7 +6,6 @@ All rights reserved. See COPYING.txt for more details.
 
 #include "aton_node.h"
 #include "aton_fb_writer.h"
-#include "aton_fb_updater.h"
 
 #include "boost/format.hpp"
 #include "boost/foreach.hpp"
