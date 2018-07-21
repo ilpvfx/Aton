@@ -55,7 +55,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     DataHeader dh = node->m_server.listenHeader();
                     
                     // Copy data from d
-                    const int& _index = dh.index();
+                    const int _index = dh.index();
                     const int& _xres = dh.xres();
                     const int& _yres = dh.yres();
                     const long long& _area = dh.rArea();
@@ -70,9 +70,6 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     
                     // Get delta time per IPR iteration
                     delta_time = _active_time;
-                    
-                    // Set current frame
-                    node->m_current_frame = _frame;
 
                     // Adding new session
                     if (node->m_framebuffers.empty() || (!node->m_multiframes && s_index != _index))
@@ -152,7 +149,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
 
                     // Get Render Buffer
                     FrameBuffer& fb = node->m_framebuffers.back();
-                    RenderBuffer& rb = fb.get_frame(node->m_current_frame);
+                    RenderBuffer& rb = fb.get_frame(fb.current_frame());
                     
                     const char* _aov_name = dp.aovName();
                     const int& _xres = dp.xres();
@@ -238,7 +235,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                             
                             // Update the image
                             const Box box = Box(_x, h - _y - _width, _x + _height, h - _y);
-                            node->setCurrentFrame(node->m_current_frame);
+                            node->setCurrentFrame(fb.current_frame());
                             node->flagForUpdate(box);
                         }
                     }

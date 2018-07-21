@@ -115,10 +115,10 @@ public:
     bool isBufferExist(const char* aovName);
 
     // Get width of the buffer
-    const int& getWidth() { return _width; }
+    const int& getWidth() const { return _width; }
 
     // Get height of the buffer
-    const int& getHeight() { return _height; }
+    const int& getHeight() const { return _height; }
 
     // Get size of the buffers aka AOVs count
     size_t size() { return _aovs.size(); }
@@ -163,7 +163,7 @@ public:
 
     // To keep False while writing the buffer
     void ready(const bool& ready) { _ready = ready; }
-    const bool& isReady() { return _ready; }
+    const bool& isReady() const { return _ready; }
 
     // Get Camera Fov
     const float& getCameraFov() { return _fov; }
@@ -195,14 +195,16 @@ private:
 class FrameBuffer
 {
 public:
-    FrameBuffer() {};
+    FrameBuffer(): _current_frame(0) {};
     
     RenderBuffer& get_frame(double frame);
     
     std::vector<RenderBuffer>& get_buffers() { return _renderbuffers; }
     
     // Get RenderBuffer index for given Frame
-    const int get_index(double frame);
+    int get_index(double frame);
+    
+    int get_frame_count() { return _frames.size(); };
     
     // Add New RenderBuffer
     void add(RenderBuffer rb);
@@ -217,6 +219,11 @@ public:
     
     // Check if RenderBuffer already exists
     bool frame_exists(double frame);
+    
+    double current_frame() const { return _current_frame; }
+    
+    void current_frame(double frame) { _current_frame = frame; }
+
     
 private:
     double _current_frame;

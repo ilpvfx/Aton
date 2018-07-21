@@ -70,19 +70,15 @@ class Aton: public Iop
         float                     m_cam_matrix;       // Default Camera matrix value
         bool                      m_multiframes;      // Enable Multiple Frames toogle
         bool                      m_all_frames;       // Capture All Frames toogle
-        bool                      m_stamp;            // Enable Frame stamp toogle
         bool                      m_enable_aovs;      // Enable AOVs toogle
         bool                      m_live_camera;      // Enable Live Camera toogle
         bool                      m_inError;          // Error handling
         bool                      m_formatExists;     // If the format was already exist
         bool                      m_capturing;        // Capturing signal
         bool                      m_legit;            // Used to throw the threads
-        double                    m_current_frame;    // Used to hold current frame
-        double                    m_stamp_scale;      // Frame stamp size
         unsigned int              m_hash_count;       // Refresh hash counter
         const char*               m_path;             // Default path for Write node
-        const char*               m_comment;          // Comment for the frame stamp
-        double*                   m_cropBox;
+        double                    m_cropBox[4];
         std::string               m_node_name;        // Node name
         std::string               m_status;           // Status bar text
         std::string               m_details;          // Render layer details
@@ -91,8 +87,6 @@ class Aton: public Iop
         std::vector<double>       m_frames;           // Frames holder
         std::vector<std::string>  m_output;
         std::vector<FrameBuffer>  m_framebuffers;     // Framebuffers holder
-        std::vector<std::string>  m_garbageList;      // List of captured files to be deleted
-        RenderBuffer              m_empty_buffer;
 
         Aton(Node* node): Iop(node),
                           m_node(firstNode()),
@@ -106,21 +100,18 @@ class Aton: public Iop
                           m_enable_aovs(false),
                           m_live_camera(false),
                           m_all_frames(false),
-                          m_stamp(false),
                           m_inError(false),
                           m_formatExists(false),
                           m_capturing(false),
                           m_legit(false),
-                          m_cropBox(NULL),
-                          m_current_frame(0),
-                          m_stamp_scale(1.0),
                           m_path(""),
                           m_node_name(""),
                           m_status(""),
-                          m_comment(""),
                           m_connectionError("")
         {
             inputs(0);
+//            m_cropBox = new double[4];
+//            m_cropBox[0] = m_cropBox[1] = m_cropBox[2] = m_cropBox[3] = 0;
         }
 
         ~Aton() { disconnect(); }

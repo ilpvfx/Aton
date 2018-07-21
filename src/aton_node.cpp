@@ -67,11 +67,6 @@ void Aton::detach()
 
 void Aton::flagForUpdate(const Box& box)
 {
-    if (m_hash_count == UINT_MAX)
-        m_hash_count = 0;
-    else
-        m_hash_count++;
-
     // Update the image with current bucket if given
     asapUpdate(box);
 }
@@ -106,7 +101,7 @@ void Aton::changePort(int port)
     if (m_server.isConnected())
     {
         Thread::spawn(::FBWriter, 1, this);
-        Thread::spawn(::FBUpdater, 1, this);
+//        Thread::spawn(::FBUpdater, 1, this);
         
         // Update port in the UI
         if (m_port != m_server.getPort())
@@ -131,21 +126,26 @@ void Aton::disconnect()
 
 void Aton::append(Hash& hash)
 {
+    if (m_node->m_hash_count == UINT_MAX)
+        m_node->m_hash_count = 0;
+    else
+        m_node->m_hash_count++;
+    
     hash.append(m_node->m_hash_count);
     hash.append(outputContext().frame());
 }
 
 FrameBuffer& Aton::current_framebuffer()
 {
-    SceneView_KnobI* outputKnob = m_node->m_outputKnob->sceneViewKnob();
-    
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
+    SceneView_KnobI* outputKnob = m_node->m_outputKnob->sceneViewKnob();
 
     std::vector<unsigned int> itemList;
     outputKnob->getHighlightedItems(itemList);
-    if (itemList.empty())
-        itemList.push_back(0);
-    return fbs[itemList[0]];
+    if (!itemList.empty())
+        return fbs[itemList[0]];
+    else
+        return fbs[0];
 }
 
 void Aton::_validate(bool for_real)
@@ -174,7 +174,7 @@ void Aton::_validate(bool for_real)
     if (!fbs.empty())
     {
         FrameBuffer& fb = current_framebuffer();
-        const double frame = m_node->m_multiframes ? uiContext().frame() : m_node->m_current_frame;
+        const double frame = m_multiframes ? outputContext().frame() : fb.current_frame();
         RenderBuffer& rb = fb.get_frame(frame);
         
         if (!rb.empty())
@@ -288,8 +288,18 @@ void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
     FrameBuffer& fb = current_framebuffer();
     std::vector<RenderBuffer>& rbs = fb.get_buffers();
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
-    const double frame = m_node->m_multiframes ? uiContext().frame() : m_node->m_current_frame;
-    const int f = !fbs.empty() ? fb.get_index(frame) : 0;
+    
+    int f = 0;
+    if (!fbs.empty())
+    {
+        if (!m_multiframes)
+        {
+            ReadGuard lock(m_mutex);
+            f = fb.get_index(fb.current_frame());
+        }
+        else
+            f = fb.get_index(outputContext().frame());
+    }
     
     foreach(z, channels)
     {
@@ -347,6 +357,7 @@ void Aton::knobs(Knob_Callback f)
     Button(f, "clear_all_knob", "Clear All");
     
     Divider(f, "Render Region");
+//    m_cropBox = new double[4];
     Knob* region_knob = BBox_knob(f, m_cropBox, "Area");
     Button(f, "copy_clipboard", "Copy");
 
@@ -390,12 +401,6 @@ void Aton::knobs(Knob_Callback f)
 
 int Aton::knob_changed(Knob* _knob)
 {
-    if (_knob->is("output_knob"))
-    {
-        flagForUpdate();
-        return 1;
-    }
-    
     if (_knob->is("port_number"))
     {
         changePort(m_port);
@@ -408,7 +413,11 @@ int Aton::knob_changed(Knob* _knob)
     }
     if (_knob->is("multi_frame_knob"))
     {
-        m_node->m_current_frame = uiContext().frame();
+        if (!m_node->m_framebuffers.empty())
+        {
+            FrameBuffer& fb = current_framebuffer();
+            fb.current_frame(uiContext().frame());
+        }
         return 1;
     }
     if (_knob->is("live_camera_knob"))
@@ -419,20 +428,6 @@ int Aton::knob_changed(Knob* _knob)
     if (_knob->is("capture_knob"))
     {
         captureCmd();
-        return 1;
-    }
-    if (_knob->is("stamp_knob"))
-    {
-        if(!m_stamp)
-        {
-            knob("stamp_scale_knob")->enable(false);
-            knob("comment_knob")->enable(false);
-        }
-        else
-        {
-            knob("stamp_scale_knob")->enable(true);
-            knob("comment_knob")->enable(true);
-        }
         return 1;
     }
     if (_knob->is("import_latest_knob"))
@@ -630,31 +625,6 @@ void Aton::captureCmd()
                                                                                                          %endFrame).str();
         script_command(cmd.c_str(), true, false);
         script_unlock();
-        
-        // Adding Stamp
-        if (m_stamp)
-        {
-            double fontSize = m_stamp_scale * 0.12;
-        
-            // Add text node in between to put a stamp on the capture
-            cmd = (boost::format("stamp = nuke.nodes.Text2();"
-                                 "stamp['message'].setValue('''[python {nuke.toNode('%s')['status_knob'].value()}] | Comment: %s''');"
-                                 "stamp['global_font_scale'].setValue(%s);"
-                                 "stamp['yjustify'].setValue('bottom');"
-                                 "stamp['color'].setValue(0.5);"
-                                 "stamp['enable_background'].setValue(True);"
-                                 "stamp['background_color'].setValue([0.05, 0.05, 0.05, 1]);"
-                                 "stamp['background_opacity'].setValue(0.9);"
-                                 "stamp['background_border_x'].setValue(10000);"
-                                 "stamp.setInput(0, nuke.toNode('%s'));"
-                                 "nuke.toNode('%s').setInput(0, stamp)")%m_node->m_node_name
-                                                                        %m_comment
-                                                                        %fontSize
-                                                                        %m_node->m_node_name
-                                                                        %writeNodeName ).str();
-            script_command(cmd.c_str(), true, false);
-            script_unlock();
-        }
 
         // Execute the Write node
         cmd = (boost::format("exec('''import thread\n"
@@ -662,14 +632,11 @@ void Aton::captureCmd()
                                          "def status(b):\n\t\t"
                                              "nuke.toNode('%s')['capturing_knob'].setValue(b)\n\t\t"
                                              "if not b:\n\t\t\t"
-                                                 "if %s:\n\t\t\t\t"
-                                                    "nuke.delete(nuke.toNode('%s').input(0))\n\t\t\t"
                                                  "nuke.delete(nuke.toNode('%s'))\n\t"
                                          "nuke.executeInMainThread(status, args=True)\n\t"
                                          "nuke.executeInMainThread(nuke.execute, args=('%s', nuke.FrameRanges([%s])))\n\t"
                                          "nuke.executeInMainThread(status, args=False)\n"
                                      "thread.start_new_thread(writer,())''')")%m_node->m_node_name
-                                                                              %m_stamp
                                                                               %writeNodeName
                                                                               %writeNodeName
                                                                               %writeNodeName
@@ -755,7 +722,11 @@ void Aton::setStatus(const long long& progress,
     const int hour = time / 3600000;
     const int minute = (time % 3600000) / 60000;
     const int second = ((time % 3600000) % 60000) / 1000;
-    const size_t f_count = m_node->m_framebuffers.size();
+    
+    FrameBuffer& fb = current_framebuffer();
+    size_t f_count = 0;
+    if (!m_node->m_framebuffers.empty())
+        f_count = fb.get_frame_count();
 
     std::string str_status = (boost::format("Arnold %s | "
                                             "Memory: %sMB / %sMB | "

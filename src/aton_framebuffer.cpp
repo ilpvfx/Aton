@@ -330,12 +330,13 @@ void FrameBuffer::add(RenderBuffer rb)
 void FrameBuffer::add(double frame, int xres, int yres)
 {
         RenderBuffer rb(frame, xres, yres);
-        
         if (!_frames.empty())
             rb = _renderbuffers.back();
         
         _frames.push_back(frame);
         _renderbuffers.push_back(rb);
+
+        _current_frame = frame;
 }
 
 // Clear All Data
@@ -362,7 +363,7 @@ bool FrameBuffer::frame_exists(double frame)
 }
 
 // Get RenderBuffer for given Frame
-const int FrameBuffer::get_index(double frame)
+int FrameBuffer::get_index(double frame)
 {
     int index = 0;
     
