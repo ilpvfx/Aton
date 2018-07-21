@@ -100,7 +100,6 @@ void Aton::changePort(int port)
     if (m_server.isConnected())
     {
         Thread::spawn(::FBWriter, 1, this);
-//        Thread::spawn(::FBUpdater, 1, this);
         
         // Update port in the UI
         if (m_port != m_server.getPort())
