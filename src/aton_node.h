@@ -12,18 +12,13 @@ All rights reserved. See COPYING.txt for more details.
 #include "DDImage/Knobs.h"
 #include "DDImage/Thread.h"
 #include "DDImage/Version.h"
-#include <DDImage/Enumeration_KnobI.h>
 #include <DDImage/SceneView_KnobI.h>
-
-
 
 using namespace DD::Image;
 
 #include "aton_client.h"
 #include "aton_server.h"
 #include "aton_framebuffer.h"
-
-#include <list>
 
 // Class name
 static const char* const CLASS = "Aton";
@@ -33,26 +28,6 @@ static const char* const HELP =
     "Aton v1.3.0 \n"
     "Listens for renders coming from the Aton display driver. "
     "For more info go to http://sosoyan.github.io/Aton/";
-
-struct ComboBox
-{
-    int current_index = 0;
-    std::vector<const char*> names;
-    std::list<std::string> names_str;
-    
-    void add(std::string name)
-    {
-        names_str.push_back(name);
-        names.push_back(names_str.back().c_str());
-    }
-    
-    void remove()
-    {
-        names_str.pop_front();
-        names.erase(names.begin());
-    }
-};
-
 
 // Nuke node
 class Aton: public Iop
