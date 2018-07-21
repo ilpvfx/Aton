@@ -245,13 +245,11 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                 }
                 case 2: // Close image
                 {
-                    std::cout << "Close Image!" << std::endl;
                     break;
                 }
                 case 9: // This is sent when the parent process want to kill
                         // the listening thread
                 {
-                    std::cout << "Quit!" << std::endl;
                     killThread = true;
                     break;
                 }

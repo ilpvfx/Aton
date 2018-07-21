@@ -170,7 +170,7 @@ void Aton::_validate(bool for_real)
 {
     // Setup dynamic knob
     SceneView_KnobI* outputKnob = m_node->m_outputKnob->sceneViewKnob();
-    if (m_node->m_output.size() != outputKnob->getItemCount())
+    if (m_node->m_output != outputKnob->getItemNames())
     {
         outputKnob->menu(m_output);
         outputKnob->removeItems(m_output);
@@ -191,7 +191,6 @@ void Aton::_validate(bool for_real)
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     if (!fbs.empty())
     {
-        FrameBuffer& fb = current_framebuffer();
         RenderBuffer& rb = current_renderbuffer();
         
         if (!rb.empty())
@@ -309,11 +308,9 @@ void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
     int f = 0;
     if (!fbs.empty())
     {
+        ReadGuard lock(m_mutex);
         if (!m_multiframes)
-        {
-            ReadGuard lock(m_mutex);
             f = fb.get_index(fb.current_frame());
-        }
         else
             f = fb.get_index(outputContext().frame());
     }
