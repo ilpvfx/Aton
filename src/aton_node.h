@@ -72,7 +72,7 @@ class Aton: public Iop
                           m_cam_fov(0),
                           m_cam_matrix(0),
                           m_multiframes(false),
-                          m_enable_aovs(false),
+                          m_enable_aovs(true),
                           m_live_camera(false),
                           m_all_frames(false),
                           m_inError(false),

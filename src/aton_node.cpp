@@ -64,12 +64,6 @@ void Aton::detach()
     m_node->m_framebuffers = std::vector<FrameBuffer>();
 }
 
-void Aton::flagForUpdate(const Box& box)
-{
-    // Update the image with current bucket if given
-    asapUpdate(box);
-}
-
 // We can use this to change our tcp port
 void Aton::changePort(int port)
 {
@@ -122,23 +116,24 @@ void Aton::disconnect()
     }
 }
 
-void Aton::append(Hash& hash)
+void Aton::flagForUpdate(const Box& box)
 {
     if (m_node->m_hash_count == UINT_MAX)
         m_node->m_hash_count = 0;
     else
         m_node->m_hash_count++;
     
+    // Update the image with current bucket if given
+    asapUpdate(box);
+}
+
+void Aton::append(Hash& hash)
+{
+
+    
     hash.append(m_node->m_hash_count);
     hash.append(uiContext().frame());
     hash.append(outputContext().frame());
-    
-    if (m_node->m_live_camera)
-    {
-        RenderBuffer& rb = current_renderbuffer();
-        m_node->setCameraKnobs(rb.getCameraFov(),
-                               rb.getCameraMatrix());
-    }
 }
 
 FrameBuffer& Aton::current_framebuffer()
@@ -148,10 +143,16 @@ FrameBuffer& Aton::current_framebuffer()
 
     std::vector<unsigned int> itemList;
     outputKnob->getHighlightedItems(itemList);
-    if (!itemList.empty())
-        return fbs[itemList[0]];
-    else
+    
+    if (itemList.empty())
         return fbs[0];
+    else
+    {
+        size_t idx = itemList[0];
+        idx = m_node->m_output.size() - idx - 1;
+        return fbs[idx];
+    }
+        
 }
 
 RenderBuffer& Aton::current_renderbuffer()
@@ -170,15 +171,18 @@ void Aton::_validate(bool for_real)
 {
     // Setup dynamic knob
     SceneView_KnobI* outputKnob = m_node->m_outputKnob->sceneViewKnob();
-    if (m_node->m_output != outputKnob->getItemNames())
+    std::vector<std::string> menu = m_node->m_output;
+    std::reverse(menu.begin(), menu.end());
+    
+    if (menu != outputKnob->getItemNames())
     {
-        outputKnob->menu(m_output);
-        outputKnob->removeItems(m_output);
-        outputKnob->addItems(m_output);
+        outputKnob->menu(menu);
+        outputKnob->removeItems(menu);
+        outputKnob->addItems(menu);
         
-        std::vector<unsigned int> itemList;
-        itemList.push_back(static_cast<unsigned int>(m_node->m_output.size()-1));
-        outputKnob->setSelectedItems(itemList);
+        // Selecting the top item
+        std::vector<unsigned int> item = { 0 };
+        outputKnob->setSelectedItems(item);
     }
     
     if (!m_node->m_server.isConnected() && !m_inError && m_legit)
@@ -233,6 +237,14 @@ void Aton::_validate(bool for_real)
                 m_fmt_ptr->width(width);
                 m_fmt_ptr->height(height);
                 knob("formats_knob")->set_text(m_node->m_node_name.c_str());
+            }
+            
+            // Update Camera knobs
+            if (m_node->m_live_camera)
+            {
+                RenderBuffer& rb = current_renderbuffer();
+                m_node->setCameraKnobs(rb.getCameraFov(),
+                                       rb.getCameraMatrix());
             }
             
             // Set the channels
@@ -370,8 +382,7 @@ void Aton::knobs(Knob_Callback f)
     Button(f, "clear_knob", "Clear");
     Button(f, "clear_all_knob", "Clear All");
     
-    Divider(f, "Render Region");
-//    m_cropBox = new double[4];
+    Divider(f, "Region Handle");
     Knob* region_knob = BBox_knob(f, m_cropBox, "Area");
     Button(f, "copy_clipboard", "Copy");
 
@@ -415,6 +426,12 @@ void Aton::knobs(Knob_Callback f)
 
 int Aton::knob_changed(Knob* _knob)
 {
+    if (_knob->is("output_knob"))
+    {
+        flagForUpdate();
+        return 1;
+    }
+    
     if (_knob->is("port_number"))
     {
         changePort(m_port);
@@ -745,7 +762,7 @@ void Aton::setStatus(const long long& progress,
     std::string str_status = (boost::format("Arnold %s | "
                                             "Memory: %sMB / %sMB | "
                                             "Time: %02ih:%02im:%02is | "
-                                            "Frame: %s of %s | "
+                                            "Frame: %s(%s) | "
                                             "Samples: %s | "
                                             "Progress: %s%%")%version%ram%p_ram
                                                              %hour%minute%second
