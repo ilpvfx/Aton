@@ -129,8 +129,6 @@ void Aton::flagForUpdate(const Box& box)
 
 void Aton::append(Hash& hash)
 {
-
-    
     hash.append(m_node->m_hash_count);
     hash.append(uiContext().frame());
     hash.append(outputContext().frame());
@@ -169,22 +167,6 @@ RenderBuffer& Aton::current_renderbuffer()
 
 void Aton::_validate(bool for_real)
 {
-    // Setup dynamic knob
-    SceneView_KnobI* outputKnob = m_node->m_outputKnob->sceneViewKnob();
-    std::vector<std::string> menu = m_node->m_output;
-    std::reverse(menu.begin(), menu.end());
-    
-    if (menu != outputKnob->getItemNames())
-    {
-        outputKnob->menu(menu);
-        outputKnob->removeItems(menu);
-        outputKnob->addItems(menu);
-        
-        // Selecting the top item
-        std::vector<unsigned int> item = { 0 };
-        outputKnob->setSelectedItems(item);
-    }
-    
     if (!m_node->m_server.isConnected() && !m_inError && m_legit)
         changePort(m_port);
 
@@ -195,8 +177,23 @@ void Aton::_validate(bool for_real)
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     if (!fbs.empty())
     {
-        RenderBuffer& rb = current_renderbuffer();
+        // Setup dynamic knob
+        std::vector<std::string> menu = m_node->m_output;
+        std::reverse(menu.begin(), menu.end());
+        SceneView_KnobI* outputKnob = m_node->m_outputKnob->sceneViewKnob();
         
+        if (menu != outputKnob->getItemNames())
+        {
+            outputKnob->menu(menu);
+            outputKnob->removeItems(menu);
+            outputKnob->addItems(menu);
+            
+            // Selecting the top item
+            std::vector<unsigned int> item = { 0 };
+            outputKnob->setSelectedItems(item);
+        }
+        
+        RenderBuffer& rb = current_renderbuffer();
         if (!rb.empty())
         {
             // Set the progress

@@ -349,9 +349,9 @@ void FrameBuffer::clear_all()
 void FrameBuffer::clear_all_apart(double frame)
 {
     std::swap(_frames.at(0), _frames.at(get_index(frame)));
-    _frames.erase(_frames.begin() + 1, _frames.end());
-    
     std::swap(_renderbuffers.at(0), _renderbuffers.at(get_index(frame)));
+
+    _frames.erase(_frames.begin() + 1, _frames.end());
     _renderbuffers.erase(_renderbuffers.begin() + 1, _renderbuffers.end());
 }
 
