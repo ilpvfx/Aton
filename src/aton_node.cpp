@@ -93,7 +93,7 @@ void Aton::changePort(int port)
     // Success
     if (m_server.isConnected())
     {
-        Thread::spawn(::FBWriter, 1, this);
+        Thread::spawn(::FBWriter, 1, m_node);
         
         // Update port in the UI
         if (m_port != m_server.getPort())
@@ -112,7 +112,7 @@ void Aton::disconnect()
     if (m_server.isConnected())
     {
         m_server.quit();
-        Thread::wait(this);
+        Thread::wait(m_node);
     }
 }
 

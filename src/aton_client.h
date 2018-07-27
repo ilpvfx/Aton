@@ -17,7 +17,7 @@ const std::string get_host();
 
 const bool host_exists(const char* host);
 
-const unsigned int get_unique_id();
+const long long get_unique_id();
 
 const int pack_4_int(int a, int b, int c, int d);
 
@@ -32,7 +32,7 @@ class DataHeader
     
 public:
     
-    DataHeader(const int& index = 0,
+    DataHeader(const long long& index = 0,
                const int& xres = 0,
                const int& yres = 0,
                const long long& rArea = 0,
@@ -45,7 +45,7 @@ public:
     ~DataHeader();
     
     // Get Session Index
-    const int& index() const { return mIndex; }
+    const long long& index() const { return mIndex; }
     
     // Get x resolution
     const int& xres() const { return mXres; }
@@ -72,7 +72,7 @@ public:
     
 private:
     // Session Index
-    int mIndex;
+    long long mIndex;
     
     // Resolution, X & Y
     int mXres, mYres;

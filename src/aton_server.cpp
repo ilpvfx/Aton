@@ -119,7 +119,7 @@ DataHeader Server::listenHeader()
     write(mSocket, buffer(reinterpret_cast<char*>(&image_id), sizeof(int)));
     
     // Read data from the buffer
-    read(mSocket, buffer(reinterpret_cast<char*>(&dh.mIndex), sizeof(int)));
+    read(mSocket, buffer(reinterpret_cast<char*>(&dh.mIndex), sizeof(long long)));
     read(mSocket, buffer(reinterpret_cast<char*>(&dh.mXres), sizeof(int)));
     read(mSocket, buffer(reinterpret_cast<char*>(&dh.mYres), sizeof(int)));
     read(mSocket, buffer(reinterpret_cast<char*>(&dh.mRArea), sizeof(long long)));

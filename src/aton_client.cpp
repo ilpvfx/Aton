@@ -6,6 +6,7 @@ All rights reserved. See COPYING.txt for more details.
 
 #include "aton_client.h"
 #include <boost/lexical_cast.hpp>
+#include "boost/date_time/posix_time/posix_time.hpp"
 
 using namespace boost::asio;
 
@@ -40,10 +41,13 @@ const bool host_exists(const char* host)
     return !ec;
 }
 
-const unsigned int get_unique_id()
+const long long get_unique_id()
 {
-    srand(static_cast<unsigned int>(time(NULL)));
-    return rand() % 1000000 + 1;
+    using namespace boost::posix_time;
+    ptime time_t_epoch(boost::gregorian::date(1970,1,1));
+    ptime now = microsec_clock::local_time();
+    time_duration diff = time_t_epoch - now;
+    return diff.total_milliseconds();
 }
 
 const int pack_4_int(int a, int b, int c, int d)
@@ -52,7 +56,7 @@ const int pack_4_int(int a, int b, int c, int d)
 }
 
 // Data Class
-DataHeader::DataHeader(const int& index,
+DataHeader::DataHeader(const long long& index,
                        const int& xres,
                        const int& yres,
                        const long long& rArea,
@@ -161,7 +165,7 @@ void Client::openImage(DataHeader& header)
     read(mSocket, buffer(reinterpret_cast<char*>(&mImageId), sizeof(int)));
     
     // Send our width & height
-    write(mSocket, buffer(reinterpret_cast<char*>(&header.mIndex), sizeof(int)));
+    write(mSocket, buffer(reinterpret_cast<char*>(&header.mIndex), sizeof(long long)));
     write(mSocket, buffer(reinterpret_cast<char*>(&header.mXres), sizeof(int)));
     write(mSocket, buffer(reinterpret_cast<char*>(&header.mYres), sizeof(int)));
     write(mSocket, buffer(reinterpret_cast<char*>(&header.mRArea), sizeof(long long)));

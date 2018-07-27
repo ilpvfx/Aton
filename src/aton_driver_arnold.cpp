@@ -23,7 +23,8 @@ inline const int calc_res(int res, int min, int max)
 struct ShaderData
 {
     Client* client;
-    int index, xres, yres, min_x, min_y, max_x, max_y;
+    long long index;
+    int xres, yres, min_x, min_y, max_x, max_y;
 };
 
 node_parameters
@@ -138,7 +139,7 @@ driver_open
                              trans_samples,
                              sss_samples,
                              volume_samples};
-    
+
     // Make image header & send to server
     DataHeader dh(data->index,
                   data->xres,
