@@ -54,6 +54,7 @@ class Aton: public Iop
         unsigned int              m_hash_count;       // Refresh hash counter
         const char*               m_path;             // Default path for Write node
         double                    m_cropBox[4];
+        double                    m_current_frame;
         std::string               m_node_name;        // Node name
         std::string               m_status;           // Status bar text
         std::string               m_details;          // Render layer details
@@ -80,6 +81,7 @@ class Aton: public Iop
                           m_capturing(false),
                           m_legit(false),
                           m_path(""),
+                          m_current_frame(0),
                           m_node_name(""),
                           m_status(""),
                           m_connectionError("")

@@ -72,19 +72,22 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     // Get delta time per IPR iteration
                     delta_time = _active_time;
 
+                    std::vector<std::string>& output = node->m_output;
+                    std::vector<FrameBuffer>& fbs = node->m_framebuffers;
+                    
                     // Adding new session
-                    if (node->m_framebuffers.empty() || (!node->m_multiframes && s_index != _index))
+                    if (fbs.empty() || (!node->m_multiframes && s_index != _index))
                     {
                         FrameBuffer fb;
                         WriteGuard lock(node->m_mutex);
-                        node->m_framebuffers.push_back(fb);
-                        node->m_output.push_back(node->getDateTime());
+                        fbs.push_back(fb);
+                        output.push_back(node->getDateTime());
                         s_index = _index;
                     }
                     else
-                        node->m_output.back() = node->getDateTime();
+                        output.back() = node->getDateTime();
 
-                    FrameBuffer& fb = node->m_framebuffers.back();
+                    FrameBuffer& fb = fbs.back();
 
                     // Create RenderBuffer
                     if (node->m_multiframes)

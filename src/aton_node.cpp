@@ -6,6 +6,7 @@ All rights reserved. See COPYING.txt for more details.
 
 #include "aton_node.h"
 #include "aton_fb_writer.h"
+#include "aton_fb_updater.h"
 
 #include "boost/format.hpp"
 #include "boost/foreach.hpp"
@@ -94,6 +95,7 @@ void Aton::changePort(int port)
     if (m_server.isConnected())
     {
         Thread::spawn(::FBWriter, 1, m_node);
+        Thread::spawn(::FBUpdater, 1, m_node);
         
         // Update port in the UI
         if (m_port != m_server.getPort())
@@ -754,7 +756,7 @@ void Aton::setStatus(const long long& progress,
     FrameBuffer& fb = current_framebuffer();
     size_t f_count = 0;
     if (!m_node->m_framebuffers.empty())
-        f_count = fb.get_frame_count();
+        f_count = fb.frames_count();
 
     std::string str_status = (boost::format("Arnold %s | "
                                             "Memory: %sMB / %sMB | "

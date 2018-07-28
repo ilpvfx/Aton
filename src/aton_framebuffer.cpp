@@ -220,7 +220,7 @@ bool RenderBuffer::isCameraChanged(const float& fov,
 
 // Resize the containers to match the resolution
 void RenderBuffer::setResolution(const unsigned int& w,
-                                const unsigned int& h)
+                                 const unsigned int& h)
 {
     _width = w;
     _height = h;
