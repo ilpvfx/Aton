@@ -41,6 +41,7 @@ class Aton: public Iop
         ChannelSet                m_channels;         // Channels aka AOVs object
         int                       m_port;             // Port we're listening on (knob)
         int                       m_slimit;           // The limit size
+        int                       m_outputKnobChanged;
         float                     m_cam_fov;          // Default Camera fov
         float                     m_cam_matrix;       // Default Camera matrix value
         bool                      m_multiframes;      // Enable Multiple Frames toogle
@@ -51,9 +52,9 @@ class Aton: public Iop
         bool                      m_formatExists;     // If the format was already exist
         bool                      m_capturing;        // Capturing signal
         bool                      m_legit;            // Used to throw the threads
+        bool                      m_running;
         unsigned int              m_hash_count;       // Refresh hash counter
         const char*               m_path;             // Default path for Write node
-        double                    m_cropBox[4];
         double                    m_current_frame;
         std::string               m_node_name;        // Node name
         std::string               m_status;           // Status bar text
@@ -72,6 +73,7 @@ class Aton: public Iop
                           m_slimit(20),
                           m_cam_fov(0),
                           m_cam_matrix(0),
+                          m_outputKnobChanged(0),
                           m_multiframes(false),
                           m_enable_aovs(true),
                           m_live_camera(false),
@@ -80,6 +82,7 @@ class Aton: public Iop
                           m_formatExists(false),
                           m_capturing(false),
                           m_legit(false),
+                          m_running(false),
                           m_path(""),
                           m_current_frame(0),
                           m_node_name(""),
@@ -87,11 +90,18 @@ class Aton: public Iop
                           m_connectionError("")
         {
             inputs(0);
-//            m_cropBox = new double[4];
-//            m_cropBox[0] = m_cropBox[1] = m_cropBox[2] = m_cropBox[3] = 0;
         }
 
         ~Aton() { disconnect(); }
+    
+        enum KnobChanged
+        {
+            item_not_changed = 0,
+            item_added,
+            item_moved_up,
+            item_moved_down,
+            item_removed
+        };
         
         Aton* firstNode() { return dynamic_cast<Aton*>(firstOp()); }
     
@@ -106,7 +116,9 @@ class Aton: public Iop
         void disconnect();
 
         void append(Hash& hash);
-
+    
+        int current_fb_index(bool direction = true);
+    
         FrameBuffer& current_framebuffer();
     
         RenderBuffer& current_renderbuffer();
@@ -128,13 +140,14 @@ class Aton: public Iop
         int getPort();
 
         std::string getDateTime();
-
+    
         std::vector<std::string> getCaptures();
     
-        void clearAllCmd();
-
+        void move_cmd(bool direction);
+    
+        void remove_selected_cmd();
+    
         void captureCmd();
-
         void importCmd(bool all);
     
         void liveCameraToogle();

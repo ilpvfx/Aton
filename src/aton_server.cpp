@@ -134,6 +134,15 @@ DataHeader Server::listenHeader()
     const int samplesSize = 6;
     dh.mSamplesStore.resize(samplesSize);
     read(mSocket, buffer(reinterpret_cast<char*>(&dh.mSamplesStore[0]), sizeof(int)*samplesSize));
+    
+    // Get output size
+    size_t output_size;
+    read(mSocket, buffer(reinterpret_cast<char*>(&output_size), sizeof(size_t)));
+    
+    // Get output name
+    char* output_name = new char[output_size];
+    read(mSocket, buffer(output_name, output_size));
+    dh.mOutputName = output_name;
 
     return dh;
 }

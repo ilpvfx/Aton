@@ -207,7 +207,7 @@ bool RenderBuffer::isAovsChanged(const std::vector<std::string>& aovs)
 
 // Check if Resolution has been changed
 bool RenderBuffer::isResolutionChanged(const unsigned int& w,
-                                      const unsigned int& h)
+                                       const unsigned int& h)
 {
     return (w != _width || h != _height);
 }
@@ -318,16 +318,7 @@ RenderBuffer& FrameBuffer::get_frame(double frame)
     return _renderbuffers[get_index(frame)];
 }
 
-
-// Add New RenderBuffer
-void FrameBuffer::add(RenderBuffer rb)
-{
-    _frames.push_back(rb.getFrame());
-    _renderbuffers.push_back(rb);
-}
-
-
-void FrameBuffer::add(double frame, int xres, int yres)
+void FrameBuffer::add_frame(double frame, int xres, int yres)
 {
         RenderBuffer rb(frame, xres, yres);
         if (!_frames.empty())
@@ -335,8 +326,6 @@ void FrameBuffer::add(double frame, int xres, int yres)
         
         _frames.push_back(frame);
         _renderbuffers.push_back(rb);
-
-        _current_frame = frame;
 }
 
 // Clear All Data

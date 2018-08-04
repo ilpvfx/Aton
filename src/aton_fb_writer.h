@@ -20,8 +20,10 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
     while (!killThread)
     {
         // Accept incoming connections!
+        node->m_running = false;
         node->m_server.accept();
-        
+        node->m_running = true;
+
         // Session Index
         static long long s_index = 0;
 
@@ -33,6 +35,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
         
         // Time to reset per every IPR iteration
         static int _active_time, delta_time = 0;
+        
         
         // Loop over incoming data
         while (dataType != 2 || dataType != 9)
@@ -65,6 +68,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     const float& _fov = dh.camFov();
                     const Matrix4& _matrix = Matrix4(&dh.camMatrix()[0]);
                     const std::vector<int> _samples = dh.samples();
+                    const char* _output_name = dh.outputName();
 
                     // Get image area to calculate the progress
                     regionArea = _area;
@@ -78,14 +82,14 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     // Adding new session
                     if (fbs.empty() || (!node->m_multiframes && s_index != _index))
                     {
+                        s_index = _index;
                         FrameBuffer fb;
                         WriteGuard lock(node->m_mutex);
                         fbs.push_back(fb);
-                        output.push_back(node->getDateTime());
-                        s_index = _index;
+                        std::string dash = "_";
+                        output.push_back(_output_name + dash + node->getDateTime());
+                        node->m_outputKnobChanged = Aton::item_added;
                     }
-                    else
-                        output.back() = node->getDateTime();
 
                     FrameBuffer& fb = fbs.back();
 
@@ -95,7 +99,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                         if (!fb.frame_exists(_frame))
                         {
                             WriteGuard lock(node->m_mutex);
-                            fb.add(_frame, _xres, _yres);
+                            fb.add_frame(_frame, _xres, _yres);
                         }
                     }
                     else
@@ -104,8 +108,12 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                         if (!fb.empty())
                             fb.clear_all_apart(_frame);
                         else
-                            fb.add(_frame, _xres, _yres);
+                            fb.add_frame(_frame, _xres, _yres);
                     }
+                    
+                    // Set Current Frame
+                    fb.current_frame(_frame);
+                    node->setCurrentFrame(_frame);
 
                     // Get current RenderBuffer
                     RenderBuffer& rb = fb.get_frame(_frame);
@@ -241,7 +249,6 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
 
                             // Update the image
                             const Box box = Box(_x, h - _y - _width, _x + _height, h - _y);
-                            node->setCurrentFrame(fb.current_frame());
                             node->flagForUpdate(box);
                         }
                     }

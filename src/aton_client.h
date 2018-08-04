@@ -40,7 +40,8 @@ public:
                const float& currentFrame = 0.0f,
                const float& cam_fov = 0.0f,
                const float* cam_matrix = NULL,
-               const int* samples = NULL);
+               const int* samples = NULL,
+               const char* outputName = NULL);
     
     ~DataHeader();
     
@@ -70,6 +71,11 @@ public:
     
     const std::vector<int>& samples() const { return mSamplesStore; }
     
+    const char* outputName() const { return mOutputName; }
+    
+    // Deallocate output name
+    void free();
+
 private:
     // Session Index
     long long mIndex;
@@ -95,6 +101,9 @@ private:
     
     int* mSamples;
     std::vector<int> mSamplesStore;
+    
+    // Outout name
+    const char *mOutputName;
 
 };
 

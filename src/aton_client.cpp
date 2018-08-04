@@ -64,13 +64,15 @@ DataHeader::DataHeader(const long long& index,
                        const float& currentFrame,
                        const float& cam_fov,
                        const float* cam_matrix,
-                       const int* samples): mIndex(index),
-                                            mXres(xres),
-                                            mYres(yres),
-                                            mRArea(rArea),
-                                            mVersion(version),
-                                            mCurrentFrame(currentFrame),
-                                            mCamFov(cam_fov)
+                       const int* samples,
+                       const char* outputName): mIndex(index),
+                                                mXres(xres),
+                                                mYres(yres),
+                                                mRArea(rArea),
+                                                mVersion(version),
+                                                mCurrentFrame(currentFrame),
+                                                mCamFov(cam_fov),
+                                                mOutputName(outputName)
 {
     if (cam_matrix != NULL)
         mCamMatrix = const_cast<float*>(cam_matrix);
@@ -81,6 +83,11 @@ DataHeader::DataHeader(const long long& index,
 
 DataHeader::~DataHeader() {}
 
+void DataHeader::free()
+{
+    delete[] mOutputName;
+    mOutputName = NULL;
+}
 
 DataPixels::DataPixels(const int& xres,
                        const int& yres,
@@ -172,13 +179,17 @@ void Client::openImage(DataHeader& header)
     write(mSocket, buffer(reinterpret_cast<char*>(&header.mVersion), sizeof(int)));
     write(mSocket, buffer(reinterpret_cast<char*>(&header.mCurrentFrame), sizeof(float)));
     write(mSocket, buffer(reinterpret_cast<char*>(&header.mCamFov), sizeof(float)));
-    
+
     const int camMatrixSize = 16;
     write(mSocket, buffer(reinterpret_cast<char*>(&header.mCamMatrix[0]), sizeof(float)*camMatrixSize));
     
     const int samplesSize = 6;
     write(mSocket, buffer(reinterpret_cast<char*>(&header.mSamples[0]), sizeof(int)*samplesSize));
-
+    
+    // Get size of aov name
+    size_t output_size = strlen(header.mOutputName) + 1;
+    write(mSocket, buffer(reinterpret_cast<char*>(&output_size), sizeof(size_t)));
+    write(mSocket, buffer(header.mOutputName, output_size));
 }
 
 void Client::sendPixels(DataPixels& pixels)

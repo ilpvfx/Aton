@@ -13,21 +13,18 @@
 static void FBUpdater(unsigned index, unsigned nthreads, void* data)
 {
     Aton* node = reinterpret_cast<Aton*>(data);
-    double uiFrame, opFrame, prevFrame = 0;
+    double frame, prevFrame = 0;
     const int ms = 20;
     
     while (node->m_legit)
     {
-        uiFrame = node->uiContext().frame();
-        opFrame = node->outputContext().frame();
+        frame = node->outputContext().frame();
         
-        if (node->m_multiframes && !node->m_framebuffers.empty())
+        if (node->m_multiframes &&
+            !node->m_framebuffers.empty() && frame != prevFrame)
         {
-            if (uiFrame != prevFrame && uiFrame != opFrame)
-            {
-                node->flagForUpdate();
-                prevFrame = uiFrame;
-            }
+            node->flagForUpdate();
+            prevFrame = frame;
         }
         else
             SleepMS(ms);

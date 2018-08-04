@@ -195,7 +195,7 @@ private:
 class FrameBuffer
 {
 public:
-    FrameBuffer(): _current_frame(0) {};
+    FrameBuffer() {};
     
     RenderBuffer& get_frame(double frame);
     
@@ -207,8 +207,7 @@ public:
     int frames_count() { return _frames.size(); }
     
     // Add New RenderBuffer
-    void add(RenderBuffer rb);
-    void add(double frame, int xres, int yres);
+    void add_frame(double frame, int xres, int yres);
     
     // Clear All Data
     void clear_all();

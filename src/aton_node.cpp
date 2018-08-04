@@ -136,23 +136,31 @@ void Aton::append(Hash& hash)
     hash.append(outputContext().frame());
 }
 
+int Aton::current_fb_index(bool direction)
+{
+    SceneView_KnobI* outputKnob = m_node->m_outputKnob->sceneViewKnob();
+    
+    int idx = 0;
+    std::vector<unsigned int> items;
+    outputKnob->getHighlightedItems(items);
+    
+    if (!items.empty())
+        idx = static_cast<int>(items[0]);
+    {
+        if (!direction)
+        {
+            int count = static_cast<int>(outputKnob->getItemCount());
+            idx = count - idx - 1;
+        }
+    }
+    return idx;
+}
+
 FrameBuffer& Aton::current_framebuffer()
 {
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
-    SceneView_KnobI* outputKnob = m_node->m_outputKnob->sceneViewKnob();
-
-    std::vector<unsigned int> itemList;
-    outputKnob->getHighlightedItems(itemList);
-    
-    if (itemList.empty())
-        return fbs[0];
-    else
-    {
-        size_t idx = itemList[0];
-        idx = m_node->m_output.size() - idx - 1;
-        return fbs[idx];
-    }
-        
+    int idx = m_node->current_fb_index(false);
+    return fbs[idx];
 }
 
 RenderBuffer& Aton::current_renderbuffer()
@@ -176,25 +184,56 @@ void Aton::_validate(bool for_real)
     if (m_inError)
         error(m_connectionError.c_str());
     
+    // Setup dynamic knob
+    std::vector<std::string>& out = m_node->m_output;
+    SceneView_KnobI* output_knob = m_node->m_outputKnob->sceneViewKnob();
+    int& knob_changed = m_node->m_outputKnobChanged;
+    
+    if (knob_changed)
+    {
+        int idx = current_fb_index();
+        std::vector<std::string> menu = out;
+        std::reverse(menu.begin(), menu.end());
+        
+        output_knob->menu(menu);
+        output_knob->removeItems(menu);
+        output_knob->addItems(menu);
+
+        std::vector<unsigned int> item;
+        
+        switch (knob_changed)
+        {
+            case Aton::item_added:
+            {
+                item.push_back(0);
+                break;
+            }
+            case Aton::item_moved_up:
+            {
+                item.push_back(--idx);
+                break;
+            }
+            case Aton::item_moved_down:
+            {
+                item.push_back(++idx);
+                break;
+            }
+            case Aton::item_removed:
+            {
+                if (idx < menu.size())
+                    item.push_back(idx);
+                else
+                    item.push_back(static_cast<int>(menu.size()) - 1);
+                break;
+            }
+        }
+        output_knob->setSelectedItems(item);
+        knob_changed = Aton::item_not_changed;
+    }
+    
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     if (!fbs.empty())
     {
-        // Setup dynamic knob
-        std::vector<std::string> menu = m_node->m_output;
-        std::reverse(menu.begin(), menu.end());
-        SceneView_KnobI* outputKnob = m_node->m_outputKnob->sceneViewKnob();
-        
-        if (menu != outputKnob->getItemNames())
-        {
-            outputKnob->menu(menu);
-            outputKnob->removeItems(menu);
-            outputKnob->addItems(menu);
-            
-            // Selecting the top item
-            std::vector<unsigned int> item = { 0 };
-            outputKnob->setSelectedItems(item);
-        }
-        
         RenderBuffer& rb = current_renderbuffer();
         if (!rb.empty())
         {
@@ -378,13 +417,11 @@ void Aton::knobs(Knob_Callback f)
 
     // Main knobs
     Newline(f);
-    Button(f, "clear_knob", "Clear");
-    Button(f, "clear_all_knob", "Clear All");
+    //"<img src=\":qrc/images/Add.png\">"
+    Knob* move_up = Button(f, "move_up_knob", "Up");
+    Knob* move_down = Button(f, "move_down_knob", "Down");
+    Button(f, "remove_selected_knob", "Remove");
     
-    Divider(f, "Region Handle");
-    Knob* region_knob = BBox_knob(f, m_cropBox, "Area");
-    Button(f, "copy_clipboard", "Copy");
-
     Divider(f, "Write to Files");
     Knob* write_aovs_knob = Bool_knob(f, &m_all_frames, "write_aovs_knob", "Write AOVs");
     Knob* write_multi_frame_knob = Bool_knob(f, &m_all_frames, "write_multi_frame_knob", "Write Multiple Frames");
@@ -404,6 +441,7 @@ void Aton::knobs(Knob_Callback f)
     // Status Bar knobs
     BeginToolbar(f, "toolbar");
     Int_knob(f, &m_port, "port_number", "Port");
+    Button(f, "reset_port_knob", "Reset Port");
     Bool_knob(f, &m_enable_aovs, "enable_aovs_knob", "Read AOVs");
     Bool_knob(f, &m_multiframes, "multi_frame_knob", "Read Multiple Frames");
     Knob* live_cam_knob = Bool_knob(f, &m_live_camera, "live_camera_knob", "Read Camera");
@@ -417,6 +455,8 @@ void Aton::knobs(Knob_Callback f)
     // Set Flags
     path_knob->set_flag(Knob::NO_RERENDER, true);
     live_cam_knob->set_flag(Knob::NO_RERENDER, true);
+    move_up->set_flag(Knob::NO_RERENDER, true);
+    move_down->set_flag(Knob::NO_RERENDER, true);
     write_multi_frame_knob->set_flag(Knob::NO_RERENDER, true);
     statusKnob->set_flag(Knob::NO_RERENDER, true);
     statusKnob->set_flag(Knob::DISABLED, true);
@@ -430,15 +470,30 @@ int Aton::knob_changed(Knob* _knob)
         flagForUpdate();
         return 1;
     }
-    
+    if (_knob->is("reset_port_knob"))
+    {
+        if (m_port != 9201)
+            changePort(9201);
+        return 1;
+    }
     if (_knob->is("port_number"))
     {
         changePort(m_port);
         return 1;
     }
-    if (_knob->is("clear_all_knob"))
+    if (_knob->is("move_up_knob"))
     {
-        clearAllCmd();
+        move_cmd(true);
+        return 1;
+    }
+    if (_knob->is("move_down_knob"))
+    {
+        move_cmd(false);
+        return 1;
+    }
+    if (_knob->is("remove_selected_knob"))
+    {
+        remove_selected_cmd();
         return 1;
     }
     if (_knob->is("multi_frame_knob"))
@@ -573,25 +628,49 @@ std::vector<std::string> Aton::getCaptures()
     return results;
 }
 
-void Aton::clearAllCmd()
+void Aton::move_cmd(bool direction)
 {
-    std::vector<std::string>& output = m_node->m_output;
-    std::vector<FrameBuffer>& fBs = m_node->m_framebuffers;
-    
-    if (!fBs.empty() && !output.empty())
+    std::vector<std::string>& out = m_node->m_output;
+    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
+
+    int idx = m_node->current_fb_index(false);
+
+    if (!m_node->m_running && !out.empty())
     {
-        
-        m_node->m_legit = false;
-        m_node->disconnect();
-        
-        fBs =  std::vector<FrameBuffer>();
-        output = std::vector<std::string>();
-        
-        resetChannels(m_node->m_channels);
-        m_node->m_legit = true;
-        
+        if (direction && idx < (out.size()-1))
+        {
+            WriteGuard lock(m_node->m_mutex);
+            std::swap(out[idx], out[idx + 1]);
+            std::swap(fbs[idx], fbs[idx + 1]);
+            m_node->m_outputKnobChanged = Aton::item_moved_up;;
+        }
+        else if (!direction && idx != 0)
+        {
+            WriteGuard lock(m_node->m_mutex);
+            std::swap(out[idx], out[idx - 1]);
+            std::swap(fbs[idx], fbs[idx - 1]);
+            m_node->m_outputKnobChanged = Aton::item_moved_down;
+        }
         flagForUpdate();
-        setStatus();
+    }
+}
+
+void Aton::remove_selected_cmd()
+{
+    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
+    std::vector<std::string>& out = m_node->m_output;
+    int idx = m_node->current_fb_index(false);
+
+    if (!m_node->m_running && !out.empty())
+    {
+        WriteGuard lock(m_node->m_mutex);
+        fbs.erase(fbs.begin() + idx);
+        out.erase(out.begin() + idx);
+        m_node->m_outputKnobChanged = Aton::item_removed;
+        flagForUpdate();
+        
+        if (out.empty())
+            setStatus();
     }
 }
 

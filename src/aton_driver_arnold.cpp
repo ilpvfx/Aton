@@ -140,6 +140,8 @@ driver_open
                              sss_samples,
                              volume_samples};
 
+    const char* output = AiNodeGetStr(node, "output");
+    
     // Make image header & send to server
     DataHeader dh(data->index,
                   data->xres,
@@ -149,7 +151,8 @@ driver_open
                   frame,
                   cam_fov,
                   cam_matrix,
-                  samples);
+                  samples,
+                  output);
 
     // Get Host and Port
     const char* host = AiNodeGetStr(node, "host");
