@@ -86,8 +86,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                         FrameBuffer fb;
                         WriteGuard lock(node->m_mutex);
                         fbs.push_back(fb);
-                        std::string dash = "_";
-                        output.push_back(_output_name + dash + node->getDateTime());
+                        output.push_back(_output_name + std::string("_") + node->getDateTime());
                         node->m_outputKnobChanged = Aton::item_added;
                     }
 
