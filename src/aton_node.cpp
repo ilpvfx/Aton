@@ -400,6 +400,10 @@ void Aton::knobs(Knob_Callback f)
     Bool_knob(f, &m_capturing, "capturing_knob");
     Float_knob(f, &m_cam_fov, "cam_fov_knob", " cFov");
     
+    // Main knobs
+    Int_knob(f, &m_port, "port_number", "Port");
+    Button(f, "reset_port_knob", "Reset Port");
+    
     Divider(f, "Snapshots");
     static const char* output_name[] = {"",  0};
     Knob* output_knob = SceneView_knob(f, 0, output_name, "output_knob", "Output");
@@ -412,23 +416,21 @@ void Aton::knobs(Knob_Callback f)
         outputKnob->setSelectionMode(SceneView_KnobI::eSelectionModeHighlight);
         outputKnob->setColumnHeader("Store");
     }
-    
     SetFlags(f,  Knob::SAVE_MENU );
 
-    // Main knobs
     Newline(f);
     //"<img src=\":qrc/images/Add.png\">"
-    Knob* move_up = Button(f, "move_up_knob", "Up");
-    Knob* move_down = Button(f, "move_down_knob", "Down");
+    Knob* move_up = Button(f, "move_up_knob", "Move Up");
+    Knob* move_down = Button(f, "move_down_knob", "Move Down");
     Button(f, "remove_selected_knob", "Remove");
     
     Divider(f, "Write to Files");
-    Knob* write_aovs_knob = Bool_knob(f, &m_all_frames, "write_aovs_knob", "Write AOVs");
-    Knob* write_multi_frame_knob = Bool_knob(f, &m_all_frames, "write_multi_frame_knob", "Write Multiple Frames");
+    Knob* write_multi_frame_knob = Bool_knob(f, &m_write_frames, "write_multi_frame_knob",
+                                                                 "Write Multiple Frames");
     Knob* path_knob = File_knob(f, &m_path, "path_knob", "Path");
 
     Newline(f);
-    Button(f, "capture_knob", "Render");
+    Button(f, "render_knob", "Render");
     Button(f, "import_latest_knob", "Read Latest");
     Button(f, "import_all_knob", "Read All");
     
@@ -440,8 +442,6 @@ void Aton::knobs(Knob_Callback f)
 
     // Status Bar knobs
     BeginToolbar(f, "toolbar");
-    Int_knob(f, &m_port, "port_number", "Port");
-    Button(f, "reset_port_knob", "Reset Port");
     Bool_knob(f, &m_enable_aovs, "enable_aovs_knob", "Read AOVs");
     Bool_knob(f, &m_multiframes, "multi_frame_knob", "Read Multiple Frames");
     Knob* live_cam_knob = Bool_knob(f, &m_live_camera, "live_camera_knob", "Read Camera");
@@ -510,7 +510,7 @@ int Aton::knob_changed(Knob* _knob)
         liveCameraToogle();
         return 1;
     }
-    if (_knob->is("capture_knob"))
+    if (_knob->is("render_knob"))
     {
         captureCmd();
         return 1;
@@ -678,7 +678,7 @@ void Aton::captureCmd()
 {
     std::string path = std::string(m_path);
 
-    if (m_node->m_frames.size() > 0 && isPathValid(path) && m_slimit > 0)
+    if (isPathValid(path))
     {
         // Add date or frame suffix to the path
         std::string key (".");
@@ -687,10 +687,12 @@ void Aton::captureCmd()
         double startFrame;
         double endFrame;
         
-        std::vector<double> sortedFrames = m_node->m_frames;
+        FrameBuffer& fb = current_framebuffer();
+        
+        std::vector<double> sortedFrames = fb.frames();
         std::stable_sort(sortedFrames.begin(), sortedFrames.end());
 
-        if (m_multiframes && m_all_frames)
+        if (m_multiframes && m_write_frames)
         {
             timeFrameSuffix += "_" + std::string("####");
             startFrame = sortedFrames.front();
@@ -734,19 +736,18 @@ void Aton::captureCmd()
                                                                                                          %endFrame).str();
         script_command(cmd.c_str(), true, false);
         script_unlock();
-
+        
         // Execute the Write node
         cmd = (boost::format("exec('''import thread\n"
                                      "def writer():\n\t"
-                                         "def status(b):\n\t\t"
-                                             "nuke.toNode('%s')['capturing_knob'].setValue(b)\n\t\t"
-                                             "if not b:\n\t\t\t"
+                                         "def status(cap):\n\t\t"
+                                             "nuke.toNode('%s')['capturing_knob'].setValue(cap)\n\t\t"
+                                             "if not cap:\n\t\t\t"
                                                  "nuke.delete(nuke.toNode('%s'))\n\t"
                                          "nuke.executeInMainThread(status, args=True)\n\t"
                                          "nuke.executeInMainThread(nuke.execute, args=('%s', nuke.FrameRanges([%s])))\n\t"
                                          "nuke.executeInMainThread(status, args=False)\n"
                                      "thread.start_new_thread(writer,())''')")%m_node->m_node_name
-                                                                              %writeNodeName
                                                                               %writeNodeName
                                                                               %writeNodeName
                                                                               %frames).str();

@@ -45,7 +45,7 @@ class Aton: public Iop
         float                     m_cam_fov;          // Default Camera fov
         float                     m_cam_matrix;       // Default Camera matrix value
         bool                      m_multiframes;      // Enable Multiple Frames toogle
-        bool                      m_all_frames;       // Capture All Frames toogle
+        bool                      m_write_frames;     // Write AOVs
         bool                      m_enable_aovs;      // Enable AOVs toogle
         bool                      m_live_camera;      // Enable Live Camera toogle
         bool                      m_inError;          // Error handling
@@ -77,7 +77,7 @@ class Aton: public Iop
                           m_multiframes(false),
                           m_enable_aovs(true),
                           m_live_camera(false),
-                          m_all_frames(false),
+                          m_write_frames(false),
                           m_inError(false),
                           m_formatExists(false),
                           m_capturing(false),

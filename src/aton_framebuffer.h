@@ -204,6 +204,8 @@ public:
     // Get RenderBuffer index for given Frame
     int get_index(double frame);
     
+    const std::vector<double>& frames() { return _frames; }
+    
     int frames_count() { return _frames.size(); }
     
     // Add New RenderBuffer
