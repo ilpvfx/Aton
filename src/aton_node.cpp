@@ -402,7 +402,7 @@ void Aton::knobs(Knob_Callback f)
     
     // Main knobs
     Int_knob(f, &m_port, "port_number", "Port");
-    Button(f, "reset_port_knob", "Reset Port");
+    Button(f, "reset_port_knob", "Reset");
     
     Divider(f, "Snapshots");
     static const char* output_name[] = {"",  0};
@@ -419,10 +419,13 @@ void Aton::knobs(Knob_Callback f)
     SetFlags(f,  Knob::SAVE_MENU );
 
     Newline(f);
-    //"<img src=\":qrc/images/Add.png\">"
-    Knob* move_up = Button(f, "move_up_knob", "Move Up");
-    Knob* move_down = Button(f, "move_down_knob", "Move Down");
-    Button(f, "remove_selected_knob", "Remove");
+    Knob* move_up = Button(f, "move_up_knob", "<img src=\":qrc/images/arrow_up.png\">");
+    Knob* move_down = Button(f, "move_down_knob", "<img src=\":qrc/images/arrow_down.png\">");
+    Button(f, "remove_selected_knob", "<img src=\":qrc/images/ScriptEditor/clearOutput.png\">");
+    
+    Divider(f, "Render Region");
+    Knob* region_knob = BBox_knob(f, m_region, "region_knob", "Area");
+    Button(f, "copy_clipboard_knob", "Copy");
     
     Divider(f, "Write to Files");
     Knob* write_multi_frame_knob = Bool_knob(f, &m_write_frames, "write_multi_frame_knob",
@@ -458,8 +461,9 @@ void Aton::knobs(Knob_Callback f)
     move_up->set_flag(Knob::NO_RERENDER, true);
     move_down->set_flag(Knob::NO_RERENDER, true);
     write_multi_frame_knob->set_flag(Knob::NO_RERENDER, true);
+    region_knob->set_flag(Knob::NO_RERENDER, true);
     statusKnob->set_flag(Knob::NO_RERENDER, true);
-    statusKnob->set_flag(Knob::DISABLED, true);
+    statusKnob->set_flag(Knob::READ_ONLY, true);
     statusKnob->set_flag(Knob::OUTPUT_ONLY, true);
 }
 
@@ -508,6 +512,12 @@ int Aton::knob_changed(Knob* _knob)
     if (_knob->is("live_camera_knob"))
     {
         liveCameraToogle();
+        return 1;
+    }
+    
+    if (_knob->is("copy_clipboard_knob"))
+    {
+        copyClipboardCmd();
         return 1;
     }
     if (_knob->is("render_knob"))
@@ -672,6 +682,19 @@ void Aton::remove_selected_cmd()
         if (out.empty())
             setStatus();
     }
+}
+
+void Aton::copyClipboardCmd()
+{
+    std::string cmd; // Our python command buffer
+    cmd = (boost::format("exec('''from PySide2 import QtWidgets\n"
+                                 "clipboard = QtWidgets.QApplication.clipboard()\n"
+                                 "clipboard.setText('%s,%s,%s,%s')''')" )%m_region[0]
+                                                                         %m_region[1]
+                                                                         %m_region[2]
+                                                                         %m_region[3]).str();
+    script_command(cmd.c_str(), true, false);
+    script_unlock();
 }
 
 void Aton::captureCmd()

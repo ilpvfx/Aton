@@ -55,6 +55,7 @@ class Aton: public Iop
         bool                      m_running;
         unsigned int              m_hash_count;       // Refresh hash counter
         const char*               m_path;             // Default path for Write node
+        double                    m_region[4];
         double                    m_current_frame;
         std::string               m_node_name;        // Node name
         std::string               m_status;           // Status bar text
@@ -84,6 +85,7 @@ class Aton: public Iop
                           m_legit(false),
                           m_running(false),
                           m_path(""),
+                          m_region{0.0, 0.0, 0.0, 0.0},
                           m_current_frame(0),
                           m_node_name(""),
                           m_status(""),
@@ -147,6 +149,7 @@ class Aton: public Iop
     
         void remove_selected_cmd();
     
+        void copyClipboardCmd();
         void captureCmd();
         void importCmd(bool all);
     
