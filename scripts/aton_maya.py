@@ -1,4 +1,3 @@
-__author__ = "Vahan Sosoyan, Dan Bradham, Bjoern Siegert"
 __copyright__ = "2018 All rights reserved. See Copyright.txt for more details."
 __version__ = "1.3.0"
 
@@ -105,7 +104,6 @@ class SliderBox(BoxWidget):
     @property
     def valueChanged(self):
         return self.spinBox.valueChanged
-
 
 class SpinBox(BoxWidget):
     def __init__(self, label, value=0, first=True):
@@ -622,6 +620,10 @@ class Aton(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         else:
             cmds.warning("Current renderer is not set to Arnold or Aton driver is not loaded.")
             return
+
+        # Set RenderLayer
+        currentRenderLayer = cmds.editRenderLayerGlobals(q=1, crl=1)
+        cmds.setAttr("defaultArnoldDisplayDriver.output", currentRenderLayer, type="string")
 
         # Adding time changed callback
         if self.timeChangedCB == None:
