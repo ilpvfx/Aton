@@ -10,6 +10,7 @@ PLUGIN_ID = 1038628
 
 ATON_HOST = 464911602
 ATON_PORT = 464624139
+ATON_OUTPUT = 798505185
 
 # from c4dtoa_symols.h
 ARNOLD_RENDER_OVERRIDES = 1038579
@@ -453,12 +454,18 @@ class Aton(gui.GeDialog):
 
     def startIPR(self):
         '''Main Function to Start Rendering'''
+
+        # Get doc object
+        doc = documents.GetActiveDocument()
+
         # Updating host and port from UI
         if self.defaultHost != 0 and self.defaultPort != 0:
             port = self.GetInt32(self.PortID)
             host = self.GetString(self.HostID)
+            take = doc.GetTakeData().GetCurrentTake().GetName()
             self.driver.GetDataInstance().SetInt32(ATON_PORT, port)
             self.driver.GetDataInstance().SetString(ATON_HOST, host)
+            self.driver.GetDataInstance().SetString(ATON_OUTPUT, take)
         else:
             self.logMessage("Aton driver is not loaded", 2)
             return
@@ -485,7 +492,6 @@ class Aton(gui.GeDialog):
             settings.SetBool(C4DTOA_RENDEROVERRIDE_PROGRESSIVE_REFINEMENT, False)
 
         # Store settings
-        doc = documents.GetActiveDocument()
         doc.GetSettingsInstance(c4d.DOCUMENTSETTINGS_DOCUMENT).SetContainer(ARNOLD_RENDER_OVERRIDES, settings)
 
         # Set Overrids
