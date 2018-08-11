@@ -32,18 +32,17 @@ node_parameters
     AiParameterStr("host", get_host().c_str());
     AiParameterInt("port", get_port());
     AiParameterStr("output", "");
-    AiParameterStr("user_intput", "");
     
 #ifdef ARNOLD_5
-    AiMetaDataSetStr(nentry, NULL, "maya.translator", "aton");
-    AiMetaDataSetStr(nentry, NULL, "maya.attr_prefix", "");
-    AiMetaDataSetBool(nentry, NULL, "display_driver", true);
-    AiMetaDataSetBool(nentry, NULL, "single_layer_driver", false);
+    AiMetaDataSetStr(nentry, NULL, AtString("maya.translator"), AtString("aton"));
+    AiMetaDataSetStr(nentry, NULL, AtString("maya.attr_prefix"), AtString(""));
+    AiMetaDataSetBool(nentry, NULL, AtString("display_driver"), true);
+    AiMetaDataSetBool(nentry, NULL, AtString("single_layer_driver"), false);
 #else
-    AiMetaDataSetStr(mds, NULL, "maya.translator", "aton");
-    AiMetaDataSetStr(mds, NULL, "maya.attr_prefix", "");
-    AiMetaDataSetBool(mds, NULL, "display_driver", true);
-    AiMetaDataSetBool(mds, NULL, "single_layer_driver", false);
+    AiMetaDataSetStr(mds, NULL, AtString("maya.translator"), AtString("aton"));
+    AiMetaDataSetStr(mds, NULL, AtString("maya.attr_prefix"), AtString(""));
+    AiMetaDataSetBool(mds, NULL, AtString("display_driver"), true);
+    AiMetaDataSetBool(mds, NULL, AtString("single_layer_driver"), false);
 #endif
 }
 
@@ -79,14 +78,14 @@ driver_open
     AtNode* options = AiUniverseGetOptions();
     
     // Get Resolution
-    const int xres = AiNodeGetInt(options, "xres");
-    const int yres = AiNodeGetInt(options, "yres");
+    const int xres = AiNodeGetInt(options, AtString("xres"));
+    const int yres = AiNodeGetInt(options, AtString("yres"));
     
     // Get Regions
-    const int min_x = AiNodeGetInt(options, "region_min_x");
-    const int min_y = AiNodeGetInt(options, "region_min_y");
-    const int max_x = AiNodeGetInt(options, "region_max_x");
-    const int max_y = AiNodeGetInt(options, "region_max_y");
+    const int min_x = AiNodeGetInt(options, AtString("region_min_x"));
+    const int min_y = AiNodeGetInt(options, AtString("region_min_y"));
+    const int max_x = AiNodeGetInt(options, AtString("region_max_x"));
+    const int max_y = AiNodeGetInt(options, AtString("region_max_y"));
 
     // Set Resolution
     data->min_x = (min_x == INT_MIN) ? 0 : min_x;
@@ -106,15 +105,15 @@ driver_open
     const int version = pack_4_int(atoi(arch), atoi(major), atoi(minor), atoi(fix));
         
     // Get Frame
-    const float frame = AiNodeGetFlt(options, "frame");
+    const float frame = AiNodeGetFlt(options, AtString("frame"));
     
     // Get Camera Field of view
-    AtNode* camera = (AtNode*)AiNodeGetPtr(options, "camera");
-    const float cam_fov = AiNodeGetFlt(camera, "fov");
+    AtNode* camera = (AtNode*)AiNodeGetPtr(options, AtString("camera"));
+    const float cam_fov = AiNodeGetFlt(camera, AtString("fov"));
     
     // Get Camera Matrix
 #ifdef ARNOLD_5
-    const AtMatrix& cMat = AiNodeGetMatrix(camera, "matrix");
+    const AtMatrix& cMat = AiNodeGetMatrix(camera, AtString("matrix"));
 #else
     AtMatrix cMat;
     AiNodeGetMatrix(camera, "matrix", cMat);
@@ -126,12 +125,12 @@ driver_open
                                   cMat[0][3], cMat[1][3], cMat[2][3], cMat[3][3]};
     
     // Get Samples
-    const int& aa_samples = AiNodeGetInt(options, "AA_samples");
-    const int& diffuse_samples = AiNodeGetInt(options, "GI_diffuse_samples");
-    const int& spec_samples = AiNodeGetInt(options, "GI_specular_samples");
-    const int& trans_samples = AiNodeGetInt(options, "GI_transmission_samples");
-    const int& sss_samples = AiNodeGetInt(options, "GI_sss_samples");
-    const int& volume_samples = AiNodeGetInt(options, "GI_volume_samples");
+    const int& aa_samples = AiNodeGetInt(options, AtString("AA_samples"));
+    const int& diffuse_samples = AiNodeGetInt(options, AtString("GI_diffuse_samples"));
+    const int& spec_samples = AiNodeGetInt(options, AtString("GI_specular_samples"));
+    const int& trans_samples = AiNodeGetInt(options, AtString("GI_transmission_samples"));
+    const int& sss_samples = AiNodeGetInt(options, AtString("GI_sss_samples"));
+    const int& volume_samples = AiNodeGetInt(options, AtString("GI_volume_samples"));
     
     const int samples[6]  = {aa_samples,
                              diffuse_samples,
@@ -140,7 +139,7 @@ driver_open
                              sss_samples,
                              volume_samples};
 
-    const char* output = AiNodeGetStr(node, "output");
+    const char* output = AiNodeGetStr(node, AtString("output"));
     
     // Make image header & send to server
     DataHeader dh(data->index,
@@ -155,8 +154,8 @@ driver_open
                   output);
 
     // Get Host and Port
-    const char* host = AiNodeGetStr(node, "host");
-    const int port = AiNodeGetInt(node, "port");
+    const char* host = AiNodeGetStr(node, AtString("host"));
+    const int port = AiNodeGetInt(node, AtString("port"));
     
     if (data->client == NULL)
         data->client = new Client(host, port);
