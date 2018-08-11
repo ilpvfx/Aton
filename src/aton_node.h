@@ -12,7 +12,7 @@ All rights reserved. See COPYING.txt for more details.
 #include "DDImage/Knobs.h"
 #include "DDImage/Thread.h"
 #include "DDImage/Version.h"
-#include <DDImage/TableKnobI.h>
+#include "DDImage/TableKnobI.h"
 
 using namespace DD::Image;
 

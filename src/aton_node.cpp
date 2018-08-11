@@ -32,6 +32,9 @@ void Aton::attach()
         knob(knob_name.c_str())->hide();
     }
     
+    // Reset Region
+    knob("region_knob")->set_value(0);
+
     // Construct full path for capturing
     m_node_name = node_name();
     using namespace boost::filesystem;
@@ -180,7 +183,6 @@ void Aton::_validate(bool for_real)
     if (m_inError)
         error(m_connectionError.c_str());
     
-
     // Setup dynamic knob
     Table_KnobI* outputKnob = m_node->m_outputKnob->tableKnob();
     
@@ -411,7 +413,6 @@ void Aton::knobs(Knob_Callback f)
     {
         Table_KnobI* outputKnob = m_outputKnob->tableKnob();
         outputKnob->addStringColumn("snapshots", "", true, 512);
-        outputKnob->setDisplayAllAnimationCurves(false);
     }
     SetFlags(f,  Knob::SAVE_MENU );
     
@@ -481,12 +482,17 @@ int Aton::knob_changed(Knob* _knob)
     {
         // Check if item has renamed
         Table_KnobI* outputKnob = _knob->tableKnob();
-        std::string row = outputKnob->getCellString(current_fb_index(), 0);
-        std::vector<std::string>& out = m_node->m_output;
         int& knob_changed =  m_node->m_outputKnobChanged;
-        
-        if (row != out[current_fb_index(false)] && knob_changed == Aton::item_not_changed)
-            knob_changed = Aton::item_renamed;
+
+        int idx = outputKnob->getSelectedRow();
+        if (idx >= 0 && knob_changed == Aton::item_not_changed)
+        {
+            std::string row = outputKnob->getCellString(idx, 0);
+            std::vector<std::string>& out = m_node->m_output;
+            
+            if (row != out[current_fb_index(false)])
+                knob_changed = Aton::item_renamed;
+        }
         
         flagForUpdate();
         return 1;
