@@ -138,21 +138,17 @@ void Aton::append(Hash& hash)
 
 int Aton::current_fb_index(bool direction)
 {
-    SceneView_KnobI* outputKnob = m_node->m_outputKnob->sceneViewKnob();
+    Table_KnobI* outputKnob = m_node->m_outputKnob->tableKnob();
+    int idx = outputKnob->getSelectedRow();
+    if (idx < 0)
+        return 0;
     
-    int idx = 0;
-    std::vector<unsigned int> items;
-    outputKnob->getHighlightedItems(items);
-    
-    if (!items.empty())
-        idx = static_cast<int>(items[0]);
+    if (!direction)
     {
-        if (!direction)
-        {
-            int count = static_cast<int>(outputKnob->getItemCount());
-            idx = count - idx - 1;
-        }
+        int count = outputKnob->getRowCount();
+        idx = count - idx - 1;
     }
+    
     return idx;
 }
 
@@ -171,8 +167,8 @@ RenderBuffer& Aton::current_renderbuffer()
     if  (m_multiframes)
         frame = outputContext().frame();
     else
-        frame = fb.current_frame();
-    return fb.get_frame(frame);
+        frame = fb.currentFrame();
+    return fb.getFrame(frame);
 }
 
 void Aton::_validate(bool for_real)
@@ -184,50 +180,58 @@ void Aton::_validate(bool for_real)
     if (m_inError)
         error(m_connectionError.c_str());
     
+
     // Setup dynamic knob
-    std::vector<std::string>& out = m_node->m_output;
-    SceneView_KnobI* output_knob = m_node->m_outputKnob->sceneViewKnob();
-    int& knob_changed = m_node->m_outputKnobChanged;
+    Table_KnobI* outputKnob = m_node->m_outputKnob->tableKnob();
     
+    int& knob_changed = m_node->m_outputKnobChanged;
     if (knob_changed)
     {
         int idx = current_fb_index();
-        std::vector<std::string> menu = out;
-        std::reverse(menu.begin(), menu.end());
-        
-        output_knob->menu(menu);
-        output_knob->removeItems(menu);
-        output_knob->addItems(menu);
+        std::vector<std::string>& out = m_node->m_output;
 
-        std::vector<unsigned int> item;
-        
         switch (knob_changed)
         {
             case Aton::item_added:
             {
-                item.push_back(0);
+                idx = 0;
                 break;
             }
             case Aton::item_moved_up:
             {
-                item.push_back(--idx);
+                idx--;
                 break;
             }
             case Aton::item_moved_down:
             {
-                item.push_back(++idx);
+                idx++;
                 break;
             }
             case Aton::item_removed:
             {
-                if (idx < menu.size())
-                    item.push_back(idx);
-                else
-                    item.push_back(static_cast<int>(menu.size()) - 1);
+                if (idx >= out.size())
+                    idx = static_cast<int>(out.size() - 1);
                 break;
             }
+            case Aton::item_renamed:
+            {
+                std::string row = outputKnob->getCellString(idx, 0);
+                out[current_fb_index(false)] = row;
+            }
         }
-        output_knob->setSelectedItems(item);
+        
+        std::vector<std::string> menu = m_node->m_output;
+        std::reverse(menu.begin(), menu.end());
+        outputKnob->deleteAllItems();
+        std::vector<std::string>::iterator it;
+        for(it = menu.begin(); it != menu.end(); ++it)
+        {
+            int row = outputKnob->addRow();
+            outputKnob->setCellString(row, 0, *it);
+        }
+        
+        outputKnob->reset();
+        outputKnob->selectRow(idx);
         knob_changed = Aton::item_not_changed;
     }
     
@@ -352,7 +356,7 @@ void Aton::_validate(bool for_real)
 void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
 {
     FrameBuffer& fb = current_framebuffer();
-    std::vector<RenderBuffer>& rbs = fb.get_buffers();
+    std::vector<RenderBuffer>& rbs = fb.getBuffers();
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     
     int f = 0;
@@ -360,9 +364,9 @@ void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
     {
         ReadGuard lock(m_mutex);
         if (!m_multiframes)
-            f = fb.get_index(fb.current_frame());
+            f = fb.getIndex(fb.currentFrame());
         else
-            f = fb.get_index(outputContext().frame());
+            f = fb.getIndex(outputContext().frame());
     }
     
     foreach(z, channels)
@@ -395,53 +399,44 @@ void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
 
 void Aton::knobs(Knob_Callback f)
 {
-    // Hidden knobs
-    Format_knob(f, &m_fmtp, "formats_knob", "format");
-    Bool_knob(f, &m_capturing, "capturing_knob");
-    Float_knob(f, &m_cam_fov, "cam_fov_knob", " cFov");
-    
     // Main knobs
     Int_knob(f, &m_port, "port_number", "Port");
     Button(f, "reset_port_knob", "Reset");
+
     
+    // Sanpshots
     Divider(f, "Snapshots");
-    static const char* output_name[] = {"",  0};
-    Knob* output_knob = SceneView_knob(f, 0, output_name, "output_knob", "Output");
-    if(output_knob)
-        m_node->m_outputKnob = output_knob;
-    
+    m_outputKnob = Table_knob(f, "output_knob", "Output");
     if (f.makeKnobs())
     {
-        SceneView_KnobI* outputKnob = m_node->m_outputKnob->sceneViewKnob();
-        outputKnob->setSelectionMode(SceneView_KnobI::eSelectionModeHighlight);
-        outputKnob->setColumnHeader("Store");
+        Table_KnobI* outputKnob = m_outputKnob->tableKnob();
+        outputKnob->addStringColumn("snapshots", "", true, 512);
+        outputKnob->setDisplayAllAnimationCurves(false);
     }
     SetFlags(f,  Knob::SAVE_MENU );
-
+    
     Newline(f);
     Knob* move_up = Button(f, "move_up_knob", "<img src=\":qrc/images/arrow_up.png\">");
     Knob* move_down = Button(f, "move_down_knob", "<img src=\":qrc/images/arrow_down.png\">");
     Button(f, "remove_selected_knob", "<img src=\":qrc/images/ScriptEditor/clearOutput.png\">");
     
+    
+    // Render Region
     Divider(f, "Render Region");
     Knob* region_knob = BBox_knob(f, m_region, "region_knob", "Area");
     Button(f, "copy_clipboard_knob", "Copy");
     
-    Divider(f, "Write to Files");
+    
+    // Write to Disk
+    Divider(f, "Write to Disk");
     Knob* write_multi_frame_knob = Bool_knob(f, &m_write_frames, "write_multi_frame_knob",
                                                                  "Write Multiple Frames");
     Knob* path_knob = File_knob(f, &m_path, "path_knob", "Path");
-
     Newline(f);
     Button(f, "render_knob", "Render");
     Button(f, "import_latest_knob", "Read Latest");
     Button(f, "import_all_knob", "Read All");
     
-    for (int i=0; i<16; i++)
-    {
-        std::string knob_name = (boost::format("cM%s")%i).str();
-        Float_knob(f, &m_cam_matrix, knob_name.c_str(), knob_name.c_str());
-    }
 
     // Status Bar knobs
     BeginToolbar(f, "toolbar");
@@ -454,14 +449,27 @@ void Aton::knobs(Knob_Callback f)
     BeginToolbar(f, "status_bar");
     Knob* statusKnob = String_knob(f, &m_status, "status_knob", "");
     EndToolbar(f);
+    
+    
+    // Hidden knobs
+    Format_knob(f, &m_fmtp, "formats_knob", "format");
+    Bool_knob(f, &m_capturing, "capturing_knob");
+    Float_knob(f, &m_cam_fov, "cam_fov_knob", " cFov");
+    
+    for (int i=0; i<16; i++)
+    {
+        std::string knob_name = (boost::format("cM%s")%i).str();
+        Float_knob(f, &m_cam_matrix, knob_name.c_str(), knob_name.c_str());
+    }
 
-    // Set Flags
+    // Setting Flags
     path_knob->set_flag(Knob::NO_RERENDER, true);
     live_cam_knob->set_flag(Knob::NO_RERENDER, true);
     move_up->set_flag(Knob::NO_RERENDER, true);
     move_down->set_flag(Knob::NO_RERENDER, true);
     write_multi_frame_knob->set_flag(Knob::NO_RERENDER, true);
     region_knob->set_flag(Knob::NO_RERENDER, true);
+    
     statusKnob->set_flag(Knob::NO_RERENDER, true);
     statusKnob->set_flag(Knob::READ_ONLY, true);
     statusKnob->set_flag(Knob::OUTPUT_ONLY, true);
@@ -471,6 +479,15 @@ int Aton::knob_changed(Knob* _knob)
 {
     if (_knob->is("output_knob"))
     {
+        // Check if item has renamed
+        Table_KnobI* outputKnob = _knob->tableKnob();
+        std::string row = outputKnob->getCellString(current_fb_index(), 0);
+        std::vector<std::string>& out = m_node->m_output;
+        int& knob_changed =  m_node->m_outputKnobChanged;
+        
+        if (row != out[current_fb_index(false)] && knob_changed == Aton::item_not_changed)
+            knob_changed = Aton::item_renamed;
+        
         flagForUpdate();
         return 1;
     }
@@ -503,10 +520,7 @@ int Aton::knob_changed(Knob* _knob)
     if (_knob->is("multi_frame_knob"))
     {
         if (!m_node->m_framebuffers.empty())
-        {
-            FrameBuffer& fb = current_framebuffer();
-            fb.current_frame(uiContext().frame());
-        }
+            current_framebuffer().setCurrentFrame(uiContext().frame());
         return 1;
     }
     if (_knob->is("live_camera_knob"))
@@ -591,13 +605,13 @@ std::string Aton::getDateTime()
     // Returns date and time
     time_t rawtime;
     struct tm *timeinfo;
-    char time_buffer[20];
+    char time_buffer[15];
 
     time (&rawtime);
     timeinfo = localtime(&rawtime);
 
     // Setting up the Date and Time format style
-    strftime(time_buffer, 20, "%Y-%m-%d_%H-%M-%S", timeinfo);
+    strftime(time_buffer, 20, "%m-%d_%H-%M-%S", timeinfo);
 
     return std::string(time_buffer);
 }
@@ -642,9 +656,9 @@ void Aton::move_cmd(bool direction)
 {
     std::vector<std::string>& out = m_node->m_output;
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
-
+    
     int idx = m_node->current_fb_index(false);
-
+    
     if (!m_node->m_running && !out.empty())
     {
         if (direction && idx < (out.size()-1))
@@ -670,7 +684,7 @@ void Aton::remove_selected_cmd()
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     std::vector<std::string>& out = m_node->m_output;
     int idx = m_node->current_fb_index(false);
-
+    
     if (!m_node->m_running && !out.empty())
     {
         WriteGuard lock(m_node->m_mutex);
@@ -680,7 +694,7 @@ void Aton::remove_selected_cmd()
         flagForUpdate();
         
         if (out.empty())
-            setStatus();
+        setStatus();
     }
 }
 
@@ -859,7 +873,7 @@ void Aton::setStatus(const long long& progress,
     FrameBuffer& fb = current_framebuffer();
     size_t f_count = 0;
     if (!m_node->m_framebuffers.empty())
-        f_count = fb.frames_count();
+        f_count = fb.framesCount();
 
     std::string str_status = (boost::format("Arnold %s | "
                                             "Memory: %sMB / %sMB | "

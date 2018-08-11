@@ -12,7 +12,7 @@ All rights reserved. See COPYING.txt for more details.
 #include "DDImage/Knobs.h"
 #include "DDImage/Thread.h"
 #include "DDImage/Version.h"
-#include <DDImage/SceneView_KnobI.h>
+#include <DDImage/TableKnobI.h>
 
 using namespace DD::Image;
 
@@ -102,7 +102,8 @@ class Aton: public Iop
             item_added,
             item_moved_up,
             item_moved_down,
-            item_removed
+            item_removed,
+            item_renamed
         };
         
         Aton* firstNode() { return dynamic_cast<Aton*>(firstOp()); }

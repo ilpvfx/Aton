@@ -95,27 +95,26 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     // Create RenderBuffer
                     if (node->m_multiframes)
                     {
-                        if (!fb.frame_exists(_frame))
+                        if (!fb.frameExists(_frame))
                         {
                             WriteGuard lock(node->m_mutex);
-                            fb.add_frame(_frame, _xres, _yres);
+                            fb.addFrame(_frame, _xres, _yres);
                         }
                     }
                     else
                     {
                         WriteGuard lock(node->m_mutex);
                         if (!fb.empty())
-                            fb.clear_all_apart(_frame);
+                            fb.clearAllExcept(_frame);
                         else
-                            fb.add_frame(_frame, _xres, _yres);
+                            fb.addFrame(_frame, _xres, _yres);
                     }
                     
                     // Set Current Frame
-                    fb.current_frame(_frame);
                     node->setCurrentFrame(_frame);
 
                     // Get current RenderBuffer
-                    RenderBuffer& rb = fb.get_frame(_frame);
+                    RenderBuffer& rb = fb.getFrame(_frame);
 
                     // Reset Frame and Buffers if changed
                     if (!rb.empty() && !active_aovs.empty())
@@ -162,7 +161,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
 
                     // Get Render Buffer
                     FrameBuffer& fb = node->m_framebuffers.back();
-                    RenderBuffer& rb = fb.get_frame(fb.current_frame());
+                    RenderBuffer& rb = fb.getFrame(fb.currentFrame());
 
                     const char* _aov_name = dp.aovName();
                     const int& _xres = dp.xres();
@@ -206,13 +205,13 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
 
                         // Adding buffer
                         node->m_mutex.writeLock();
-                        if(!rb.aov_exist(_aov_name) && (node->m_enable_aovs || rb.empty()))
+                        if(!rb.aovExists(_aov_name) && (node->m_enable_aovs || rb.empty()))
                             rb.addBuffer(_aov_name, _spp);
                         else
                             rb.ready(true);
 
                         // Get buffer index
-                        const int b = rb.aov_index(_aov_name);
+                        const int b = rb.aovIndex(_aov_name);
 
                         // Writing to buffer
                         int x, y, c, xpos, ypos, offset;

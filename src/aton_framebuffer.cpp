@@ -151,7 +151,7 @@ int RenderBuffer::getBufferIndex(const Channel& z)
 }
 
 // Get the current buffer index
-int RenderBuffer::aov_index(const char* aovName)
+int RenderBuffer::aovIndex(const char* aovName)
 {
     int b_index = 0;
     if (_aovs.size() > 1)
@@ -252,7 +252,7 @@ void RenderBuffer::clearAll()
 }
 
 // Check if the given buffer/aov name name is exist
-bool RenderBuffer::aov_exist(const char* aovName)
+bool RenderBuffer::aovExists(const char* aovName)
 {
     return std::find(_aovs.begin(), _aovs.end(), aovName) != _aovs.end();
 }
@@ -313,12 +313,12 @@ void RenderBuffer::setCamera(const float& fov, const Matrix4& matrix)
 }
 
 
-RenderBuffer& FrameBuffer::get_frame(double frame)
+RenderBuffer& FrameBuffer::getFrame(double frame)
 {
-    return _renderbuffers[get_index(frame)];
+    return _renderbuffers[getIndex(frame)];
 }
 
-void FrameBuffer::add_frame(double frame, int xres, int yres)
+void FrameBuffer::addFrame(double frame, int xres, int yres)
 {
         RenderBuffer rb(frame, xres, yres);
         if (!_frames.empty())
@@ -326,33 +326,36 @@ void FrameBuffer::add_frame(double frame, int xres, int yres)
         
         _frames.push_back(frame);
         _renderbuffers.push_back(rb);
+        _current_frame  = frame;
 }
 
 // Clear All Data
-void FrameBuffer::clear_all()
+void FrameBuffer::clearAll()
 {
     _frames = std::vector<double>();
     _renderbuffers = std::vector<RenderBuffer>();
 }
 
-void FrameBuffer::clear_all_apart(double frame)
+void FrameBuffer::clearAllExcept(double frame)
 {
-    std::swap(_frames.at(0), _frames.at(get_index(frame)));
-    std::swap(_renderbuffers.at(0), _renderbuffers.at(get_index(frame)));
+    std::swap(_frames.at(0), _frames.at(getIndex(frame)));
+    std::swap(_renderbuffers.at(0), _renderbuffers.at(getIndex(frame)));
 
     _frames.erase(_frames.begin() + 1, _frames.end());
     _renderbuffers.erase(_renderbuffers.begin() + 1, _renderbuffers.end());
+    _current_frame  = frame;
+
 }
 
 
 // Check if RenderBuffer already exists
-bool FrameBuffer::frame_exists(double frame)
+bool FrameBuffer::frameExists(double frame)
 {
     return (std::find(_frames.begin(), _frames.end(), frame) != _frames.end());
 }
 
 // Get RenderBuffer for given Frame
-int FrameBuffer::get_index(double frame)
+int FrameBuffer::getIndex(double frame)
 {
     int index = 0;
     

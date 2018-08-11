@@ -39,6 +39,7 @@ public:
 class AOVBuffer
 {
     friend class RenderBuffer;
+    
 public:
     AOVBuffer(const unsigned int& width = 0,
               const unsigned int& height = 0,
@@ -83,7 +84,7 @@ public:
     int getBufferIndex(const Channel& z);
     
     // Get the current buffer index
-    int aov_index(const char* aovName);
+    int aovIndex(const char* aovName);
     
     // Get N buffer/aov name name
     const char* getBufferName(const int& index);
@@ -112,7 +113,7 @@ public:
     void clearAll();
     
     // Check if the given buffer/aov name name is exist
-    bool aov_exist(const char* aovName);
+    bool aovExists(const char* aovName);
     
     // Get width of the buffer
     const int& getWidth() const { return _width; }
@@ -197,33 +198,33 @@ class FrameBuffer
 public:
     FrameBuffer() {};
     
-    RenderBuffer& get_frame(double frame);
+    RenderBuffer& getFrame(double frame);
     
-    std::vector<RenderBuffer>& get_buffers() { return _renderbuffers; }
+    std::vector<RenderBuffer>& getBuffers() { return _renderbuffers; }
     
     // Get RenderBuffer index for given Frame
-    int get_index(double frame);
+    int getIndex(double frame);
     
     const std::vector<double>& frames() { return _frames; }
     
-    int frames_count() { return _frames.size(); }
+    int framesCount() { return _frames.size(); }
     
     // Add New RenderBuffer
-    void add_frame(double frame, int xres, int yres);
+    void addFrame(double frame, int xres, int yres);
     
     // Clear All Data
-    void clear_all();
+    void clearAll();
     
-    void clear_all_apart(double frame);
+    void clearAllExcept(double frame);
     
     bool empty() { return (_frames.empty() && _renderbuffers.empty()); }
     
     // Check if RenderBuffer already exists
-    bool frame_exists(double frame);
+    bool frameExists(double frame);
     
-    double current_frame() const { return _current_frame; }
+    double currentFrame() const { return _current_frame; }
     
-    void current_frame(double frame) { _current_frame = frame; }
+    void setCurrentFrame(double frame) { _current_frame = frame; }
     
     
 private:
