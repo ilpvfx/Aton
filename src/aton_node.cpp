@@ -379,14 +379,17 @@ void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
         const float* END = cOut + (r - x);
         
         ReadGuard lock(m_mutex);
-        if (m_enable_aovs && !fbs.empty() && rbs[f].isReady())
+        if (m_enable_aovs && !fbs.empty() &&!rbs.empty() && rbs[f].isReady())
             b = rbs[f].getBufferIndex(z);
         
         while (cOut < END)
         {
-            if (fbs.empty() || !rbs[f].isReady() ||
+            if (fbs.empty() ||
+                rbs.empty() ||
+                !rbs[f].isReady() ||
                 x >= rbs[f].getWidth() ||
-                y >= rbs[f].getHeight() || r > rbs[f].getWidth())
+                y >= rbs[f].getHeight() ||
+                r > rbs[f].getWidth())
             {
                 *cOut = 0.0f;
             }
