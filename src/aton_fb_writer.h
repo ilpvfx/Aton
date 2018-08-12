@@ -25,7 +25,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
         node->m_running = true;
 
         // Session Index
-        static long long s_index = 0;
+        static long long session_idx = 0;
 
         // Our incoming data object
         int dataType = 0;
@@ -77,20 +77,37 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     delta_time = _active_time;
 
                     std::vector<std::string>& output = node->m_output;
+                    std::vector<long long>& sessions = node->m_sessions;
                     std::vector<FrameBuffer>& fbs = node->m_framebuffers;
                     
-                    // Adding new session
-                    if (fbs.empty() || (!node->m_multiframes && s_index != _index))
+                    // Session Handling
+                    long fb_index = 0;
+                    bool new_session = true;
+                    if (!sessions.empty())
                     {
-                        s_index = _index;
+                        
+                        fb_index = std::find(sessions.begin(),
+                                             sessions.end(), _index) - sessions.begin();
+                    
+                        if (fb_index != sessions.size())
+                            new_session = false;
+                    }
+                    
+                    // Adding new session
+                    if (fbs.empty() || (!node->m_multiframes && new_session))
+                    {
                         FrameBuffer fb;
                         WriteGuard lock(node->m_mutex);
+                        
                         fbs.push_back(fb);
+                        node->m_sessions.push_back(_index);
                         output.push_back(_output_name + std::string("_") + node->getDateTime());
+                        
+                        session_idx = _index;
                         node->m_outputKnobChanged = Aton::item_added;
                     }
 
-                    FrameBuffer& fb = fbs.back();
+                    FrameBuffer& fb = fbs[fb_index];
 
                     // Create RenderBuffer
                     if (node->m_multiframes)
@@ -165,7 +182,11 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     DataPixels dp = node->m_server.listenPixels();
 
                     // Get Render Buffer
-                    FrameBuffer& fb = node->m_framebuffers.back();
+                    std::vector<long long>& sessions = node->m_sessions;
+                    long fb_index = std::find(sessions.begin(),
+                                             sessions.end(), session_idx) - sessions.begin();
+                    
+                    FrameBuffer& fb = node->m_framebuffers[fb_index];
                     RenderBuffer& rb = fb.getFrame(fb.currentFrame());
 
                     const char* _aov_name = dp.aovName();

@@ -46,7 +46,7 @@ const long long get_unique_id()
     using namespace boost::posix_time;
     ptime time_t_epoch(boost::gregorian::date(1970,1,1));
     ptime now = microsec_clock::local_time();
-    time_duration diff = time_t_epoch - now;
+    time_duration diff = now - time_t_epoch;
     return diff.total_milliseconds();
 }
 

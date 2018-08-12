@@ -62,7 +62,7 @@ class Aton: public Iop
         std::string               m_details;          // Render layer details
         std::string               m_connectionError;  // Connection error report
         Knob*                     m_outputKnob;
-        std::vector<double>       m_frames;           // Frames holder
+        std::vector<long long>    m_sessions;
         std::vector<std::string>  m_output;
         std::vector<FrameBuffer>  m_framebuffers;     // Framebuffers holder
 

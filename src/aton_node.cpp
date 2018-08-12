@@ -64,7 +64,6 @@ void Aton::detach()
     // undo stack) we should close the port and reopen if attach() gets called.
     m_legit = false;
     disconnect();
-    m_node->m_frames = std::vector<double>();
     m_node->m_framebuffers = std::vector<FrameBuffer>();
 }
 
@@ -661,17 +660,19 @@ std::vector<std::string> Aton::getCaptures()
 void Aton::move_cmd(bool direction)
 {
     std::vector<std::string>& out = m_node->m_output;
+    std::vector<long long>& sessions = m_node->m_sessions;
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     
     int idx = m_node->current_fb_index(false);
     
-    if (!m_node->m_running && !out.empty())
+    if (!out.empty())
     {
         if (direction && idx < (out.size()-1))
         {
             WriteGuard lock(m_node->m_mutex);
             std::swap(out[idx], out[idx + 1]);
             std::swap(fbs[idx], fbs[idx + 1]);
+            std::swap(sessions[idx], sessions[idx + 1]);
             m_node->m_outputKnobChanged = Aton::item_moved_up;;
         }
         else if (!direction && idx != 0)
@@ -679,6 +680,7 @@ void Aton::move_cmd(bool direction)
             WriteGuard lock(m_node->m_mutex);
             std::swap(out[idx], out[idx - 1]);
             std::swap(fbs[idx], fbs[idx - 1]);
+            std::swap(sessions[idx], sessions[idx - 1]);
             m_node->m_outputKnobChanged = Aton::item_moved_down;
         }
         flagForUpdate();
