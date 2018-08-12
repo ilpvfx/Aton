@@ -207,7 +207,7 @@ public:
     
     const std::vector<double>& frames() { return _frames; }
     
-    int framesCount() { return _frames.size(); }
+    size_t size() { return _frames.size(); }
     
     // Add New RenderBuffer
     void addFrame(double frame, int xres, int yres);

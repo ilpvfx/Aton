@@ -617,7 +617,7 @@ std::string Aton::getDateTime()
     timeinfo = localtime(&rawtime);
 
     // Setting up the Date and Time format style
-    strftime(time_buffer, 20, "%m-%d_%H-%M-%S", timeinfo);
+    strftime(time_buffer, 20, "%m.%d_%H:%M:%S", timeinfo);
 
     return std::string(time_buffer);
 }
@@ -877,9 +877,9 @@ void Aton::setStatus(const long long& progress,
     const int second = ((time % 3600000) % 60000) / 1000;
     
     FrameBuffer& fb = current_framebuffer();
-    size_t f_count = 0;
+    size_t f_size = 0;
     if (!m_node->m_framebuffers.empty())
-        f_count = fb.framesCount();
+        f_size = fb.size();
 
     std::string str_status = (boost::format("Arnold %s | "
                                             "Memory: %sMB / %sMB | "
@@ -888,7 +888,7 @@ void Aton::setStatus(const long long& progress,
                                             "Samples: %s | "
                                             "Progress: %s%%")%version%ram%p_ram
                                                              %hour%minute%second
-                                                             %frame%f_count%samples%progress).str();
+                                                             %frame%f_size%samples%progress).str();
     knob("status_knob")->set_text(str_status.c_str());
 }
 
