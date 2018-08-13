@@ -41,7 +41,7 @@ class Aton: public Iop
         ChannelSet                m_channels;         // Channels aka AOVs object
         int                       m_port;             // Port we're listening on (knob)
         int                       m_slimit;           // The limit size
-        int                       m_outputKnobChanged;
+        int                       m_outputKnobChanged;// If Snapshots needs to be updated
         float                     m_cam_fov;          // Default Camera fov
         float                     m_cam_matrix;       // Default Camera matrix value
         bool                      m_multiframes;      // Enable Multiple Frames toogle
@@ -52,19 +52,18 @@ class Aton: public Iop
         bool                      m_formatExists;     // If the format was already exist
         bool                      m_capturing;        // Capturing signal
         bool                      m_legit;            // Used to throw the threads
-        bool                      m_running;
+        bool                      m_running;          // Thread Rendering
         unsigned int              m_hash_count;       // Refresh hash counter
         const char*               m_path;             // Default path for Write node
-        double                    m_region[4];
-        double                    m_current_frame;
+        double                    m_region[4];        // Render Region Data
         std::string               m_node_name;        // Node name
         std::string               m_status;           // Status bar text
         std::string               m_details;          // Render layer details
         std::string               m_connectionError;  // Connection error report
-        Knob*                     m_outputKnob;
-        std::vector<long long>    m_sessions;
-        std::vector<std::string>  m_output;
-        std::vector<FrameBuffer>  m_framebuffers;     // Framebuffers holder
+        Knob*                     m_outputKnob;       // Shapshots Knob
+        std::vector<long long>    m_sessions;         // Snapshots Ids
+        std::vector<std::string>  m_output;           // Snapshots List
+        std::vector<FrameBuffer>  m_framebuffers;     // Framebuffers List
 
         Aton(Node* node): Iop(node),
                           m_node(firstNode()),
@@ -86,7 +85,6 @@ class Aton: public Iop
                           m_running(false),
                           m_path(""),
                           m_region{0.0, 0.0, 0.0, 0.0},
-                          m_current_frame(0),
                           m_node_name(""),
                           m_status(""),
                           m_connectionError("")

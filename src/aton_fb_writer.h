@@ -24,18 +24,17 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
         node->m_server.accept();
         node->m_running = true;
 
-        // Session Index
-        static long long session_idx = 0;
-
         // Our incoming data object
         int dataType = 0;
+        
+        // Session Index
+        static long long session_idx = 0;
         
         // For progress percentage
         long long progress, regionArea = 0;
         
         // Time to reset per every IPR iteration
         static int _active_time, delta_time = 0;
-        
         
         // Loop over incoming data
         while (dataType != 2 || dataType != 9)

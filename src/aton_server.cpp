@@ -83,7 +83,7 @@ void Server::accept()
 {
     if (mSocket.is_open())
         mSocket.close();
-        mAcceptor.accept(mSocket);
+    mAcceptor.accept(mSocket);
 }
 
 int Server::listenType()
