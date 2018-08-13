@@ -355,7 +355,7 @@ class Aton(gui.GeDialog):
         c4d.CallCommand(12113, 12113)
         return cams
 
-    def getNukeCropNode(self):
+    def getNukeCropNode(self, *args):
         ''' Get crop node data from Nuke '''
         def find_between(s, first, last):
             try:
@@ -367,23 +367,27 @@ class Aton(gui.GeDialog):
 
         data = c4d.GetStringFromClipboard()
 
+        cropData = None
         checkData1 = "set cut_paste_input [stack 0]"
         checkData2 = "Crop {"
 
         if (checkData1 in data.split('\n', 10)[0]) and \
            (checkData2 in data.split('\n', 10)[3]):
                 cropData = find_between(data.split('\n', 10)[4], "box {", "}" ).split()
-                nkX, nkY, nkR, nkT = int(float(cropData[0])),\
-                                     int(float(cropData[1])),\
-                                     int(float(cropData[2])),\
-                                     int(float(cropData[3]))
 
-                self.SetInt32(self.RenderRegionXID, nkX)
-                self.SetInt32(self.RenderRegionYID, nkY)
-                self.SetInt32(self.RenderRegionRID, nkR)
-                self.SetInt32(self.RenderRegionTID, nkT)
+        if len(data.split(',')) == 4:
+            cropData = data.split(',')
 
-                return cropData
+        if cropData is not None:
+            nkX, nkY, nkR, nkT = int(float(cropData[0])),\
+                                 int(float(cropData[1])),\
+                                 int(float(cropData[2])),\
+                                 int(float(cropData[3]))
+
+            self.SetInt32(self.RenderRegionXID, nkX)
+            self.SetInt32(self.RenderRegionYID, nkY)
+            self.SetInt32(self.RenderRegionRID, nkR)
+            self.SetInt32(self.RenderRegionTID, nkT)
 
     def setOverscan(self):
         '''Sets the overscan values in to the scene Render Settings'''

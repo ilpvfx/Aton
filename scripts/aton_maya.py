@@ -556,23 +556,28 @@ class Aton(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         clipboard = QtWidgets.QApplication.clipboard()
         data = clipboard.text()
 
+        cropData = None
         checkData1 = "set cut_paste_input [stack 0]"
         checkData2 = "Crop {"
 
         if (checkData1 in data.split('\n', 10)[0]) and \
            (checkData2 in data.split('\n', 10)[3]):
                 cropData = find_between(data.split('\n', 10)[4], "box {", "}" ).split()
-                nkX, nkY, nkR, nkT = int(float(cropData[0])),\
-                                     int(float(cropData[1])),\
-                                     int(float(cropData[2])),\
-                                     int(float(cropData[3]))
 
-                self.renderRegionXSpinBox.setValue(nkX)
-                self.renderRegionYSpinBox.setValue(nkY)
-                self.renderRegionRSpinBox.setValue(nkR)
-                self.renderRegionTSpinBox.setValue(nkT)
+        if len(data.split(',')) == 4:
+            cropData = data.split(',')
 
-                return cropData
+        if cropData is not None:
+            nkX, nkY, nkR, nkT = int(float(cropData[0])),\
+                                 int(float(cropData[1])),\
+                                 int(float(cropData[2])),\
+                                 int(float(cropData[3]))
+
+            self.renderRegionXSpinBox.setValue(nkX)
+            self.renderRegionYSpinBox.setValue(nkY)
+            self.renderRegionRSpinBox.setValue(nkR)
+            self.renderRegionTSpinBox.setValue(nkT)
+
 
     def setOverscan(self):
         ovrScnValue = bool(self.overscanSlider.value())
