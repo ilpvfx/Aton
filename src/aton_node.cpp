@@ -692,8 +692,9 @@ void Aton::move_cmd(bool direction)
 
 void Aton::remove_selected_cmd()
 {
-    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     std::vector<std::string>& out = m_node->m_output;
+    std::vector<long long>& sessions = m_node->m_sessions;
+    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     int idx = m_node->current_fb_index(false);
     
     if (!m_node->m_running && !out.empty())
@@ -701,6 +702,7 @@ void Aton::remove_selected_cmd()
         WriteGuard lock(m_node->m_mutex);
         fbs.erase(fbs.begin() + idx);
         out.erase(out.begin() + idx);
+        sessions.erase(sessions.begin() + idx);
         m_node->m_outputKnobChanged = Aton::item_removed;
         flagForUpdate();
         
