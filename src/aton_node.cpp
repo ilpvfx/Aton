@@ -406,7 +406,7 @@ void Aton::knobs(Knob_Callback f)
 {
     // Main knobs
     Int_knob(f, &m_port, "port_number", "Port");
-    Button(f, "reset_port_knob", "Reset");
+    Knob* reset_knob = Button(f, "reset_port_knob", "Reset");
 
     
     // Sanpshots
@@ -467,6 +467,7 @@ void Aton::knobs(Knob_Callback f)
     }
 
     // Setting Flags
+    reset_knob->set_flag(Knob::NO_RERENDER, true);
     path_knob->set_flag(Knob::NO_RERENDER, true);
     live_cam_knob->set_flag(Knob::NO_RERENDER, true);
     move_up->set_flag(Knob::NO_RERENDER, true);
@@ -696,21 +697,21 @@ void Aton::move_cmd(bool direction)
 void Aton::remove_selected_cmd()
 {
     std::vector<std::string>& out = m_node->m_output;
-    std::vector<long long>& sessions = m_node->m_sessions;
-    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
-    int idx = m_node->current_fb_index(false);
-    
     if (!m_node->m_running && !out.empty())
     {
+        int idx = m_node->current_fb_index(false);
+        m_node->m_outputKnobChanged = Aton::item_removed;
+        std::vector<long long>& sessions = m_node->m_sessions;
+        std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
+
         WriteGuard lock(m_node->m_mutex);
         fbs.erase(fbs.begin() + idx);
         out.erase(out.begin() + idx);
         sessions.erase(sessions.begin() + idx);
-        m_node->m_outputKnobChanged = Aton::item_removed;
-        flagForUpdate();
-        
         if (out.empty())
-        setStatus();
+            setStatus();
+        
+        flagForUpdate();
     }
 }
 
@@ -890,8 +891,15 @@ void Aton::setStatus(const long long& progress,
     size_t f_size = 0;
     if (!m_node->m_framebuffers.empty())
         f_size = fb.size();
+    
+    Knob* status = knob("status_knob");
+    
+    if(!m_node->m_running)
+        status->set_flag(Knob::DISABLED, true);
+    else
+        status->set_flag(Knob::DISABLED, false);
 
-    std::string str_status = (boost::format("Arnold %s | "
+    std::string status_str = (boost::format("Arnold %s | "
                                             "Memory: %sMB / %sMB | "
                                             "Time: %02ih:%02im:%02is | "
                                             "Frame: %s(%s) | "
@@ -899,7 +907,7 @@ void Aton::setStatus(const long long& progress,
                                             "Progress: %s%%")%version%ram%p_ram
                                                              %hour%minute%second
                                                              %frame%f_size%samples%progress).str();
-    knob("status_knob")->set_text(str_status.c_str());
+    status->set_text(status_str.c_str());
 }
 
 void Aton::setCameraKnobs(const float& fov, const Matrix4& matrix)

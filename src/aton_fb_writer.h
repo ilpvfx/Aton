@@ -21,9 +21,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
     while (!killThread)
     {
         // Accept incoming connections!
-        node->m_running = false;
         node->m_server.accept();
-        node->m_running = true;
 
         // Our incoming data object
         int dataType = 0;
@@ -44,7 +42,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
             try
             {
                 dataType = node->m_server.listenType();
-                
+                node->m_running = true;
             }
             catch( ... )
             {
@@ -263,12 +261,14 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                             // Calculate the progress percentage
                             regionArea -= _width * _height;
                             progress = 100 - (regionArea * 100) / (w * h);
-
+                            
                             // Set status parameters
                             node->m_mutex.writeLock();
                             rb.setProgress(progress);
                             rb.setRAM(_ram);
                             rb.setTime(_time, delta_time);
+                            if (progress >= 100)
+                                node->m_running = false;
                             node->m_mutex.unlock();
 
                             // Update the image
@@ -281,11 +281,13 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                 }
                 case 2: // Close image
                 {
+                    node->m_running = false;
                     break;
                 }
                 case 9: // This is sent when the parent process want to kill
                         // the listening thread
                 {
+                    node->m_running = false;
                     killThread = true;
                     break;
                 }
