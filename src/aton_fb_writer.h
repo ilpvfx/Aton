@@ -42,6 +42,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
             try
             {
                 dataType = node->m_server.listenType();
+                WriteGuard lock(node->m_mutex);
                 node->m_running = true;
             }
             catch( ... )
@@ -83,7 +84,6 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     bool new_session = true;
                     if (!sessions.empty())
                     {
-                        
                         fb_index = std::find(sessions.begin(),
                                              sessions.end(), _index) - sessions.begin();
                     
@@ -281,13 +281,14 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                 }
                 case 2: // Close image
                 {
+                    WriteGuard lock(node->m_mutex);
                     node->m_running = false;
+                    node->flagForUpdate();
                     break;
                 }
                 case 9: // This is sent when the parent process want to kill
                         // the listening thread
                 {
-                    node->m_running = false;
                     killThread = true;
                     break;
                 }

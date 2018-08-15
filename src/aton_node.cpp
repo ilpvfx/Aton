@@ -477,6 +477,7 @@ void Aton::knobs(Knob_Callback f)
     region_knob->set_flag(Knob::NO_RERENDER, true);
     
     statusKnob->set_flag(Knob::NO_RERENDER, true);
+    statusKnob->set_flag(Knob::DISABLED, true);
     statusKnob->set_flag(Knob::READ_ONLY, true);
     statusKnob->set_flag(Knob::OUTPUT_ONLY, true);
 }
@@ -891,13 +892,6 @@ void Aton::setStatus(const long long& progress,
     size_t f_size = 0;
     if (!m_node->m_framebuffers.empty())
         f_size = fb.size();
-    
-    Knob* status = knob("status_knob");
-    
-    if(!m_node->m_running)
-        status->set_flag(Knob::DISABLED, true);
-    else
-        status->set_flag(Knob::DISABLED, false);
 
     std::string status_str = (boost::format("Arnold %s | "
                                             "Memory: %sMB / %sMB | "
@@ -907,7 +901,14 @@ void Aton::setStatus(const long long& progress,
                                             "Progress: %s%%")%version%ram%p_ram
                                                              %hour%minute%second
                                                              %frame%f_size%samples%progress).str();
-    status->set_text(status_str.c_str());
+    Knob* statusKnob = m_node->knob("status_knob");
+    if (m_node->m_running)
+    {
+        status_str += "...";
+        statusKnob->set_flag(Knob::DISABLED, false);
+    }
+    
+    statusKnob->set_text(status_str.c_str());
 }
 
 void Aton::setCameraKnobs(const float& fov, const Matrix4& matrix)
