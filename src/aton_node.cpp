@@ -17,6 +17,11 @@ All rights reserved. See COPYING.txt for more details.
 void Aton::attach()
 {
     m_legit = true;
+    
+    // Reset Snapshots
+    Table_KnobI* outputKnob = m_node->m_outputKnob->tableKnob();
+    outputKnob->deleteAllItems();
+    outputKnob->reset();
 
     // Default status bar
     setStatus();
@@ -408,7 +413,6 @@ void Aton::knobs(Knob_Callback f)
     Int_knob(f, &m_port, "port_number", "Port");
     Knob* reset_knob = Button(f, "reset_port_knob", "Reset");
 
-    
     // Sanpshots
     Divider(f, "Snapshots");
     m_outputKnob = Table_knob(f, "output_knob", "Output");
@@ -417,19 +421,16 @@ void Aton::knobs(Knob_Callback f)
         Table_KnobI* outputKnob = m_outputKnob->tableKnob();
         outputKnob->addStringColumn("snapshots", "", true, 512);
     }
-    SetFlags(f,  Knob::SAVE_MENU );
     
     Newline(f);
     Knob* move_up = Button(f, "move_up_knob", "<img src=\":qrc/images/arrow_up.png\">");
     Knob* move_down = Button(f, "move_down_knob", "<img src=\":qrc/images/arrow_down.png\">");
     Knob* remove_selectd = Button(f, "remove_selected_knob", "<img src=\":qrc/images/ScriptEditor/clearOutput.png\">");
     
-    
     // Render Region
     Divider(f, "Render Region");
     Knob* region_knob = BBox_knob(f, m_region, "region_knob", "Area");
     Button(f, "copy_clipboard_knob", "Copy");
-    
     
     // Write to Disk
     Divider(f, "Write to Disk");
@@ -440,7 +441,6 @@ void Aton::knobs(Knob_Callback f)
     Button(f, "render_knob", "Render");
     Button(f, "import_latest_knob", "Read Latest");
     Button(f, "import_all_knob", "Read All");
-    
 
     // Status Bar knobs
     BeginToolbar(f, "toolbar");
@@ -453,7 +453,6 @@ void Aton::knobs(Knob_Callback f)
     BeginToolbar(f, "status_bar");
     Knob* statusKnob = String_knob(f, &m_status, "status_knob", "");
     EndToolbar(f);
-    
     
     // Hidden knobs
     Format_knob(f, &m_fmtp, "formats_knob", "format");
@@ -475,7 +474,6 @@ void Aton::knobs(Knob_Callback f)
     remove_selectd->set_flag(Knob::NO_RERENDER, true);
     write_multi_frame_knob->set_flag(Knob::NO_RERENDER, true);
     region_knob->set_flag(Knob::NO_RERENDER, true);
-    
     statusKnob->set_flag(Knob::NO_RERENDER, true);
     statusKnob->set_flag(Knob::DISABLED, true);
     statusKnob->set_flag(Knob::READ_ONLY, true);
@@ -488,7 +486,7 @@ int Aton::knob_changed(Knob* _knob)
     {
         // Check if item has renamed
         Table_KnobI* outputKnob = _knob->tableKnob();
-        int& knob_changed =  m_node->m_outputKnobChanged;
+        int& knob_changed = m_node->m_outputKnobChanged;
 
         int idx = outputKnob->getSelectedRow();
         if (idx >= 0 && knob_changed == Aton::item_not_changed)
@@ -496,9 +494,10 @@ int Aton::knob_changed(Knob* _knob)
             std::string row = outputKnob->getCellString(idx, 0);
             std::vector<std::string>& out = m_node->m_output;
             
-            if (row != out[current_fb_index(false)])
+            if (!out.empty() && row != out[current_fb_index(false)])
                 knob_changed = Aton::item_renamed;
         }
+        
         FrameBuffer& fb = current_framebuffer();
         setCurrentFrame(fb.currentFrame());
         flagForUpdate();
