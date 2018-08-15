@@ -422,7 +422,7 @@ void Aton::knobs(Knob_Callback f)
     Newline(f);
     Knob* move_up = Button(f, "move_up_knob", "<img src=\":qrc/images/arrow_up.png\">");
     Knob* move_down = Button(f, "move_down_knob", "<img src=\":qrc/images/arrow_down.png\">");
-    Button(f, "remove_selected_knob", "<img src=\":qrc/images/ScriptEditor/clearOutput.png\">");
+    Knob* remove_selectd = Button(f, "remove_selected_knob", "<img src=\":qrc/images/ScriptEditor/clearOutput.png\">");
     
     
     // Render Region
@@ -471,6 +471,7 @@ void Aton::knobs(Knob_Callback f)
     live_cam_knob->set_flag(Knob::NO_RERENDER, true);
     move_up->set_flag(Knob::NO_RERENDER, true);
     move_down->set_flag(Knob::NO_RERENDER, true);
+    remove_selectd->set_flag(Knob::NO_RERENDER, true);
     write_multi_frame_knob->set_flag(Knob::NO_RERENDER, true);
     region_knob->set_flag(Knob::NO_RERENDER, true);
     
@@ -496,7 +497,8 @@ int Aton::knob_changed(Knob* _knob)
             if (row != out[current_fb_index(false)])
                 knob_changed = Aton::item_renamed;
         }
-        
+        FrameBuffer& fb = current_framebuffer();
+        setCurrentFrame(fb.currentFrame());
         flagForUpdate();
         return 1;
     }

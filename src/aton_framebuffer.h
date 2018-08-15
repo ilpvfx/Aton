@@ -222,7 +222,7 @@ public:
     // Check if RenderBuffer already exists
     bool frameExists(double frame);
     
-    double currentFrame() const { return _current_frame; }
+    double currentFrame() { return _current_frame; }
     
     void setCurrentFrame(double frame) { _current_frame = frame; }
     
