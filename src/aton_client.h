@@ -230,6 +230,8 @@ public:
     // information for an image.
     void closeImage();
     
+    bool isConnected() { return mIsConnected; }
+
 private:
     void connect();
     void disconnect();

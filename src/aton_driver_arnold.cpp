@@ -169,6 +169,7 @@ driver_open
         const char* err = e.what();
         AiMsgError("ATON | Host %s with Port %i was not found! %s", host, port, err);
     }
+
 }
 
 driver_needs_bucket { return true; }
@@ -244,7 +245,8 @@ node_finish
 #else
     ShaderData* data = (ShaderData*)AiDriverGetLocalData(node);
 #endif
-    data->client->closeImage();
+    if (data->client->isConnected())
+        data->client->closeImage();
     delete data->client;
     AiFree(data);
 

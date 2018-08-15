@@ -129,7 +129,8 @@ void DataPixels::free()
 Client::Client(std::string hostname, int port): mHost(hostname),
                                                 mPort(port),
                                                 mImageId(-1),
-                                                mSocket(mIoService) {}
+                                                mSocket(mIoService),
+                                                mIsConnected(false) {}
 
 
 Client::~Client()
@@ -190,6 +191,7 @@ void Client::openImage(DataHeader& header)
     size_t output_size = strlen(header.mOutputName) + 1;
     write(mSocket, buffer(reinterpret_cast<char*>(&output_size), sizeof(size_t)));
     write(mSocket, buffer(header.mOutputName, output_size));
+    mIsConnected = true;
 }
 
 void Client::sendPixels(DataPixels& pixels)
