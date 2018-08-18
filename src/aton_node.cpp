@@ -260,6 +260,7 @@ void Aton::_validate(bool for_real)
             // Set the format
             const int width = rb.getWidth();
             const int height = rb.getHeight();
+            const float pixel_aspect = rb.getPixelAspect();
             
             if (m_node->m_fmt.width() != width ||
                 m_node->m_fmt.height() != height)
@@ -285,6 +286,7 @@ void Aton::_validate(bool for_real)
                 m_fmt_ptr->set(0, 0, width, height);
                 m_fmt_ptr->width(width);
                 m_fmt_ptr->height(height);
+                m_fmt_ptr->pixel_aspect(pixel_aspect);
                 knob("formats_knob")->set_text(m_node->m_node_name.c_str());
             }
             

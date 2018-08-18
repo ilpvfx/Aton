@@ -75,14 +75,16 @@ AOVBuffer::AOVBuffer(const unsigned int& width,
 // RenderBuffer class
 RenderBuffer::RenderBuffer(const double& currentFrame,
                            const int& w,
-                           const int& h): _frame(currentFrame),
-                                          _width(w),
-                                          _height(h),
-                                          _progress(0),
-                                          _time(0),
-                                          _ram(0),
-                                          _pram(0),
-                                          _ready(false) {}
+                           const int& h,
+                           const float& p): _frame(currentFrame),
+                                            _width(w),
+                                            _height(h),
+                                            _pix_aspect(p),
+                                            _progress(0),
+                                            _time(0),
+                                            _ram(0),
+                                            _pram(0),
+                                            _ready(false) {}
 // Add new buffer
 void RenderBuffer::addBuffer(const char* aov,
                             const int& spp)
@@ -111,9 +113,9 @@ void RenderBuffer::setBufferPix(const int& b,
 
 // Get read only buffer object
 const float& RenderBuffer::getBufferPix(const int& b,
-                                       const unsigned int& x,
-                                       const unsigned int& y,
-                                       const int& c) const
+                                        const unsigned int& x,
+                                        const unsigned int& y,
+                                        const int& c) const
 {
     const AOVBuffer& rb = _buffers[b];
     const unsigned int index = (_width * y) + x;
@@ -319,9 +321,9 @@ RenderBuffer& FrameBuffer::getFrame(double frame)
     return _renderbuffers[getIndex(frame)];
 }
 
-void FrameBuffer::addFrame(double frame, int xres, int yres)
+void FrameBuffer::addFrame(double frame, int xres, int yres, float pix_aspect)
 {
-        RenderBuffer rb(frame, xres, yres);
+        RenderBuffer rb(frame, xres, yres, pix_aspect);
         if (!_frames.empty())
             rb = _renderbuffers.back();
         
@@ -351,7 +353,10 @@ void FrameBuffer::clearAllExcept(double frame)
 // Check if RenderBuffer already exists
 bool FrameBuffer::frameExists(double frame)
 {
-    return (std::find(_frames.begin(), _frames.end(), frame) != _frames.end());
+    if (!_frames.empty())
+        return (std::find(_frames.begin(), _frames.end(), frame) != _frames.end());
+    else
+        return false;
 }
 
 // Get RenderBuffer for given Frame

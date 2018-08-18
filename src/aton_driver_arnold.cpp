@@ -80,7 +80,7 @@ driver_open
     // Get Resolution
     const int xres = AiNodeGetInt(options, AtString("xres"));
     const int yres = AiNodeGetInt(options, AtString("yres"));
-    
+
     // Get Regions
     const int min_x = AiNodeGetInt(options, AtString("region_min_x"));
     const int min_y = AiNodeGetInt(options, AtString("region_min_y"));
@@ -132,6 +132,9 @@ driver_open
     const int& sss_samples = AiNodeGetInt(options, AtString("GI_sss_samples"));
     const int& volume_samples = AiNodeGetInt(options, AtString("GI_volume_samples"));
     
+    // Get Pixel Aspect Ratio
+    const float pixel_aspect = AiNodeGetFlt(options, AtString("pixel_aspect_ratio"));
+    
     const int samples[6]  = {aa_samples,
                              diffuse_samples,
                              spec_samples,
@@ -145,6 +148,7 @@ driver_open
     DataHeader dh(data->index,
                   data->xres,
                   data->yres,
+                  pixel_aspect,
                   region_area,
                   version,
                   frame,

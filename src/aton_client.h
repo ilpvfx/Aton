@@ -35,6 +35,7 @@ public:
     DataHeader(const long long& index = 0,
                const int& xres = 0,
                const int& yres = 0,
+               const float& pix_aspect = 0.0f,
                const long long& rArea = 0,
                const int& version = 0,
                const float& currentFrame = 0.0f,
@@ -53,6 +54,9 @@ public:
     
     // Get y resolution
     const int& yres() const { return mYres; }
+    
+    // Get Pixel Aspect Ratio
+    const int& pixel_aspect() const { return mPixAspectRatio; }
     
     // Get area of the render region
     const long long& rArea() const { return mRArea; }
@@ -82,6 +86,9 @@ private:
     
     // Resolution, X & Y
     int mXres, mYres;
+    
+    // Pixel Aspect Ratio
+    float mPixAspectRatio;
     
     // Version number
     int mVersion;

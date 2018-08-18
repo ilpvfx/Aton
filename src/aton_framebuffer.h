@@ -60,7 +60,8 @@ class RenderBuffer
 public:
     RenderBuffer(const double& currentFrame = 0,
                  const int& w = 0,
-                 const int& h = 0);
+                 const int& h = 0,
+                 const float& _pix_aspect = 1.0f);
     
     // Add new buffer
     void addBuffer(const char* aov = NULL,
@@ -120,6 +121,9 @@ public:
     
     // Get height of the buffer
     const int& getHeight() const { return _height; }
+    
+    // Get pixel aspect of the buffer
+    const float& getPixelAspect() const { return _pix_aspect; }
     
     // Get size of the buffers aka AOVs count
     size_t size() { return _aovs.size(); }
@@ -181,6 +185,7 @@ private:
     long long _pram;
     int _width;
     int _height;
+    float _pix_aspect;
     bool _ready;
     float _fov;
     Matrix4 _matrix;
@@ -210,7 +215,7 @@ public:
     size_t size() { return _frames.size(); }
     
     // Add New RenderBuffer
-    void addFrame(double frame, int xres, int yres);
+    void addFrame(double frame, int xres, int yres, float pix_aspect);
     
     // Clear All Data
     void clearAll();

@@ -61,6 +61,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     const long long& _index = dh.index();
                     const int& _xres = dh.xres();
                     const int& _yres = dh.yres();
+                    const float& _pix_aspect = dh.pixel_aspect();
                     const long long& _area = dh.rArea();
                     const int& _version = dh.version();
                     const double& _frame = static_cast<double>(dh.currentFrame());
@@ -113,7 +114,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                         if (!fb.frameExists(_frame))
                         {
                             WriteGuard lock(node->m_mutex);
-                            fb.addFrame(_frame, _xres, _yres);
+                            fb.addFrame(_frame, _xres, _yres, _pix_aspect);
                         }
                     }
                     else
@@ -121,7 +122,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                         if (fb.empty())
                         {
                             WriteGuard lock(node->m_mutex);
-                            fb.addFrame(_frame, _xres, _yres);
+                            fb.addFrame(_frame, _xres, _yres, _pix_aspect);
                         }
                         else if (fb.size() > 1)
                         {
@@ -289,6 +290,10 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                 case 9: // This is sent when the parent process want to kill
                         // the listening thread
                 {
+                    WriteGuard lock(node->m_mutex);
+                    node->m_running = false;
+                    node->flagForUpdate();
+                    
                     killThread = true;
                     break;
                 }
