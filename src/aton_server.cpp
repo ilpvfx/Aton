@@ -122,6 +122,7 @@ DataHeader Server::listenHeader()
     read(mSocket, buffer(reinterpret_cast<char*>(&dh.mIndex), sizeof(long long)));
     read(mSocket, buffer(reinterpret_cast<char*>(&dh.mXres), sizeof(int)));
     read(mSocket, buffer(reinterpret_cast<char*>(&dh.mYres), sizeof(int)));
+    read(mSocket, buffer(reinterpret_cast<char*>(&dh.mPixAspectRatio), sizeof(float)));
     read(mSocket, buffer(reinterpret_cast<char*>(&dh.mRArea), sizeof(long long)));
     read(mSocket, buffer(reinterpret_cast<char*>(&dh.mVersion), sizeof(int)));
     read(mSocket, buffer(reinterpret_cast<char*>(&dh.mCurrentFrame), sizeof(int)));

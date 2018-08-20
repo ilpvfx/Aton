@@ -56,7 +56,7 @@ public:
     const int& yres() const { return mYres; }
     
     // Get Pixel Aspect Ratio
-    const int& pixel_aspect() const { return mPixAspectRatio; }
+    const float& pixel_aspect() const { return mPixAspectRatio; }
     
     // Get area of the render region
     const long long& rArea() const { return mRArea; }
