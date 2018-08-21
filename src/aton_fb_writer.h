@@ -47,6 +47,9 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
             }
             catch( ... )
             {
+                WriteGuard lock(node->m_mutex);
+                node->m_running = false;
+                node->flagForUpdate();
                 break;
             }
             
@@ -88,7 +91,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                         fb_index = std::find(sessions.begin(),
                                              sessions.end(), _index) - sessions.begin();
                     
-                        if (fb_index != sessions.size())
+                        if (fb_index < sessions.size())
                             new_session = false;
                     }
                     
@@ -105,7 +108,10 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                         session_idx = _index;
                         node->m_outputKnobChanged = Aton::item_added;
                     }
-
+                    
+                    if (node->m_multiframes)
+                        fb_index --;
+                    
                     FrameBuffer& fb = fbs[fb_index];
 
                     // Create RenderBuffer
@@ -268,8 +274,6 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                             rb.setProgress(progress);
                             rb.setRAM(_ram);
                             rb.setTime(_time, delta_time);
-                            if (progress >= 100)
-                                node->m_running = false;
                             node->m_mutex.unlock();
 
                             // Update the image
@@ -282,18 +286,10 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                 }
                 case 2: // Close image
                 {
-                    WriteGuard lock(node->m_mutex);
-                    node->m_running = false;
-                    node->flagForUpdate();
                     break;
                 }
-                case 9: // This is sent when the parent process want to kill
-                        // the listening thread
+                case 9: // When the parent process want to kill the listening thread
                 {
-                    WriteGuard lock(node->m_mutex);
-                    node->m_running = false;
-                    node->flagForUpdate();
-                    
                     killThread = true;
                     break;
                 }

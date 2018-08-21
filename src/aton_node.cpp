@@ -904,11 +904,10 @@ void Aton::setStatus(const long long& progress,
                                                              %frame%f_size%samples%progress).str();
     Knob* statusKnob = m_node->knob("status_knob");
     if (m_node->m_running)
-    {
         status_str += "...";
-        statusKnob->set_flag(Knob::DISABLED, false);
-    }
     
+    bool disabled = (progress == 100) || !m_node->m_running;
+    statusKnob->set_flag(Knob::DISABLED, disabled);
     statusKnob->set_text(status_str.c_str());
 }
 
