@@ -8,7 +8,6 @@ All rights reserved. See COPYING.txt for more details.
 #include "aton_fb_writer.h"
 #include "aton_fb_updater.h"
 
-#include "boost/format.hpp"
 #include "boost/foreach.hpp"
 #include "boost/regex.hpp"
 #include "boost/filesystem.hpp"
@@ -412,11 +411,13 @@ void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
 void Aton::knobs(Knob_Callback f)
 {
     // Main knobs
+    Divider(f, "General");
     Int_knob(f, &m_port, "port_number", "Port");
     Knob* reset_knob = Button(f, "reset_port_knob", "Reset");
 
     // Sanpshots
     Divider(f, "Snapshots");
+    Bool_knob(f, &m_multiframes, "multi_frame_knob", "Multiple Frames Mode");
     m_outputKnob = Table_knob(f, "output_knob", "Output");
     if (f.makeKnobs())
     {
@@ -447,7 +448,6 @@ void Aton::knobs(Knob_Callback f)
     // Status Bar knobs
     BeginToolbar(f, "toolbar");
     Bool_knob(f, &m_enable_aovs, "enable_aovs_knob", "Read AOVs");
-    Bool_knob(f, &m_multiframes, "multi_frame_knob", "Read Multiple Frames");
     Knob* live_cam_knob = Bool_knob(f, &m_live_camera, "live_camera_knob", "Read Camera");
     EndToolbar(f);
     

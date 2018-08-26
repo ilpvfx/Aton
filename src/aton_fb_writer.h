@@ -4,9 +4,10 @@ Dan Bethell, Johannes Saam, Vahan Sosoyan.
 All rights reserved. See COPYING.txt for more details.
 */
 
-
 #ifndef FBWriter_h
 #define FBWriter_h
+
+#include "boost/format.hpp"
 
 #include "aton_node.h"
 
@@ -79,55 +80,63 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     // Get delta time per IPR iteration
                     delta_time = _active_time;
 
+                    bool& multiframe = node->m_multiframes;
                     std::vector<std::string>& output = node->m_output;
                     std::vector<long long>& sessions = node->m_sessions;
                     std::vector<FrameBuffer>& fbs = node->m_framebuffers;
                     
-                    // Session Handling
+                    // Check if we want a new session
                     long fb_index = 0;
                     bool new_session = true;
                     if (!sessions.empty())
                     {
                         fb_index = std::find(sessions.begin(),
                                              sessions.end(), _index) - sessions.begin();
-                    
-                        if (fb_index < sessions.size())
+                        
+                        if (multiframe || fb_index < sessions.size())
                             new_session = false;
                     }
                     
+                    // Output String
+                    std::string output_string = (boost::format("%s_%d_%s")%_output_name
+                                                                          %_frame
+                                                                          %node->getDateTime()).str();
                     // Adding new session
-                    if (fbs.empty() || (!node->m_multiframes && new_session))
+                    if (fbs.empty() || new_session)
                     {
                         FrameBuffer fb;
-                        WriteGuard lock(node->m_mutex);
+                        session_idx = _index;
                         
+                        WriteGuard lock(node->m_mutex);
                         fbs.push_back(fb);
                         node->m_sessions.push_back(_index);
-                        output.push_back(_output_name + std::string("_") + node->getDateTime());
-                        
-                        session_idx = _index;
-                        node->m_outputKnobChanged = Aton::item_added;
+                        output.push_back(output_string);
                     }
                     
-                    if (node->m_multiframes)
-                        fb_index --;
-                    
-                    FrameBuffer& fb = fbs[fb_index];
-
-                    // Create RenderBuffer
-                    if (node->m_multiframes)
+                    // Creating Renderbuffer
+                    if (multiframe)
                     {
+                        if (fb_index > 0)
+                            fb_index--;
+                        
+                        FrameBuffer& fb = fbs[fb_index];
+                        
+                        WriteGuard lock(node->m_mutex);
+                        output[fb_index] = output_string;
+                        
                         if (!fb.frameExists(_frame))
-                        {
-                            WriteGuard lock(node->m_mutex);
                             fb.addFrame(_frame, _xres, _yres, _pix_aspect);
-                        }
+                        else
+                            fb.setCurrentFrame(_frame);
                     }
                     else
                     {
+                        FrameBuffer& fb = fbs[fb_index];
+                        
                         if (fb.empty())
                         {
                             WriteGuard lock(node->m_mutex);
+                            output[fb_index] = output_string;
                             fb.addFrame(_frame, _xres, _yres, _pix_aspect);
                         }
                         else if (fb.size() > 1)
@@ -136,12 +145,9 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                             fb.clearAllExcept(_frame);
                         }
                     }
-                    
-                    // Set Current Frame
-                    node->setCurrentFrame(_frame);
 
                     // Get current RenderBuffer
-                    RenderBuffer& rb = fb.getFrame(_frame);
+                    RenderBuffer& rb = fbs[fb_index].getFrame(_frame);
 
                     // Reset Frame and Buffers if changed
                     if (!rb.empty() && !active_aovs.empty())
@@ -171,20 +177,34 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
 
                     // Set Version
                     if (rb.getVersionInt() != _version)
+                    {
+                        WriteGuard lock(node->m_mutex);
                         rb.setVersion(_version);
+                    }
 
                     // Set Samples
                     if (rb.getSamplesInt() != _samples)
+                    {
+                        WriteGuard lock(node->m_mutex);
                         rb.setSamples(_samples);
+                    }
 
                     // Reset active AOVs
                     if(!active_aovs.empty())
                         active_aovs.clear();
+                    
+                    WriteGuard lock(node->m_mutex);
+                    node->setCurrentFrame(_frame);
+                    node->m_outputKnobChanged = Aton::item_added;
                     break;
                 }
                 case 1: // Write image data
                 {
                     DataPixels dp = node->m_server.listenPixels();
+                    
+                    const char* _aov_name = dp.aovName();
+                    const int& _xres = dp.xres();
+                    const int& _yres = dp.yres();
 
                     // Get Render Buffer
                     std::vector<long long>& sessions = node->m_sessions;
@@ -193,10 +213,6 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     
                     FrameBuffer& fb = node->m_framebuffers[fb_index];
                     RenderBuffer& rb = fb.getFrame(fb.currentFrame());
-
-                    const char* _aov_name = dp.aovName();
-                    const int& _xres = dp.xres();
-                    const int& _yres = dp.yres();
 
                     if(rb.isResolutionChanged(_xres, _yres))
                     {
@@ -214,7 +230,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                         else if (active_aovs.size() > 1)
                             active_aovs.resize(1);
                     }
-
+                    
                     // Skip non RGBA buckets if AOVs are disabled
                     if (node->m_enable_aovs || active_aovs[0] == _aov_name)
                     {

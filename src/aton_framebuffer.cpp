@@ -346,7 +346,7 @@ void FrameBuffer::clearAllExcept(double frame)
 
     _frames.erase(_frames.begin() + 1, _frames.end());
     _renderbuffers.erase(_renderbuffers.begin() + 1, _renderbuffers.end());
-    _current_frame  = frame;
+    _current_frame = frame;
 }
 
 
