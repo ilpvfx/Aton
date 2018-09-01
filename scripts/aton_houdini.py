@@ -677,7 +677,7 @@ class Aton(QtWidgets.QWidget):
             
             # Aton Attributes
             userOptions += ' ' if userOptions else ''
-            userOptions += 'declare aton_enable constant BOOL aton_enable off '
+            userOptions += 'declare aton_enable constant BOOL aton_enable on '
             userOptions += 'declare aton_host constant STRING aton_host %s '%self.hostLineEdit.text()
             userOptions += 'declare aton_port constant INT aton_port %d '%self.portSlider.value()
             userOptions += 'declare aton_output constant STRING aton_output %s '%self.output.name
