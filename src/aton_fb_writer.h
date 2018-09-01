@@ -93,7 +93,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                         fb_index = std::find(sessions.begin(),
                                              sessions.end(), _index) - sessions.begin();
                         
-                        if (multiframe || fb_index < sessions.size())
+                        if (fb_index < sessions.size())
                             new_session = false;
                     }
                     
@@ -111,6 +111,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                         fbs.push_back(fb);
                         node->m_sessions.push_back(_index);
                         output.push_back(output_string);
+                        node->m_outputKnobChanged = Aton::item_added;
                     }
                     
                     // Creating Renderbuffer
@@ -123,6 +124,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                         
                         WriteGuard lock(node->m_mutex);
                         output[fb_index] = output_string;
+                        node->m_outputKnobChanged = Aton::item_added;
                         
                         if (!fb.frameExists(_frame))
                             fb.addFrame(_frame, _xres, _yres, _pix_aspect);
@@ -145,10 +147,10 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                             fb.clearAllExcept(_frame);
                         }
                     }
-
+                    
                     // Get current RenderBuffer
                     RenderBuffer& rb = fbs[fb_index].getFrame(_frame);
-
+                    
                     // Reset Frame and Buffers if changed
                     if (!rb.empty() && !active_aovs.empty())
                     {
@@ -165,8 +167,12 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                             node->resetChannels(node->m_channels);
                         }
                     }
-
-                    // Setting Camera
+                    
+                    // Set Frame on Timeline
+                    if (_frame != node->outputContext().frame())
+                        node->setCurrentFrame(_frame);
+                    
+                    // Set Camera
                     if (rb.isCameraChanged(_fov, _matrix))
                     {
                         WriteGuard lock(node->m_mutex);
@@ -174,28 +180,24 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                         node->setCameraKnobs(rb.getCameraFov(),
                                              rb.getCameraMatrix());
                     }
-
+                    
                     // Set Version
                     if (rb.getVersionInt() != _version)
                     {
                         WriteGuard lock(node->m_mutex);
                         rb.setVersion(_version);
                     }
-
+                    
                     // Set Samples
                     if (rb.getSamplesInt() != _samples)
                     {
                         WriteGuard lock(node->m_mutex);
                         rb.setSamples(_samples);
                     }
-
+                    
                     // Reset active AOVs
                     if(!active_aovs.empty())
                         active_aovs.clear();
-                    
-                    WriteGuard lock(node->m_mutex);
-                    node->setCurrentFrame(_frame);
-                    node->m_outputKnobChanged = Aton::item_added;
                     break;
                 }
                 case 1: // Write image data
