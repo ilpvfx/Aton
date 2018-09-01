@@ -1,3 +1,6 @@
+__copyright__ = "2018 All rights reserved. See Copyright.txt for more details."
+__version__ = "1.3.0"
+
 import os, re
 from functools import partial
 
