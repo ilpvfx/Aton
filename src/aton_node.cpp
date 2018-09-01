@@ -410,13 +410,14 @@ void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
 
 void Aton::knobs(Knob_Callback f)
 {
-    // Main knobs
-    Divider(f, "General");
+    // Connect knobs
+    Divider(f, "Connect");
     Int_knob(f, &m_port, "port_number", "Port");
     Knob* reset_knob = Button(f, "reset_port_knob", "Reset");
 
     // Sanpshots
     Divider(f, "Snapshots");
+    Bool_knob(f, &m_enable_aovs, "enable_aovs_knob", "Enable AOVs");
     Bool_knob(f, &m_multiframes, "multi_frame_knob", "Multiple Frames Mode");
     m_outputKnob = Table_knob(f, "output_knob", "Output");
     if (f.makeKnobs())
@@ -424,32 +425,28 @@ void Aton::knobs(Knob_Callback f)
         Table_KnobI* outputKnob = m_outputKnob->tableKnob();
         outputKnob->addStringColumn("snapshots", "", true, 512);
     }
-    
     Newline(f);
     Knob* move_up = Button(f, "move_up_knob", "<img src=\":qrc/images/arrow_up.png\">");
     Knob* move_down = Button(f, "move_down_knob", "<img src=\":qrc/images/arrow_down.png\">");
     Knob* remove_selectd = Button(f, "remove_selected_knob", "<img src=\":qrc/images/ScriptEditor/clearOutput.png\">");
+
+    // Camera knobs
+    Divider(f, "Camera");
+    Knob* live_cam_knob = Bool_knob(f, &m_live_camera, "live_camera_knob", "Enable Live Camera");
     
-    // Render Region
-    Divider(f, "Render Region");
-    Knob* region_knob = BBox_knob(f, m_region, "region_knob", "Area");
-    Button(f, "copy_clipboard_knob", "Copy");
-    
-    // Write to Disk
+    // Write knobs
     Divider(f, "Write to Disk");
-    Knob* write_multi_frame_knob = Bool_knob(f, &m_write_frames, "write_multi_frame_knob",
-                                                                 "Write Multiple Frames");
+    Knob* write_multi_frame_knob = Bool_knob(f, &m_write_frames, "write_multi_frame_knob", "Write Multiple Frames");
     Knob* path_knob = File_knob(f, &m_path, "path_knob", "Path");
     Newline(f);
     Button(f, "render_knob", "Render");
     Button(f, "import_latest_knob", "Read Latest");
     Button(f, "import_all_knob", "Read All");
-
-    // Status Bar knobs
-    BeginToolbar(f, "toolbar");
-    Bool_knob(f, &m_enable_aovs, "enable_aovs_knob", "Read AOVs");
-    Knob* live_cam_knob = Bool_knob(f, &m_live_camera, "live_camera_knob", "Read Camera");
-    EndToolbar(f);
+    
+    // Render Region
+    Divider(f, "Render Region");
+    Knob* region_knob = BBox_knob(f, m_region, "region_knob", "Area");
+    Button(f, "copy_clipboard_knob", "Copy");
     
     // Status Bar
     BeginToolbar(f, "status_bar");
@@ -707,9 +704,9 @@ void Aton::remove_selected_cmd()
         std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
 
         WriteGuard lock(m_node->m_mutex);
-        fbs.erase(fbs.begin() + idx);
-        out.erase(out.begin() + idx);
         sessions.erase(sessions.begin() + idx);
+        out.erase(out.begin() + idx);
+        fbs.erase(fbs.begin() + idx);
         if (out.empty())
             setStatus();
         
@@ -720,7 +717,10 @@ void Aton::remove_selected_cmd()
 void Aton::copyClipboardCmd()
 {
     std::string cmd; // Our python command buffer
-    cmd = (boost::format("exec('''from PySide2 import QtWidgets\n"
+    cmd = (boost::format("exec('''try:\n\t"
+                                     "from PySide import QtGui as QtWidgets\n"
+                                 "except ImportError:\n\t"
+                                     "from PySide2 import QtWidgets\n"
                                  "clipboard = QtWidgets.QApplication.clipboard()\n"
                                  "clipboard.setText('%s,%s,%s,%s')''')" )%m_region[0]
                                                                          %m_region[1]
@@ -733,8 +733,9 @@ void Aton::copyClipboardCmd()
 void Aton::captureCmd()
 {
     std::string path = std::string(m_path);
+    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
 
-    if (isPathValid(path))
+    if (!fbs.empty() && isPathValid(path))
     {
         // Add date or frame suffix to the path
         std::string key (".");
