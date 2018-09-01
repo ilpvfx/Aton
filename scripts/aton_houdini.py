@@ -413,7 +413,7 @@ class Aton(QtWidgets.QWidget):
                 self.cameraComboBox.setCurrentName(self.output.camera)
                 self.bucketComboBox.setCurrentName(self.output.bucketScanning)
                 resUpdateUI(self.resolutionSlider.slider.value())
-                self.cameraAaSlider.setValue(self.output.AASamples)
+                self.cameraAaSlider.setValue(self.output.AASamples, self.output.AASamples)
                 self.renderRegionRSpinBox.setValue(self.output.resolution[0])
                 self.renderRegionTSpinBox.setValue(self.output.resolution[1])
         
