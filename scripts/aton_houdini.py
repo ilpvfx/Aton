@@ -331,6 +331,23 @@ class ComboBox(BoxWidget):
             self.comboBox.clear()
             self.items = []
 
+class CheckBox(BoxWidget):
+        def __init__(self, label, title='', first=True):
+            super(CheckBox, self).__init__(label, first)
+            self.checkBox = QtWidgets.QCheckBox(title)
+    
+            self.layout.addWidget(self.checkBox)
+
+        @property
+        def stateChanged(self):
+            return self.checkBox.stateChanged
+
+        def isChecked(self):
+            return self.checkBox.isChecked()
+
+        def setChecked(self, value):
+            self.checkBox.setChecked(value)
+
 class Aton(QtWidgets.QWidget):
     
     def __init__(self):
@@ -408,7 +425,11 @@ class Aton(QtWidgets.QWidget):
 
     def setupUI(self):
 
-        def outputUpdate(index):
+        def IPRUpdateUI(value):
+            self.ipr.setPreview(self.IPRUpdateCheckBox.isChecked())  
+            self.ipr.setAutoUpdate(self.IPRUpdateCheckBox.isChecked())
+
+        def outputUpdateUI(index):
             if index >= 0:
                 self.cameraComboBox.setCurrentName(self.output.camera)
                 self.bucketComboBox.setCurrentName(self.output.bucketScanning)
@@ -433,6 +454,7 @@ class Aton(QtWidgets.QWidget):
             self.portCheckBox.setChecked(True)
             self.hostLineEdit.setText(self.defaultHost)
             self.portSlider.setValue(self.defaultPort, 0)
+            self.IPRUpdateCheckBox.setChecked(True)
             self.outputComboBox.clear()
             self.outputComboBox.addItems(getOutputDrivers(path=True))
             self.resolutionSlider.setValue(100, 20)
@@ -481,7 +503,7 @@ class Aton(QtWidgets.QWidget):
         outputDriverLayout = QtWidgets.QHBoxLayout()
         self.outputComboBox = ComboBox("Output")
         self.outputComboBox.addItems([i.path for i in self.outputsList])
-        self.outputComboBox.currentIndexChanged.connect(outputUpdate)
+        self.outputComboBox.currentIndexChanged.connect(outputUpdateUI)
         outputDriverLayout.addWidget(self.outputComboBox)
 
         # Camera Layout
@@ -494,6 +516,13 @@ class Aton(QtWidgets.QWidget):
         # Overrides Group
         overridesGroupBox = QtWidgets.QGroupBox("Overrides")
         overridesLayout = QtWidgets.QVBoxLayout(overridesGroupBox)
+
+        # IPR Update Layout
+        IPRUpdateLayout = QtWidgets.QHBoxLayout()
+        self.IPRUpdateCheckBox = CheckBox('IPR', " Auto Update")
+        self.IPRUpdateCheckBox.setChecked(True)
+        self.IPRUpdateCheckBox.stateChanged.connect(IPRUpdateUI)
+        IPRUpdateLayout.addWidget(self.IPRUpdateCheckBox)
 
         # Bucket Layout
         bucketLayout = QtWidgets.QHBoxLayout()
@@ -557,13 +586,11 @@ class Aton(QtWidgets.QWidget):
         # Ignore Layout
         ignoresLayout = QtWidgets.QVBoxLayout(ignoresGroupBox)
         ignoreLayout = QtWidgets.QHBoxLayout()
-        ignoreLabel = QtWidgets.QLabel("Ignore:")
-        ignoreLabel.setAlignment(QtCore.Qt.AlignRight|QtCore.Qt.AlignVCenter)
-        self.motionBlurCheckBox = QtWidgets.QCheckBox("Motion Blur")
-        self.subdivsCheckBox = QtWidgets.QCheckBox("Subdivs")
-        self.displaceCheckBox = QtWidgets.QCheckBox("Displace")
-        self.bumpCheckBox = QtWidgets.QCheckBox("Bump")
-        self.sssCheckBox = QtWidgets.QCheckBox("SSS")
+        self.motionBlurCheckBox = QtWidgets.QCheckBox(' Motion Blur')
+        self.subdivsCheckBox = QtWidgets.QCheckBox(" Subdivs")
+        self.displaceCheckBox = QtWidgets.QCheckBox(' Displace')
+        self.bumpCheckBox = QtWidgets.QCheckBox(' Bump')
+        self.sssCheckBox = QtWidgets.QCheckBox(' SSS')
         ignoreLayout.addWidget(self.motionBlurCheckBox)
         ignoreLayout.addWidget(self.subdivsCheckBox)
         ignoreLayout.addWidget(self.displaceCheckBox)
@@ -586,6 +613,7 @@ class Aton(QtWidgets.QWidget):
         generalLayout.addLayout(hostLayout)
         generalLayout.addLayout(portLayout)
         generalLayout.addLayout(outputDriverLayout)
+        overridesLayout.addLayout(IPRUpdateLayout)
         overridesLayout.addLayout(cameraLayout)
         overridesLayout.addLayout(bucketLayout)
         overridesLayout.addLayout(cameraAaLayout)
@@ -734,8 +762,8 @@ class Aton(QtWidgets.QWidget):
         if self.output:
             
             # Set IPR Options
-            self.ipr.setPreview(True)  
-            self.ipr.setAutoUpdate(True)
+            self.ipr.setPreview(self.IPRUpdateCheckBox.isChecked())  
+            self.ipr.setAutoUpdate(self.IPRUpdateCheckBox.isChecked())
             self.ipr.killRender()
             self.ipr.setRopNode(self.output.rop)
             self.ipr.startRender()
