@@ -61,9 +61,9 @@ def atonUpdate(self):
                 aton_outputs = [i.replace(name, AiNodeGetName(aton_node)) for i in outputs if i.endswith(name)]
                 nodeSetArrayString(options_node, 'outputs', aton_outputs)
             else:
-                warn("Aton is not Enabled!")
+                warn("Aton is not Enabled.")
         else:
-            warn("No Aton driver plug-in node 'driver_aton' could be found installed.")
+            warn("Aton Enabling User Option was not found.")
 
 def generateDecorated(func):
     def generateDecorator(self, *args, **kwargs):
@@ -116,13 +116,14 @@ def getOutputDrivers(path = False):
     
     return rops
 
-def getBucketModes(rop):
-    if rop:
-        parmTemplateGroup = rop.parmTemplateGroup()
+def getBucketModes():
+    rops = getOutputDrivers()
+    if rops:
+        parmTemplateGroup = rops[0].parmTemplateGroup()
         parmTamplateName = 'ar_bucket_scanning'
         parmTemplateExist = parmTemplateGroup.find(parmTamplateName)
         if parmTemplateExist:
-            return rop.parm(parmTamplateName).parmTemplate().menuItems()
+            return rops[0].parm(parmTamplateName).parmTemplate().menuItems()
 
 def getAllCameras(path = False):
     ''' Returns a list of all camera names '''
@@ -170,6 +171,7 @@ class Output(object):
         self.resolution = hou.node(self.camera).parmTuple('res').eval()
         self.AASamples = self.rop.parm('ar_AA_samples').eval()
         self.bucketScanning = self.rop.parm('ar_bucket_scanning').eval()
+        self.userOptionsEnable = self.rop.parm('ar_user_options_enable').eval()
 
     def _init_blank(self):
         self.rop = None
@@ -181,6 +183,7 @@ class Output(object):
         self.resolution = (0,0)
         self.AASamples = 0
         self.bucketScanning = None
+        self.userOptionsEnable = None
     
     def rollback(self):
         hou.node(self.camera).parmTuple('res').set(self.resolution)
@@ -189,6 +192,7 @@ class Output(object):
         self.rop.parm('override_camerares').set(self.overrideCameraRes)
         self.rop.parm('ar_AA_samples').set(self.AASamples)
         self.rop.parm('ar_bucket_scanning').set(self.bucketScanning)
+        self.rop.parm('ar_user_options_enable').set(self.userOptionsEnable)
 
 class BoxWidget(QtWidgets.QFrame):
         def __init__(self, label, first=True):
@@ -327,6 +331,14 @@ class ComboBox(BoxWidget):
                     self.comboBox.addItem(i)
                 self.items += items
 
+        def newItems(self, items):
+            if items:
+                self.clear()
+                for i in items:
+                    self.comboBox.addItem(i)
+                self.items += items
+
+
         def clear(self):
             self.comboBox.clear()
             self.items = []
@@ -385,16 +397,25 @@ class Aton(QtWidgets.QWidget):
     @property
     def user_options(self):
         if self._user_options is None:
-            # Check if it's an Arnold ROP
-            userOptionsParmName = 'ar_user_options'
-            rop_node = hou.node(self.outputComboBox.currentName())
-            parmTemplateGroup = rop_node.parmTemplateGroup()
+            if not self.output.rop is None:
+                userOptionsParmName = 'ar_user_options'
+                parmTemplateGroup = self.output.rop.parmTemplateGroup()
+                parmTemplate = parmTemplateGroup.find(userOptionsParmName)
+
+                if parmTemplate:
+                    self._user_options = self.output.rop.parm(userOptionsParmName)
+
+        return self._user_options
+
+    @user_options.setter
+    def user_options(self, value):
+        if not self.output.rop is None:
+            userOptionsParmName = 'ar_user_options_enable'
+            parmTemplateGroup = self.output.rop.parmTemplateGroup()
             parmTemplate = parmTemplateGroup.find(userOptionsParmName)
 
             if parmTemplate:
-                self._user_options = rop_node.parm(userOptionsParmName)
-
-        return self._user_options
+                self.output.rop.parm(userOptionsParmName).set(value)
 
     @property
     def output(self):
@@ -405,6 +426,239 @@ class Aton(QtWidgets.QWidget):
             self._output = Output()
         return self._output
 
+    def setupUI(self):
+
+        def buildUI():
+
+            self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+            self.setAttribute(QtCore.Qt.WA_AlwaysShowToolTips)
+
+            # Main Layout
+            mainLayout = QtWidgets.QVBoxLayout()
+            
+            # General Group
+            generalGroupBox = QtWidgets.QGroupBox("General")
+            generalLayout = QtWidgets.QVBoxLayout(generalGroupBox)
+            
+            # Host Layout
+            hostLayout = QtWidgets.QHBoxLayout()
+            self.hostLineEdit = LineEditBox("Host", u"%s"%self.defaultHost)
+            self.hostCheckBox = QtWidgets.QCheckBox()
+            self.hostCheckBox.setChecked(True)
+            self.hostCheckBox.stateChanged.connect(self.hostLineEdit.setEnabled)
+            hostLayout.addWidget(self.hostLineEdit)
+            hostLayout.addWidget(self.hostCheckBox)
+
+            # Port Layout
+            portLayout = QtWidgets.QHBoxLayout()
+            self.portSlider = SliderBox("Port")
+            self.portSlider.setMinimum(0, 0)
+            self.portSlider.setMaximum(9999, 15)
+            self.portSlider.setValue(self.defaultPort)
+            self.portSlider.connect(portUpdateUI)
+            self.portCheckBox = QtWidgets.QCheckBox()
+            self.portCheckBox.setChecked(True)
+            self.portCheckBox.stateChanged.connect(self.portSlider.setEnabled)
+            portLayout.addWidget(self.portSlider)
+            portLayout.addWidget(self.portCheckBox)
+
+            # Output Driver Layout
+            outputDriverLayout = QtWidgets.QHBoxLayout()
+            self.outputComboBox = ComboBox("Output")
+            self.outputComboBox.addItems([i.path for i in self.outputsList])
+            self.outputComboBox.currentIndexChanged.connect(outputUpdateUI)
+            outputDriverLayout.addWidget(self.outputComboBox)
+
+            # Camera Layout
+            cameraLayout = QtWidgets.QHBoxLayout()
+            self.cameraComboBox = ComboBox("Camera")
+            self.cameraComboBox.addItems(getAllCameras(path=True))
+            self.cameraComboBox.setCurrentName(self.output.camera)
+            cameraLayout.addWidget(self.cameraComboBox)
+
+            # Overrides Group
+            overridesGroupBox = QtWidgets.QGroupBox("Overrides")
+            overridesLayout = QtWidgets.QVBoxLayout(overridesGroupBox)
+
+            # IPR Update Layout
+            IPRUpdateLayout = QtWidgets.QHBoxLayout()
+            self.IPRUpdateCheckBox = CheckBox('IPR', " Auto Update")
+            self.IPRUpdateCheckBox.setChecked(True)
+            self.IPRUpdateCheckBox.stateChanged.connect(IPRUpdateUI)
+            IPRUpdateLayout.addWidget(self.IPRUpdateCheckBox)
+
+            # Bucket Layout
+            bucketLayout = QtWidgets.QHBoxLayout()
+            self.bucketComboBox = ComboBox("Bucket Scan")
+            self.bucketComboBox.addItems(getBucketModes())
+            self.bucketComboBox.setCurrentName(self.output.bucketScanning)
+            bucketLayout.addWidget(self.bucketComboBox)
+
+            # Resolution Layout
+            resolutionLayout = QtWidgets.QHBoxLayout()
+            self.resolutionSlider = SliderBox("Resolution %")
+            self.resolutionSlider.setMinimum(1, 1)
+            self.resolutionSlider.setMaximum(200, 40)
+            self.resolutionSlider.setValue(100, 20)
+            self.resolutionSlider.connect(resUpdateUI)
+            xres, yres = self.output.resolution[0], self.output.resolution[1]
+            self.resolutionInfoLabel = QtWidgets.QLabel(str(xres)+'x'+str(yres))
+            self.resolutionInfoLabel.setMaximumSize(100, 20)
+            self.resolutionInfoLabel.setEnabled(False)
+            resolutionLayout.addWidget(self.resolutionSlider)
+            resolutionLayout.addWidget(self.resolutionInfoLabel)
+
+            # Camera AA Layout
+            cameraAaLayout = QtWidgets.QHBoxLayout()
+            self.cameraAaSlider = SliderBox("Camera (AA)")
+            self.cameraAaSlider.setMinimum(-64, -3)
+            self.cameraAaSlider.setMaximum(64, 16)
+            self.cameraAaSlider.setValue(self.output.AASamples)
+            cameraAaLayout.addWidget(self.cameraAaSlider)
+
+            # Render region layout
+            renderRegionLayout = QtWidgets.QHBoxLayout()
+            self.renderRegionXSpinBox = SpinBox("Region X")
+            self.renderRegionYSpinBox = SpinBox("Y", 0, False)
+            self.renderRegionRSpinBox = SpinBox("R", 0, False)
+            self.renderRegionTSpinBox = SpinBox("T", 0, False)
+            self.renderRegionRSpinBox.setValue(self.output.resolution[0])
+            self.renderRegionTSpinBox.setValue(self.output.resolution[1])
+            renderRegionGetNukeButton = QtWidgets.QPushButton("Get")
+            renderRegionGetNukeButton.clicked.connect(self.getNukeCropNode)
+            renderRegionLayout.addWidget(self.renderRegionXSpinBox)
+            renderRegionLayout.addWidget(self.renderRegionYSpinBox)
+            renderRegionLayout.addWidget(self.renderRegionRSpinBox)
+            renderRegionLayout.addWidget(self.renderRegionTSpinBox)
+            renderRegionLayout.addWidget(renderRegionGetNukeButton)
+
+            # Overscan Layout
+            overscanLayout = QtWidgets.QHBoxLayout()
+            self.overscanSlider = SliderBox("Overscan")
+            self.overscanSlider.setMinimum(0)
+            self.overscanSlider.setMaximum(9999, 250)
+            self.overscanSlider.setValue(0, 0)
+            overscanLayout.addWidget(self.overscanSlider)
+
+            # Ignore Group
+            ignoresGroupBox = QtWidgets.QGroupBox("Ignore")
+            ignoresGroupBox.setMaximumSize(9999, 75)
+
+            # Ignore Layout
+            ignoresLayout = QtWidgets.QVBoxLayout(ignoresGroupBox)
+            ignoreLayout = QtWidgets.QHBoxLayout()
+            self.motionBlurCheckBox = QtWidgets.QCheckBox(' Motion Blur')
+            self.subdivsCheckBox = QtWidgets.QCheckBox(" Subdivs")
+            self.displaceCheckBox = QtWidgets.QCheckBox(' Displace')
+            self.bumpCheckBox = QtWidgets.QCheckBox(' Bump')
+            self.sssCheckBox = QtWidgets.QCheckBox(' SSS')
+            ignoreLayout.addWidget(self.motionBlurCheckBox)
+            ignoreLayout.addWidget(self.subdivsCheckBox)
+            ignoreLayout.addWidget(self.displaceCheckBox)
+            ignoreLayout.addWidget(self.bumpCheckBox)
+            ignoreLayout.addWidget(self.sssCheckBox)
+
+            # Main Buttons Layout
+            mainButtonslayout = QtWidgets.QHBoxLayout()
+            startButton = QtWidgets.QPushButton("Start / Refresh")
+            stopButton = QtWidgets.QPushButton("Stop")
+            resetButton = QtWidgets.QPushButton("Reset")
+            startButton.clicked.connect(self.startRender)
+            stopButton.clicked.connect(self.stopRender)
+            resetButton.clicked.connect(resetUI)
+            mainButtonslayout.addWidget(startButton)
+            mainButtonslayout.addWidget(stopButton)
+            mainButtonslayout.addWidget(resetButton)
+
+            # Add Layouts to Main
+            generalLayout.addLayout(hostLayout)
+            generalLayout.addLayout(portLayout)
+            generalLayout.addLayout(outputDriverLayout)
+            overridesLayout.addLayout(IPRUpdateLayout)
+            overridesLayout.addLayout(cameraLayout)
+            overridesLayout.addLayout(bucketLayout)
+            overridesLayout.addLayout(cameraAaLayout)
+            overridesLayout.addLayout(resolutionLayout)
+            overridesLayout.addLayout(renderRegionLayout)
+            overridesLayout.addLayout(overscanLayout)
+            ignoresLayout.addLayout(ignoreLayout)
+
+            mainLayout.addWidget(generalGroupBox)
+            mainLayout.addWidget(overridesGroupBox)
+            mainLayout.addWidget(ignoresGroupBox)
+            mainLayout.addLayout(mainButtonslayout)
+
+            addUICallbacks()
+
+            return mainLayout
+
+        def portUpdateUI(value):
+            self.portSlider.spinBox.setValue(value + self.defaultPort)
+
+        def IPRUpdateUI(value):
+            self.ipr.setPreview(self.IPRUpdateCheckBox.isChecked())  
+            self.ipr.setAutoUpdate(self.IPRUpdateCheckBox.isChecked())
+
+        def outputUpdateUI(index):
+            if index >= 0:
+                resUpdateUI(self.resolutionSlider.slider.value())
+                self.cameraComboBox.setCurrentName(self.output.camera)
+                self.bucketComboBox.setCurrentName(self.output.bucketScanning)
+                self.cameraAaSlider.setValue(self.output.AASamples, self.output.AASamples)
+                self.renderRegionRSpinBox.setValue(self.output.resolution[0])
+                self.renderRegionTSpinBox.setValue(self.output.resolution[1])
+        
+        def resUpdateUI(value):
+            self.resolutionSlider.setValue(value * 5)
+            xres = self.output.resolution[0] * value * 5 / 100
+            yres = self.output.resolution[1] * value * 5 / 100
+            self.resolutionInfoLabel.setText("%dx%d"%(xres, yres))
+
+        def resetUI(*args):
+            if self.ipr.isActive():
+                self.removeAtonOverrides()
+                self.outputsList = [Output(rop) for rop in getOutputDrivers()]
+
+            self.hostCheckBox.setChecked(True)
+            self.portCheckBox.setChecked(True)
+            self.hostLineEdit.setText(self.defaultHost)
+            self.portSlider.setValue(self.defaultPort, 0)
+            self.IPRUpdateCheckBox.setChecked(True)
+
+            self.bucketComboBox.newItems(getBucketModes())
+            self.cameraComboBox.newItems(getAllCameras(path=True))     
+            self.outputComboBox.newItems(getOutputDrivers(path=True))
+
+            self.resolutionSlider.setValue(100, 20)
+            self.renderRegionXSpinBox.setValue(0)
+            self.renderRegionYSpinBox.setValue(0)
+            self.overscanSlider.setValue(0, 0)
+            self.motionBlurCheckBox.setChecked(False)
+            self.subdivsCheckBox.setChecked(False)
+            self.displaceCheckBox.setChecked(False)
+            self.bumpCheckBox.setChecked(False)
+            self.sssCheckBox.setChecked(False)
+
+            outputUpdateUI(self.outputComboBox.currentIndex())
+  
+        def addUICallbacks():
+            self.cameraComboBox.currentIndexChanged.connect(lambda : self.addAtonOverrides(0))
+            self.bucketComboBox.currentIndexChanged.connect(lambda : self.addAtonOverrides(3))
+            self.cameraAaSlider.valueChanged.connect(lambda : self.addAtonOverrides(1))
+            self.resolutionSlider.valueChanged.connect(lambda : self.addAtonOverrides(2))
+            self.renderRegionXSpinBox.valueChanged.connect(lambda: self.addAtonOverrides(2))
+            self.renderRegionYSpinBox.valueChanged.connect(lambda: self.addAtonOverrides(2))
+            self.renderRegionRSpinBox.valueChanged.connect(lambda: self.addAtonOverrides(2))
+            self.renderRegionTSpinBox.valueChanged.connect(lambda: self.addAtonOverrides(2))
+            self.overscanSlider.valueChanged.connect(lambda : self.addAtonOverrides(2))
+            self.motionBlurCheckBox.toggled.connect(lambda: self.addAtonOverrides(4))
+            self.subdivsCheckBox.toggled.connect(lambda: self.addAtonOverrides(4))
+            self.displaceCheckBox.toggled.connect(lambda: self.addAtonOverrides(4))
+            self.bumpCheckBox.toggled.connect(lambda: self.addAtonOverrides(4))
+            self.sssCheckBox.toggled.connect(lambda: self.addAtonOverrides(4))
+
+        self.setLayout(buildUI())
+        
     def deleteInstances(self):
         for w in QtWidgets.QApplication.instance().topLevelWidgets():
             if w.objectName() == self.objName:
@@ -422,231 +676,6 @@ class Aton(QtWidgets.QWidget):
             self.ipr.killRender()
         except AttributeError:
             pass
-
-    def setupUI(self):
-
-        def IPRUpdateUI(value):
-            self.ipr.setPreview(self.IPRUpdateCheckBox.isChecked())  
-            self.ipr.setAutoUpdate(self.IPRUpdateCheckBox.isChecked())
-
-        def outputUpdateUI(index):
-            if index >= 0:
-                self.cameraComboBox.setCurrentName(self.output.camera)
-                self.bucketComboBox.setCurrentName(self.output.bucketScanning)
-                resUpdateUI(self.resolutionSlider.slider.value())
-                self.cameraAaSlider.setValue(self.output.AASamples, self.output.AASamples)
-                self.renderRegionRSpinBox.setValue(self.output.resolution[0])
-                self.renderRegionTSpinBox.setValue(self.output.resolution[1])
-        
-        def portUpdateUI(value):
-            self.portSlider.spinBox.setValue(value + self.defaultPort)
-
-        def resUpdateUI(value):
-            self.resolutionSlider.setValue(value * 5)
-            xres = self.output.resolution[0] * value * 5 / 100
-            yres = self.output.resolution[1] * value * 5 / 100
-            resolutionInfoLabel.setText("%dx%d"%(xres, yres))
-
-        def resetUI(*args):
-            self.outputsList = [Output(rop) for rop in getOutputDrivers()]
-
-            self.hostCheckBox.setChecked(True)
-            self.portCheckBox.setChecked(True)
-            self.hostLineEdit.setText(self.defaultHost)
-            self.portSlider.setValue(self.defaultPort, 0)
-            self.IPRUpdateCheckBox.setChecked(True)
-            self.outputComboBox.clear()
-            self.cameraComboBox.clear()
-            self.bucketComboBox.clear()
-            self.outputComboBox.addItems(getOutputDrivers(path=True))
-            self.cameraComboBox.addItems(getAllCameras(path=True))
-            self.bucketComboBox.addItems(getBucketModes(self.output.rop))
-            self.resolutionSlider.setValue(100, 20)
-            self.renderRegionXSpinBox.setValue(0)
-            self.renderRegionYSpinBox.setValue(0)
-            self.overscanSlider.setValue(0, 0)
-            self.motionBlurCheckBox.setChecked(False)
-            self.subdivsCheckBox.setChecked(False)
-            self.displaceCheckBox.setChecked(False)
-            self.bumpCheckBox.setChecked(False)
-            self.sssCheckBox.setChecked(False)
-
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        self.setAttribute(QtCore.Qt.WA_AlwaysShowToolTips)
-
-        # Main Layout
-        mainLayout = QtWidgets.QVBoxLayout()
-        
-        # General Group
-        generalGroupBox = QtWidgets.QGroupBox("General")
-        generalLayout = QtWidgets.QVBoxLayout(generalGroupBox)
-        
-        # Host Layout
-        hostLayout = QtWidgets.QHBoxLayout()
-        self.hostLineEdit = LineEditBox("Host", u"%s"%self.defaultHost)
-        self.hostCheckBox = QtWidgets.QCheckBox()
-        self.hostCheckBox.setChecked(True)
-        self.hostCheckBox.stateChanged.connect(self.hostLineEdit.setEnabled)
-        hostLayout.addWidget(self.hostLineEdit)
-        hostLayout.addWidget(self.hostCheckBox)
-
-        # Port Layout
-        portLayout = QtWidgets.QHBoxLayout()
-        self.portSlider = SliderBox("Port")
-        self.portSlider.setMinimum(0, 0)
-        self.portSlider.setMaximum(9999, 15)
-        self.portSlider.setValue(self.defaultPort)
-        self.portSlider.connect(portUpdateUI)
-        self.portCheckBox = QtWidgets.QCheckBox()
-        self.portCheckBox.setChecked(True)
-        self.portCheckBox.stateChanged.connect(self.portSlider.setEnabled)
-        portLayout.addWidget(self.portSlider)
-        portLayout.addWidget(self.portCheckBox)
-
-        # Output Driver Layout
-        outputDriverLayout = QtWidgets.QHBoxLayout()
-        self.outputComboBox = ComboBox("Output")
-        self.outputComboBox.addItems([i.path for i in self.outputsList])
-        self.outputComboBox.currentIndexChanged.connect(outputUpdateUI)
-        outputDriverLayout.addWidget(self.outputComboBox)
-
-        # Camera Layout
-        cameraLayout = QtWidgets.QHBoxLayout()
-        self.cameraComboBox = ComboBox("Camera")
-        self.cameraComboBox.addItems(getAllCameras(path=True))
-        self.cameraComboBox.setCurrentName(self.output.camera)
-        cameraLayout.addWidget(self.cameraComboBox)
-
-        # Overrides Group
-        overridesGroupBox = QtWidgets.QGroupBox("Overrides")
-        overridesLayout = QtWidgets.QVBoxLayout(overridesGroupBox)
-
-        # IPR Update Layout
-        IPRUpdateLayout = QtWidgets.QHBoxLayout()
-        self.IPRUpdateCheckBox = CheckBox('IPR', " Auto Update")
-        self.IPRUpdateCheckBox.setChecked(True)
-        self.IPRUpdateCheckBox.stateChanged.connect(IPRUpdateUI)
-        IPRUpdateLayout.addWidget(self.IPRUpdateCheckBox)
-
-        # Bucket Layout
-        bucketLayout = QtWidgets.QHBoxLayout()
-        self.bucketComboBox = ComboBox("Bucket Scan")
-        self.bucketComboBox.addItems(getBucketModes(self.output.rop))
-        self.bucketComboBox.setCurrentName(self.output.bucketScanning)
-        bucketLayout.addWidget(self.bucketComboBox)
-
-        # Resolution Layout
-        resolutionLayout = QtWidgets.QHBoxLayout()
-        self.resolutionSlider = SliderBox("Resolution %")
-        self.resolutionSlider.setMinimum(1, 1)
-        self.resolutionSlider.setMaximum(200, 40)
-        self.resolutionSlider.setValue(100, 20)
-        self.resolutionSlider.connect(resUpdateUI)
-        xres, yres = self.output.resolution[0], self.output.resolution[1]
-        resolutionInfoLabel = QtWidgets.QLabel(str(xres)+'x'+str(yres))
-        resolutionInfoLabel.setMaximumSize(100, 20)
-        resolutionInfoLabel.setEnabled(False)
-        resolutionLayout.addWidget(self.resolutionSlider)
-        resolutionLayout.addWidget(resolutionInfoLabel)
-
-        # Camera AA Layout
-        cameraAaLayout = QtWidgets.QHBoxLayout()
-        self.cameraAaSlider = SliderBox("Camera (AA)")
-        self.cameraAaSlider.setMinimum(-64, -3)
-        self.cameraAaSlider.setMaximum(64, 16)
-        self.cameraAaSlider.setValue(self.output.AASamples)
-        cameraAaLayout.addWidget(self.cameraAaSlider)
-
-        # Render region layout
-        renderRegionLayout = QtWidgets.QHBoxLayout()
-        self.renderRegionXSpinBox = SpinBox("Region X")
-        self.renderRegionYSpinBox = SpinBox("Y", 0, False)
-        self.renderRegionRSpinBox = SpinBox("R", 0, False)
-        self.renderRegionTSpinBox = SpinBox("T", 0, False)
-        self.renderRegionRSpinBox.setValue(self.output.resolution[0])
-        self.renderRegionTSpinBox.setValue(self.output.resolution[1])
-        renderRegionGetNukeButton = QtWidgets.QPushButton("Get")
-        renderRegionGetNukeButton.clicked.connect(self.getNukeCropNode)
-        renderRegionLayout.addWidget(self.renderRegionXSpinBox)
-        renderRegionLayout.addWidget(self.renderRegionYSpinBox)
-        renderRegionLayout.addWidget(self.renderRegionRSpinBox)
-        renderRegionLayout.addWidget(self.renderRegionTSpinBox)
-        renderRegionLayout.addWidget(renderRegionGetNukeButton)
-
-        # Overscan Layout
-        overscanLayout = QtWidgets.QHBoxLayout()
-        self.overscanSlider = SliderBox("Overscan")
-        self.overscanSlider.setMinimum(0)
-        self.overscanSlider.setMaximum(9999, 250)
-        self.overscanSlider.setValue(0, 0)
-        overscanSetButton = QtWidgets.QPushButton("Set")
-        overscanLayout.addWidget(self.overscanSlider)
-        overscanLayout.addWidget(overscanSetButton)
-
-        # Ignore Group
-        ignoresGroupBox = QtWidgets.QGroupBox("Ignore")
-        ignoresGroupBox.setMaximumSize(9999, 75)
-
-        # Ignore Layout
-        ignoresLayout = QtWidgets.QVBoxLayout(ignoresGroupBox)
-        ignoreLayout = QtWidgets.QHBoxLayout()
-        self.motionBlurCheckBox = QtWidgets.QCheckBox(' Motion Blur')
-        self.subdivsCheckBox = QtWidgets.QCheckBox(" Subdivs")
-        self.displaceCheckBox = QtWidgets.QCheckBox(' Displace')
-        self.bumpCheckBox = QtWidgets.QCheckBox(' Bump')
-        self.sssCheckBox = QtWidgets.QCheckBox(' SSS')
-        ignoreLayout.addWidget(self.motionBlurCheckBox)
-        ignoreLayout.addWidget(self.subdivsCheckBox)
-        ignoreLayout.addWidget(self.displaceCheckBox)
-        ignoreLayout.addWidget(self.bumpCheckBox)
-        ignoreLayout.addWidget(self.sssCheckBox)
-
-        # Main Buttons Layout
-        mainButtonslayout = QtWidgets.QHBoxLayout()
-        startButton = QtWidgets.QPushButton("Start / Refresh")
-        stopButton = QtWidgets.QPushButton("Stop")
-        resetButton = QtWidgets.QPushButton("Reset")
-        startButton.clicked.connect(self.startRender)
-        stopButton.clicked.connect(self.stopRender)
-        resetButton.clicked.connect(resetUI)
-        mainButtonslayout.addWidget(startButton)
-        mainButtonslayout.addWidget(stopButton)
-        mainButtonslayout.addWidget(resetButton)
-
-        # Add Layouts to Main
-        generalLayout.addLayout(hostLayout)
-        generalLayout.addLayout(portLayout)
-        generalLayout.addLayout(outputDriverLayout)
-        overridesLayout.addLayout(IPRUpdateLayout)
-        overridesLayout.addLayout(cameraLayout)
-        overridesLayout.addLayout(bucketLayout)
-        overridesLayout.addLayout(cameraAaLayout)
-        overridesLayout.addLayout(resolutionLayout)
-        overridesLayout.addLayout(renderRegionLayout)
-        overridesLayout.addLayout(overscanLayout)
-        ignoresLayout.addLayout(ignoreLayout)
-
-        mainLayout.addWidget(generalGroupBox)
-        mainLayout.addWidget(overridesGroupBox)
-        mainLayout.addWidget(ignoresGroupBox)
-        mainLayout.addLayout(mainButtonslayout)
-
-        self.cameraComboBox.currentIndexChanged.connect(lambda : self.addAtonOverrides(0))
-        self.bucketComboBox.currentIndexChanged.connect(lambda : self.addAtonOverrides(3))
-        self.cameraAaSlider.valueChanged.connect(lambda : self.addAtonOverrides(1))
-        self.resolutionSlider.valueChanged.connect(lambda : self.addAtonOverrides(2))
-        self.renderRegionXSpinBox.valueChanged.connect(lambda: self.addAtonOverrides(2))
-        self.renderRegionYSpinBox.valueChanged.connect(lambda: self.addAtonOverrides(2))
-        self.renderRegionRSpinBox.valueChanged.connect(lambda: self.addAtonOverrides(2))
-        self.renderRegionTSpinBox.valueChanged.connect(lambda: self.addAtonOverrides(2))
-        self.overscanSlider.valueChanged.connect(lambda : self.addAtonOverrides(2))
-        self.motionBlurCheckBox.toggled.connect(lambda: self.addAtonOverrides(4))
-        self.subdivsCheckBox.toggled.connect(lambda: self.addAtonOverrides(4))
-        self.displaceCheckBox.toggled.connect(lambda: self.addAtonOverrides(4))
-        self.bumpCheckBox.toggled.connect(lambda: self.addAtonOverrides(4))
-        self.sssCheckBox.toggled.connect(lambda: self.addAtonOverrides(4))
-
-        self.setLayout(mainLayout)
 
     def getNukeCropNode(self, *args):
         ''' Get crop node data from Nuke '''
@@ -701,65 +730,11 @@ class Aton(QtWidgets.QWidget):
                   4 : lambda: (self.renderRegionRSpinBox.value() * resValue / 100) - 1 + ovrScnValue,
                   5 : lambda: (yres - (self.renderRegionYSpinBox.value() * resValue / 100)) - 1 + ovrScnValue}[attr]()
 
-        return result
+        return result      
 
-    def addAtonOverrides(self, mode=None):
-        if self.ipr.isActive():
-            userOptions = self.removeAtonOverrides()
-            
-            # Aton Attributes
-            userOptions += ' ' if userOptions else ''
-            userOptions += 'declare aton_enable constant BOOL aton_enable on '
-            userOptions += 'declare aton_host constant STRING aton_host %s '%self.hostLineEdit.text()
-            userOptions += 'declare aton_port constant INT aton_port %d '%self.portSlider.value()
-            userOptions += 'declare aton_output constant STRING aton_output %s '%self.output.name
-
-            # Camera
-            if mode == None or mode == 0:
-                self.output.rop.parm('camera').set(self.cameraComboBox.currentName())
-            
-            # AA Samples
-            if mode == None or mode == 1:
-                self.output.rop.parm('ar_AA_samples').set(self.cameraAaSlider.value())
-
-            # Resolution
-            if mode == None or mode == 2:
-                self.output.rop.parm('override_camerares').set(True)
-                self.output.rop.parm('res_fraction').set('specific')
-                self.output.rop.parm('res_overridex').set(self.getRegion(0))
-                self.output.rop.parm('res_overridey').set(self.getRegion(1))
-            
-                # Render Region
-                userOptions += 'declare aton_region_min_x constant INT aton_region_min_x %d '%self.getRegion(2)
-                userOptions += 'declare aton_region_min_y constant INT aton_region_min_y %d '%self.getRegion(3)
-                userOptions += 'declare aton_region_max_x constant INT aton_region_max_x %d '%self.getRegion(4)
-                userOptions += 'declare aton_region_max_y constant INT aton_region_max_y %d '%self.getRegion(5)
-
-            # Bucket Scanning
-            if mode == None or mode == 3:
-                userOptions += 'declare aton_bucket constant STRING aton_bucket %s '%self.bucketComboBox.currentName()
-
-            # Ignore Feautres
-            if mode == None or mode == 4:
-                userOptions += 'declare aton_ignore_mbl constant BOOL aton_ignore_mbl %s '%('on' if self.motionBlurCheckBox.isChecked() else 'off')
-                userOptions += 'declare aton_ignore_sdv constant BOOL aton_ignore_sdv %s '%('on' if self.subdivsCheckBox.isChecked() else 'off')
-                userOptions += 'declare aton_ignore_dsp constant BOOL aton_ignore_dsp %s '%('on' if self.displaceCheckBox.isChecked() else 'off')
-                userOptions += 'declare aton_ignore_bmp constant BOOL aton_ignore_bmp %s '%('on' if self.bumpCheckBox.isChecked() else 'off')
-                userOptions += 'declare aton_ignore_sss constant BOOL aton_ignore_sss %s '%('on' if self.sssCheckBox.isChecked() else 'off')
-
-            self.user_options.set(userOptions)
-
-    def removeAtonOverrides(self):
-        for output in self.outputsList:
-            output.rollback()
-        
-        userOptions = self.user_options.evalAsString()
-        userOptions = re.sub('declare aton_enable.+', '', userOptions)
-        self.user_options.set(userOptions)
-        return userOptions
-
-    def isNotActive(self, ipr):
-        return not ipr.isActive()        
+    def iprIsNotActive(self):
+        if not self._ipr is None:
+            return not self.ipr.isActive()  
 
     def startRender(self):
 
@@ -772,13 +747,70 @@ class Aton(QtWidgets.QWidget):
             self.ipr.setRopNode(self.output.rop)
             self.ipr.startRender()
             
+            # Add Aton Overrides
             self.addAtonOverrides()
 
             # Wait until IPR is no longer active
-            hou.ui.waitUntil(partial(self.isNotActive, ipr=self.ipr)) 
+            hou.ui.waitUntil(partial(self.iprIsNotActive)) 
             self.removeAtonOverrides()
 
     def stopRender(self):
         if self.output:
             self.ipr.killRender()
+
+    def addAtonOverrides(self, mode=None):
+        if self.ipr.isActive():
+            userOptions = self.removeAtonOverrides()
+            
+            if not userOptions is None:
+               
+                # Aton Attributes
+                userOptions += ' ' if userOptions else ''
+                userOptions += 'declare aton_enable constant BOOL aton_enable on '
+                userOptions += 'declare aton_host constant STRING aton_host %s '%self.hostLineEdit.text()
+                userOptions += 'declare aton_port constant INT aton_port %d '%self.portSlider.value()
+                userOptions += 'declare aton_output constant STRING aton_output %s '%self.output.name
+
+                # Camera
+                self.output.rop.parm('camera').set(self.cameraComboBox.currentName())
+                
+                # AA Samples
+                self.output.rop.parm('ar_AA_samples').set(self.cameraAaSlider.value())
+
+                # Resolution
+                self.output.rop.parm('override_camerares').set(True)
+                self.output.rop.parm('res_fraction').set('specific')
+                self.output.rop.parm('res_overridex').set(self.getRegion(0))
+                self.output.rop.parm('res_overridey').set(self.getRegion(1))
+                
+                # Render Region
+                userOptions += 'declare aton_region_min_x constant INT aton_region_min_x %d '%self.getRegion(2)
+                userOptions += 'declare aton_region_min_y constant INT aton_region_min_y %d '%self.getRegion(3)
+                userOptions += 'declare aton_region_max_x constant INT aton_region_max_x %d '%self.getRegion(4)
+                userOptions += 'declare aton_region_max_y constant INT aton_region_max_y %d '%self.getRegion(5)
+
+                # Bucket Scanning
+                userOptions += 'declare aton_bucket constant STRING aton_bucket %s '%self.bucketComboBox.currentName()
+
+                # Ignore Feautres
+                userOptions += 'declare aton_ignore_mbl constant BOOL aton_ignore_mbl %s '%('on' if self.motionBlurCheckBox.isChecked() else 'off')
+                userOptions += 'declare aton_ignore_sdv constant BOOL aton_ignore_sdv %s '%('on' if self.subdivsCheckBox.isChecked() else 'off')
+                userOptions += 'declare aton_ignore_dsp constant BOOL aton_ignore_dsp %s '%('on' if self.displaceCheckBox.isChecked() else 'off')
+                userOptions += 'declare aton_ignore_bmp constant BOOL aton_ignore_bmp %s '%('on' if self.bumpCheckBox.isChecked() else 'off')
+                userOptions += 'declare aton_ignore_sss constant BOOL aton_ignore_sss %s '%('on' if self.sssCheckBox.isChecked() else 'off')
+
+                self.user_options = True
+                self.user_options.set(userOptions)
+
+    def removeAtonOverrides(self):
+        for output in self.outputsList:
+            output.rollback()
+        
+        if not self.user_options is None:
+            userOptions = self.user_options.evalAsString()
+            userOptions = re.sub('declare aton_enable.+', '', userOptions)
+            self.user_options.set(userOptions)
+            return userOptions
+
+
 
