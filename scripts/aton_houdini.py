@@ -142,17 +142,6 @@ def getCurrentCamera(path = False):
         else:
             return camera
 
-def getResolution(rop, resX=False, resY=False):
-    camera = hou.node(rop.parm('camera').eval())
-
-    if camera:
-        if resX:
-            return camera.parm('resx').eval()
-        elif resY:
-            return camera.parm('resy').eval()
-    else:
-        return 0;
-
 
 class Output(object):
     def __init__(self, rop=None):
@@ -166,9 +155,11 @@ class Output(object):
         self.name = self.rop.name()
         self.path = self.rop.path()
         self.camera = self.rop.parm('camera').eval()
+        self.cameraResolution = hou.node(self.camera).parmTuple('res').eval()
         self.overrideCameraRes = self.rop.parm('override_camerares').eval()
         self.resFraction = self.rop.parm('res_fraction').eval()
-        self.resolution = hou.node(self.camera).parmTuple('res').eval()
+        self.resOverride = self.rop.parmTuple('res_override').eval()
+        self.resolution = self._get_resolution()
         self.AASamples = self.rop.parm('ar_AA_samples').eval()
         self.bucketScanning = self.rop.parm('ar_bucket_scanning').eval()
         self.userOptionsEnable = self.rop.parm('ar_user_options_enable').eval()
@@ -185,11 +176,24 @@ class Output(object):
         self.bucketScanning = None
         self.userOptionsEnable = None
     
+    def _get_resolution(self):
+        if self.rop.parm('override_camerares').eval():
+            res_scale = self.rop.parm('res_fraction').eval()
+            
+            if res_scale == 'specific':
+                return self.rop.parmTuple('res_override').eval()
+            else:
+                return (int(self.cameraResolution[0] * float(res_scale)), 
+                        int(self.cameraResolution[1] * float(res_scale)))
+
+        return self.cameraResolution
+
     def rollback(self):
-        hou.node(self.camera).parmTuple('res').set(self.resolution)
+        hou.node(self.camera).parmTuple('res').set(self.cameraResolution)
         self.rop.parm('camera').set(self.camera)
-        self.rop.parm('res_fraction').set(self.resFraction)
         self.rop.parm('override_camerares').set(self.overrideCameraRes)
+        self.rop.parm('res_fraction').set(self.resFraction)
+        self.rop.parmTuple('res_override').set(self.resOverride)
         self.rop.parm('ar_AA_samples').set(self.AASamples)
         self.rop.parm('ar_bucket_scanning').set(self.bucketScanning)
         self.rop.parm('ar_user_options_enable').set(self.userOptionsEnable)
@@ -617,7 +621,7 @@ class Aton(QtWidgets.QWidget):
         def resetUI(*args):
             if self.ipr.isActive():
                 self.removeAtonOverrides()
-                self.outputsList = [Output(rop) for rop in getOutputDrivers()]
+            self.outputsList = [Output(rop) for rop in getOutputDrivers()]
 
             self.hostCheckBox.setChecked(True)
             self.portCheckBox.setChecked(True)
@@ -667,15 +671,10 @@ class Aton(QtWidgets.QWidget):
     
     def closeEvent(self, event):
         self.setParent(None)
-        try:
-            self.removeAtonOverrides()
-        except AttributeError:
-            pass
-
-        try:
+        
+        if self.ipr.isActive():
             self.ipr.killRender()
-        except AttributeError:
-            pass
+            self.removeAtonOverrides()
 
     def getNukeCropNode(self, *args):
         ''' Get crop node data from Nuke '''
