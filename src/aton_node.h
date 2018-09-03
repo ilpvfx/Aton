@@ -84,12 +84,12 @@ class Aton: public Iop
                           m_legit(false),
                           m_running(false),
                           m_path(""),
-                          m_region{0.0, 0.0, 0.0, 0.0},
                           m_node_name(""),
                           m_status(""),
                           m_connectionError("")
         {
             inputs(0);
+            m_region[0] = m_region[1] = m_region[2] =  m_region[3] = 0.0f;
         }
 
         ~Aton() { disconnect(); }
