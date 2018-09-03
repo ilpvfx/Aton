@@ -93,7 +93,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                         fb_index = std::find(sessions.begin(),
                                              sessions.end(), _index) - sessions.begin();
                         
-                        if (fb_index < sessions.size())
+                        if (multiframe || fb_index < sessions.size())
                             new_session = false;
                     }
                     
