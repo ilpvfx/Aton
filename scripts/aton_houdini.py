@@ -1,7 +1,7 @@
 __copyright__ = "2018 All rights reserved. See Copyright.txt for more details."
 __version__ = "1.3.0"
 
-import os, re
+import os
 from functools import partial
 
 import hou, htoa
@@ -146,23 +146,38 @@ def getCurrentCamera(path = False):
 class Output(object):
     def __init__(self, rop=None):
         if rop:
-            self.rop = rop
-            self._init_attributes()
+
+            userOptionsParmName = 'ar_user_options'
+            parmTemplateGroup = rop.parmTemplateGroup()
+            parmTemplate = parmTemplateGroup.find(userOptionsParmName)
+
+            if parmTemplate:            
+                self._init_attributes(rop)
+
         else:
             self._init_blank()
+    
+    @property
+    def cameraPath(self):
+        if self.camera:
+            return self.camera.path()
 
-    def _init_attributes(self):
-        self.name = self.rop.name()
-        self.path = self.rop.path()
-        self.camera = self.rop.parm('camera').eval()
-        self.cameraResolution = hou.node(self.camera).parmTuple('res').eval()
-        self.overrideCameraRes = self.rop.parm('override_camerares').eval()
-        self.resFraction = self.rop.parm('res_fraction').eval()
-        self.resOverride = self.rop.parmTuple('res_override').eval()
+    def _init_attributes(self, rop):
+        self.rop = rop
+        self.name = rop.name()
+        self.path = rop.path()
+        self.camera = self._get_camera()
+        self._cameraResolution = self.camera.parmTuple('res').eval() if self.camera else (0,0)
+        self.overrideCameraRes = rop.parm('override_camerares').eval()
+        self.resFraction = rop.parm('res_fraction').eval()
+        self.resOverride = rop.parmTuple('res_override').eval()
         self.resolution = self._get_resolution()
-        self.AASamples = self.rop.parm('ar_AA_samples').eval()
-        self.bucketScanning = self.rop.parm('ar_bucket_scanning').eval()
-        self.userOptionsEnable = self.rop.parm('ar_user_options_enable').eval()
+        self.AASamples = rop.parm('ar_AA_samples').eval()
+        self.bucketScanning = rop.parm('ar_bucket_scanning').eval()
+        self.userOptionsEnable = rop.parm('ar_user_options_enable').eval()
+        self.userOptionsParm = rop.parm('ar_user_options')
+        self.userOptions = self.userOptionsParm.eval()
+
 
     def _init_blank(self):
         self.rop = None
@@ -175,7 +190,17 @@ class Output(object):
         self.AASamples = 0
         self.bucketScanning = None
         self.userOptionsEnable = None
-    
+        self.userOptionsParm = None
+        self.userOptions = None
+   
+    def _get_camera(self):
+        camera = hou.node(self.rop.parm('camera').eval())
+        if camera is None:
+            sceneCameras = getAllCameras()
+            if sceneCameras:
+                camera = sceneCameras[0]
+        return camera
+
     def _get_resolution(self):
         if self.rop.parm('override_camerares').eval():
             res_scale = self.rop.parm('res_fraction').eval()
@@ -183,20 +208,19 @@ class Output(object):
             if res_scale == 'specific':
                 return self.rop.parmTuple('res_override').eval()
             else:
-                return (int(self.cameraResolution[0] * float(res_scale)), 
-                        int(self.cameraResolution[1] * float(res_scale)))
+                return (int(self._cameraResolution[0] * float(res_scale)), 
+                        int(self._cameraResolution[1] * float(res_scale)))
 
-        return self.cameraResolution
+        return self._cameraResolution
 
     def rollback(self):
-        hou.node(self.camera).parmTuple('res').set(self.cameraResolution)
-        self.rop.parm('camera').set(self.camera)
+        self.rop.parm('camera').set(self.cameraPath)
         self.rop.parm('override_camerares').set(self.overrideCameraRes)
         self.rop.parm('res_fraction').set(self.resFraction)
         self.rop.parmTuple('res_override').set(self.resOverride)
         self.rop.parm('ar_AA_samples').set(self.AASamples)
-        self.rop.parm('ar_bucket_scanning').set(self.bucketScanning)
         self.rop.parm('ar_user_options_enable').set(self.userOptionsEnable)
+        self.rop.parm('ar_user_options').set(self.userOptions)
 
 class BoxWidget(QtWidgets.QFrame):
         def __init__(self, label, first=True):
@@ -260,6 +284,10 @@ class SliderBox(BoxWidget):
             if sliderValue is not None: self.slider.setValue(sliderValue)
             if spinValue is not None: self.spinBox.setValue(spinValue)
 
+        def setEnabled(self, value):
+            self.spinBox.setEnabled(value)
+            self.slider.setEnabled(value)
+        
         def value(self):
             return self.spinBox.value()
 
@@ -370,9 +398,7 @@ class Aton(QtWidgets.QWidget):
         QtWidgets.QWidget.__init__(self)
 
         # Properties
-        self._ipr = None
         self._output = None
-        self._user_options = None
         
         # Default Settings
         self.defaultPort = getPort()
@@ -393,33 +419,8 @@ class Aton(QtWidgets.QWidget):
     
     @property
     def ipr(self):
-        if self._ipr is None:
-            desk = hou.ui.curDesktop()
-            self._ipr = desk.paneTabOfType(hou.paneTabType.IPRViewer)
-        return self._ipr
-
-    @property
-    def user_options(self):
-        if self._user_options is None:
-            if not self.output.rop is None:
-                userOptionsParmName = 'ar_user_options'
-                parmTemplateGroup = self.output.rop.parmTemplateGroup()
-                parmTemplate = parmTemplateGroup.find(userOptionsParmName)
-
-                if parmTemplate:
-                    self._user_options = self.output.rop.parm(userOptionsParmName)
-
-        return self._user_options
-
-    @user_options.setter
-    def user_options(self, value):
-        if not self.output.rop is None:
-            userOptionsParmName = 'ar_user_options_enable'
-            parmTemplateGroup = self.output.rop.parmTemplateGroup()
-            parmTemplate = parmTemplateGroup.find(userOptionsParmName)
-
-            if parmTemplate:
-                self.output.rop.parm(userOptionsParmName).set(value)
+        desk = hou.ui.curDesktop()
+        return desk.paneTabOfType(hou.paneTabType.IPRViewer)
 
     @property
     def output(self):
@@ -477,7 +478,7 @@ class Aton(QtWidgets.QWidget):
             cameraLayout = QtWidgets.QHBoxLayout()
             self.cameraComboBox = ComboBox("Camera")
             self.cameraComboBox.addItems(getAllCameras(path=True))
-            self.cameraComboBox.setCurrentName(self.output.camera)
+            self.cameraComboBox.setCurrentName(self.output.cameraPath)
             cameraLayout.addWidget(self.cameraComboBox)
 
             # Overrides Group
@@ -517,7 +518,7 @@ class Aton(QtWidgets.QWidget):
             self.cameraAaSlider = SliderBox("Camera (AA)")
             self.cameraAaSlider.setMinimum(-64, -3)
             self.cameraAaSlider.setMaximum(64, 16)
-            self.cameraAaSlider.setValue(self.output.AASamples)
+            self.cameraAaSlider.setValue(self.output.AASamples, self.output.AASamples)
             cameraAaLayout.addWidget(self.cameraAaSlider)
 
             # Render region layout
@@ -606,7 +607,7 @@ class Aton(QtWidgets.QWidget):
         def outputUpdateUI(index):
             if index >= 0:
                 resUpdateUI(self.resolutionSlider.slider.value())
-                self.cameraComboBox.setCurrentName(self.output.camera)
+                self.cameraComboBox.setCurrentName(self.output.cameraPath)
                 self.bucketComboBox.setCurrentName(self.output.bucketScanning)
                 self.cameraAaSlider.setValue(self.output.AASamples, self.output.AASamples)
                 self.renderRegionRSpinBox.setValue(self.output.resolution[0])
@@ -662,19 +663,26 @@ class Aton(QtWidgets.QWidget):
             self.sssCheckBox.toggled.connect(lambda: self.addAtonOverrides(4))
 
         self.setLayout(buildUI())
-        
+
+    def generalUISetEnabled(self, value):
+        self.hostLineEdit.setEnabled(value)
+        self.hostCheckBox.setEnabled(value)
+        self.portSlider.setEnabled(value)
+        self.portCheckBox.setEnabled(value)
+        self.outputComboBox.setEnabled(value)
+
     def deleteInstances(self):
         for w in QtWidgets.QApplication.instance().topLevelWidgets():
             if w.objectName() == self.objName:
-                w.close()
                 w.destroy()
     
     def closeEvent(self, event):
         self.setParent(None)
-        
+
         if self.ipr.isActive():
             self.ipr.killRender()
-            self.removeAtonOverrides()
+        
+        self.removeAtonOverrides()
 
     def getNukeCropNode(self, *args):
         ''' Get crop node data from Nuke '''
@@ -732,8 +740,7 @@ class Aton(QtWidgets.QWidget):
         return result      
 
     def iprIsNotActive(self):
-        if not self._ipr is None:
-            return not self.ipr.isActive()  
+        return not self.ipr.isActive()  
 
     def startRender(self):
 
@@ -748,21 +755,23 @@ class Aton(QtWidgets.QWidget):
             
             # Add Aton Overrides
             self.addAtonOverrides()
-
-            # Wait until IPR is no longer active
-            hou.ui.waitUntil(partial(self.iprIsNotActive)) 
-            self.removeAtonOverrides()
+            self.generalUISetEnabled(False)
 
     def stopRender(self):
-        if self.output:
-            self.ipr.killRender()
+        self.ipr.killRender()
+        self.removeAtonOverrides()
+        self.generalUISetEnabled(True)
 
     def addAtonOverrides(self, mode=None):
         if self.ipr.isActive():
+            self.ipr.pauseRender()
             userOptions = self.removeAtonOverrides()
             
             if not userOptions is None:
                
+                # Enable User Options Overrides
+                self.output.rop.parm('ar_user_options_enable').set(True)
+
                 # Aton Attributes
                 userOptions += ' ' if userOptions else ''
                 userOptions += 'declare aton_enable constant BOOL aton_enable on '
@@ -798,18 +807,14 @@ class Aton(QtWidgets.QWidget):
                 userOptions += 'declare aton_ignore_bmp constant BOOL aton_ignore_bmp %s '%('on' if self.bumpCheckBox.isChecked() else 'off')
                 userOptions += 'declare aton_ignore_sss constant BOOL aton_ignore_sss %s '%('on' if self.sssCheckBox.isChecked() else 'off')
 
-                self.user_options = True
-                self.user_options.set(userOptions)
+                self.output.userOptionsParm.set(userOptions)
+            self.ipr.resumeRender()
 
     def removeAtonOverrides(self):
         for output in self.outputsList:
             output.rollback()
-        
-        if not self.user_options is None:
-            userOptions = self.user_options.evalAsString()
-            userOptions = re.sub('declare aton_enable.+', '', userOptions)
-            self.user_options.set(userOptions)
-            return userOptions
+
+        return self.output.userOptions
 
 
 
