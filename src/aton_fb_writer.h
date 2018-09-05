@@ -11,6 +11,35 @@ All rights reserved. See COPYING.txt for more details.
 
 #include "aton_node.h"
 
+long getFBIndex(Aton* node, const long long& index)
+{
+    long fb_index = 0;
+    std::vector<FrameBuffer>& fbs = node->m_framebuffers;
+    
+    if (!fbs.empty())
+    {
+        std::vector<FrameBuffer>::iterator it;
+        for(it = fbs.begin(); it != fbs.end(); ++it)
+        {
+            if (it->getSessionIndex() == index)
+                fb_index = it - fbs.begin();
+            else
+                fb_index = fbs.size();
+        }
+    }
+    return fb_index;
+}
+
+FrameBuffer& addFrameBuffer(Aton* node)
+{
+    std::vector<FrameBuffer>& fbs = node->m_framebuffers;
+    
+    FrameBuffer fb;
+    fbs.push_back(fb);
+    node->m_outputKnobChanged = Aton::item_added;
+    return fbs.back();
+}
+
 // Our RenderBuffer writer thread
 static void FBWriter(unsigned index, unsigned nthreads, void* data)
 {
@@ -29,6 +58,9 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
         
         // Session Index
         static long long session_idx = 0;
+        
+        // FrameBuffer Index
+        static long fb_index = 0;
         
         // For progress percentage
         long long progress, regionArea = 0;
@@ -59,9 +91,9 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
             {
                 case 0: // Open a new image
                 {
+                    // Get Data Header
                     DataHeader dh = node->m_server.listenHeader();
 
-                    // Copy data from d
                     const long long& _index = dh.index();
                     const int& _xres = dh.xres();
                     const int& _yres = dh.yres();
@@ -74,78 +106,65 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     const std::vector<int> _samples = dh.samples();
                     const char* _output_name = dh.outputName();
 
+                    // Output String
+                    std::string _output_string = (boost::format("%s_%d_%s")%_output_name%_frame
+                                                                           %node->getDateTime()).str();
                     // Get image area to calculate the progress
                     regionArea = _area;
 
                     // Get delta time per IPR iteration
                     delta_time = _active_time;
 
+                    // Get Current Session Index
+                    session_idx = _index;
+
                     bool& multiframe = node->m_multiframes;
-                    std::vector<std::string>& output = node->m_output;
-                    std::vector<long long>& sessions = node->m_sessions;
                     std::vector<FrameBuffer>& fbs = node->m_framebuffers;
+                
+                    // Get FrameBuffer Index
+                    fb_index = getFBIndex(node, _index);
                     
-                    // Check if we want a new session
-                    long fb_index = 0;
-                    bool new_session = true;
-                    if (!sessions.empty())
-                    {
-                        fb_index = std::find(sessions.begin(),
-                                             sessions.end(), _index) - sessions.begin();
-                        
-                        if (multiframe || fb_index < sessions.size())
-                            new_session = false;
-                    }
-                    
-                    // Output String
-                    std::string output_string = (boost::format("%s_%d_%s")%_output_name
-                                                                          %_frame
-                                                                          %node->getDateTime()).str();
-                    // Adding new session
-                    if (fbs.empty() || new_session)
-                    {
-                        FrameBuffer fb;
-                        session_idx = _index;
-                        
-                        WriteGuard lock(node->m_mutex);
-                        fbs.push_back(fb);
-                        node->m_sessions.push_back(_index);
-                        output.push_back(output_string);
-                        node->m_outputKnobChanged = Aton::item_added;
-                    }
-                    
-                    // Creating Renderbuffer
                     if (multiframe)
                     {
-                        if (fb_index > 0)
-                            fb_index--;
-                        
-                        FrameBuffer& fb = fbs[fb_index];
-                        
-                        WriteGuard lock(node->m_mutex);
-                        output[fb_index] = output_string;
-                        node->m_outputKnobChanged = Aton::item_added;
-                        
-                        if (!fb.frameExists(_frame))
-                            fb.addFrame(_frame, _xres, _yres, _pix_aspect);
-                        else
-                            fb.setCurrentFrame(_frame);
+                        if (!fbs.empty())
+                        {
+                           if (fb_index == fbs.size())
+                               fb_index --;
+                            
+                            FrameBuffer& fb = fbs[fb_index];
+                            
+                            if (!fb.frameExists(_frame))
+                            {
+                                WriteGuard lock(node->m_mutex);
+                                fb.addFrame(_index, _output_string, _frame, _xres, _yres, _pix_aspect);
+                            }
+                            else
+                            {
+                                WriteGuard lock(node->m_mutex);
+                                fb.setSessionIndex(_index);
+                                fb.setOutputName(_output_string);
+                                fb.setCurrentFrame(_frame);
+                            }
+                        }
                     }
                     else
                     {
-                        FrameBuffer& fb = fbs[fb_index];
-                        
-                        if (fb.empty())
+                        if (!fbs.empty())
                         {
-                            WriteGuard lock(node->m_mutex);
-                            output[fb_index] = output_string;
-                            fb.addFrame(_frame, _xres, _yres, _pix_aspect);
+                            if (fb_index == fbs.size())
+                            {
+                                WriteGuard lock(node->m_mutex);
+                                FrameBuffer& fb = addFrameBuffer(node);
+                                fb.addFrame(_index, _output_string, _frame, _xres, _yres, _pix_aspect);
+                            }
                         }
-                        else if (fb.size() > 1)
-                        {
-                            WriteGuard lock(node->m_mutex);
-                            fb.clearAllExcept(_frame);
-                        }
+                    }
+                    
+                    if (fbs.empty())
+                    {
+                        WriteGuard lock(node->m_mutex);
+                        FrameBuffer& fb = addFrameBuffer(node);
+                        fb.addFrame(_index, _output_string, _frame, _xres, _yres, _pix_aspect);
                     }
                     
                     // Get current RenderBuffer
@@ -167,10 +186,6 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                             node->resetChannels(node->m_channels);
                         }
                     }
-                    
-                    // Set Frame on Timeline
-                    if (_frame != node->outputContext().frame())
-                        node->setCurrentFrame(_frame);
                     
                     // Set Camera
                     if (rb.isCameraChanged(_fov, _matrix))
@@ -198,23 +213,24 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     // Reset active AOVs
                     if(!active_aovs.empty())
                         active_aovs.clear();
+                    
+                    // Set Frame on Timeline
+                    if (_frame != node->outputContext().frame())
+                        node->setCurrentFrame(_frame);
                     break;
                 }
                 case 1: // Write image data
                 {
+                    // Get Data Pixels
                     DataPixels dp = node->m_server.listenPixels();
                     
-                    const char* _aov_name = dp.aovName();
                     const int& _xres = dp.xres();
                     const int& _yres = dp.yres();
+                    const char* _aov_name = dp.aovName();
 
                     // Get Render Buffer
-                    std::vector<long long>& sessions = node->m_sessions;
-                    long fb_index = std::find(sessions.begin(),
-                                             sessions.end(), session_idx) - sessions.begin();
-                    
                     FrameBuffer& fb = node->m_framebuffers[fb_index];
-                    RenderBuffer& rb = fb.getFrame(fb.currentFrame());
+                    RenderBuffer& rb = fb.currentFrame();
 
                     if(rb.isResolutionChanged(_xres, _yres))
                     {
@@ -236,7 +252,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     // Skip non RGBA buckets if AOVs are disabled
                     if (node->m_enable_aovs || active_aovs[0] == _aov_name)
                     {
-                        // Get data from d
+                        // Get Data Pixels
                         const int& _x = dp.bucket_xo();
                         const int& _y = dp.bucket_yo();
                         const int& _width = dp.bucket_size_x();

@@ -61,8 +61,7 @@ class Aton: public Iop
         std::string               m_details;          // Render layer details
         std::string               m_connectionError;  // Connection error report
         Knob*                     m_outputKnob;       // Shapshots Knob
-        std::vector<long long>    m_sessions;         // Snapshots Ids
-        std::vector<std::string>  m_output;           // Snapshots List
+//        std::vector<std::string>  m_output;           // Snapshots List
         std::vector<FrameBuffer>  m_framebuffers;     // Framebuffers List
 
         Aton(Node* node): Iop(node),

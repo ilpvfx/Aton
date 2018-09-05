@@ -202,8 +202,11 @@ class FrameBuffer
 {
 public:
     FrameBuffer() {};
+    FrameBuffer(long long index, std::string output, double frame, int xres, int yres, float pix_aspect);
     
     RenderBuffer& getFrame(double frame);
+    
+    RenderBuffer& currentFrame() { return getFrame(_current_frame); }
     
     std::vector<RenderBuffer>& getBuffers() { return _renderbuffers; }
     
@@ -215,7 +218,7 @@ public:
     size_t size() { return _frames.size(); }
     
     // Add New RenderBuffer
-    void addFrame(double frame, int xres, int yres, float pix_aspect);
+    void addFrame(long long index, std::string output, double frame, int xres, int yres, float pix_aspect);
     
     // Clear All Data
     void clearAll();
@@ -227,13 +230,20 @@ public:
     // Check if RenderBuffer already exists
     bool frameExists(double frame);
     
-    double currentFrame() { return _current_frame; }
+    double getCurrentFrame() { return _current_frame; }
     
     void setCurrentFrame(double frame) { _current_frame = frame; }
     
+    long long& getSessionIndex() { return _session_index; }
+    void setSessionIndex(long long index) { _session_index = index; }
+    
+    std::string getOutputName() { return _output_name; }
+    void setOutputName(std::string name) { _output_name = name; }
     
 private:
     double _current_frame;
+    long long _session_index;
+    std::string _output_name;
     std::vector<double> _frames;
     std::vector<RenderBuffer> _renderbuffers;
 };

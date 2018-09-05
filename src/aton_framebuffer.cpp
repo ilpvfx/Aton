@@ -321,15 +321,23 @@ RenderBuffer& FrameBuffer::getFrame(double frame)
     return _renderbuffers[getIndex(frame)];
 }
 
-void FrameBuffer::addFrame(double frame, int xres, int yres, float pix_aspect)
+FrameBuffer::FrameBuffer(long long index, std::string output, double frame, int xres, int yres, float pix_aspect)
+{
+    FrameBuffer::addFrame(index, output, frame, xres,  yres,  pix_aspect);
+}
+
+void FrameBuffer::addFrame(long long index, std::string output, double frame, int xres, int yres, float pix_aspect)
 {
         RenderBuffer rb(frame, xres, yres, pix_aspect);
         if (!_frames.empty())
             rb = _renderbuffers.back();
-        
+    
+        _session_index = index;
+        _output_name = output;
+        _current_frame  = frame;
+
         _frames.push_back(frame);
         _renderbuffers.push_back(rb);
-        _current_frame  = frame;
 }
 
 // Clear All Data
