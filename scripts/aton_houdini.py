@@ -412,11 +412,18 @@ class Aton(QtWidgets.QWidget):
         self.setProperty("saveWindowPref", True)
         self.setProperty("houdiniStyle", True)
         self.setStyleSheet(hou.qt.styleSheet())
+        self.setWindowIcon(QtGui.QIcon(self.icon_path))
 
         # Setup UI
         self.deleteInstances()
         self.setupUI()
-    
+        
+    @property
+    def icon_path(self):
+        path = os.path.split(__file__)
+        if path:
+            return os.path.join(path[0], 'aton_icon.png')
+        
     @property
     def ipr(self):
         desk = hou.ui.curDesktop()
