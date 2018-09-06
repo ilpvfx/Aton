@@ -97,6 +97,7 @@ class Aton: public Iop
         {
             item_not_changed = 0,
             item_added,
+            item_copied,
             item_moved_up,
             item_moved_down,
             item_removed,

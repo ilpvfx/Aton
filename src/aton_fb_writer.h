@@ -58,10 +58,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
         
         // Session Index
         static long long session_idx = 0;
-        
-        // FrameBuffer Index
-        static long fb_index = 0;
-        
+                
         // For progress percentage
         long long progress, regionArea = 0;
         
@@ -122,7 +119,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     std::vector<FrameBuffer>& fbs = node->m_framebuffers;
                 
                     // Get FrameBuffer Index
-                    fb_index = getFBIndex(node, _index);
+                    int fb_index = getFBIndex(node, _index);
                     
                     if (multiframe)
                     {
@@ -229,8 +226,13 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     const char* _aov_name = dp.aovName();
 
                     // Get Render Buffer
-                    FrameBuffer& fb = node->m_framebuffers[fb_index];
-                    RenderBuffer& rb = fb.currentFrame();
+                    std::vector<FrameBuffer>& fbs = node->m_framebuffers;
+                    int fb_index = getFBIndex(node, session_idx);
+                    
+                    if (fb_index == fbs.size())
+                        fb_index-- ;
+                    
+                    RenderBuffer& rb = fbs[fb_index].currentFrame();
 
                     if(rb.isResolutionChanged(_xres, _yres))
                     {

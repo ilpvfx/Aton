@@ -202,6 +202,10 @@ void Aton::_validate(bool for_real)
                 idx = 0;
                 break;
             }
+            case Aton::item_copied:
+            {
+                break;
+            }
             case Aton::item_moved_up:
             {
                 idx--;
@@ -409,7 +413,7 @@ void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
 void Aton::knobs(Knob_Callback f)
 {
     // Connect knobs
-    Divider(f, "Connect");
+    Divider(f, "Listen");
     Int_knob(f, &m_port, "port_number", "Port");
     Knob* reset_knob = Button(f, "reset_port_knob", "Reset");
 
@@ -424,9 +428,9 @@ void Aton::knobs(Knob_Callback f)
         outputKnob->addStringColumn("snapshots", "", true, 512);
     }
     Newline(f);
+    Knob* snapshot = Button(f, "snapshot_knob", "<img src=\":qrc/images/ScriptEditor/load.png\">");
     Knob* move_up = Button(f, "move_up_knob", "<img src=\":qrc/images/ScriptEditor/inputOff.png\">");
     Knob* move_down = Button(f, "move_down_knob", "<img src=\":qrc/images/ScriptEditor/outputOff.png\">");
-    Knob* force_new_session = Button(f, "force_new_session_knob", "<img src=\":qrc/images/ScriptEditor/load.png\">");
     Knob* remove_selectd = Button(f, "remove_selected_knob", "<img src=\":qrc/images/ScriptEditor/clearOutput.png\">");
 
     // Camera knobs
@@ -468,9 +472,9 @@ void Aton::knobs(Knob_Callback f)
     path_knob->set_flag(Knob::NO_RERENDER, true);
     live_cam_knob->set_flag(Knob::NO_RERENDER, true);
     move_up->set_flag(Knob::NO_RERENDER, true);
+    snapshot->set_flag(Knob::NO_RERENDER, true);
     move_down->set_flag(Knob::NO_RERENDER, true);
     remove_selectd->set_flag(Knob::NO_RERENDER, true);
-    force_new_session->set_flag(Knob::NO_RERENDER, true);
     write_multi_frame_knob->set_flag(Knob::NO_RERENDER, true);
     region_knob->set_flag(Knob::NO_RERENDER, true);
     statusKnob->set_flag(Knob::NO_RERENDER, true);
@@ -531,10 +535,18 @@ int Aton::knob_changed(Knob* _knob)
         remove_selected_cmd();
         return 1;
     }
-    if (_knob->is("force_new_session_knob"))
+    if (_knob->is("snapshot_knob"))
     {
-        WriteGuard lock(m_node->m_mutex);
-        current_framebuffer().setSessionIndex(0);
+        std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
+        if (!fbs.empty())
+        {
+            int fb_index = current_fb_index(false);
+            fb_index = fb_index > 0 ? fb_index-- : 0;
+            WriteGuard lock(m_node->m_mutex);
+            fbs.insert(fbs.begin() + fb_index, current_framebuffer());
+            m_node->m_outputKnobChanged = Aton::item_copied;
+            flagForUpdate();
+        }
         return 1;
     }
     if (_knob->is("multi_frame_knob"))
