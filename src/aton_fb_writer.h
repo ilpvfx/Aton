@@ -58,7 +58,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
         
         // Session Index
         static long long session_idx = 0;
-                
+        
         // For progress percentage
         long long progress, regionArea = 0;
         
@@ -119,7 +119,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     std::vector<FrameBuffer>& fbs = node->m_framebuffers;
                 
                     // Get FrameBuffer Index
-                    int fb_index = getFBIndex(node, _index);
+                    long fb_index = getFBIndex(node, _index);
                     
                     if (multiframe)
                     {
@@ -227,7 +227,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
 
                     // Get Render Buffer
                     std::vector<FrameBuffer>& fbs = node->m_framebuffers;
-                    int fb_index = getFBIndex(node, session_idx);
+                    long fb_index = getFBIndex(node, session_idx);
                     
                     if (fb_index == fbs.size())
                         fb_index-- ;
