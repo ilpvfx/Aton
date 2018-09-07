@@ -222,7 +222,6 @@ public:
     
     // Clear All Data
     void clearAll();
-    
     void clearAllExcept(double frame);
     
     bool empty() { return (_frames.empty() && _renderbuffers.empty()); }
@@ -231,7 +230,6 @@ public:
     bool frameExists(double frame);
     
     double getCurrentFrame() { return _current_frame; }
-    
     void setCurrentFrame(double frame) { _current_frame = frame; }
     
     long long& getSessionIndex() { return _session_index; }
@@ -239,7 +237,7 @@ public:
     
     std::string getOutputName() { return _output_name; }
     void setOutputName(std::string name) { _output_name = name; }
-    
+
 private:
     double _current_frame;
     long long _session_index;

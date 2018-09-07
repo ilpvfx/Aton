@@ -57,7 +57,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
         int dataType = 0;
         
         // Session Index
-        static long long session_idx = 0;
+        long long session_idx = 0;
         
         // For progress percentage
         long long progress, regionArea = 0;
