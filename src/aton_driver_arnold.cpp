@@ -20,6 +20,16 @@ inline const int calc_res(int res, int min, int max)
     return res;
 }
 
+inline const long long calc_rarea(int minx,
+                                  int maxx,
+                                  int miny,
+                                  int maxy)
+{
+    int w = maxx - minx + 1;
+    int h = maxy - miny + 1;
+    return w * h;
+}
+
 struct ShaderData
 {
     Client* client;
@@ -97,7 +107,11 @@ driver_open
     data->yres = calc_res(yres, data->min_y, data->max_y);
     
     // Get Region Area
-    const long long region_area = data->xres * data->yres;
+//    const long long region_area = data->xres * data->yres;
+    const long long region_area = calc_rarea(data_window.minx,
+                                             data_window.maxx,
+                                             data_window.miny,
+                                             data_window.maxy);
     
     // Get Arnold version
     char arch[3], major[3], minor[3], fix[3];
