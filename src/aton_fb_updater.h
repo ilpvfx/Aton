@@ -4,7 +4,6 @@ Dan Bethell, Johannes Saam, Vahan Sosoyan.
 All rights reserved. See COPYING.txt for more details.
 */
 
-
 #ifndef FBUpdater_h
 #define FBUpdater_h
 
@@ -17,12 +16,11 @@ static void FBUpdater(unsigned index, unsigned nthreads, void* data)
     double frame, prevFrame = 0;
     const int ms = 20;
     
-    while (node->m_legit)
+    while (node->m_legit && node->m_multiframes)
     {
         frame = node->outputContext().frame();
         
-        if (node->m_multiframes &&
-            !node->m_framebuffers.empty() && frame != prevFrame)
+        if (!node->m_framebuffers.empty() && frame != prevFrame)
         {
             node->flagForUpdate();
             prevFrame = frame;

@@ -101,7 +101,6 @@ void Aton::changePort(int port)
     if (m_server.isConnected())
     {
         Thread::spawn(::FBWriter, 1, m_node);
-        Thread::spawn(::FBUpdater, 1, m_node);
         
         // Update port in the UI
         if (m_port != m_server.getPort())
@@ -553,6 +552,7 @@ int Aton::knob_changed(Knob* _knob)
     {
         if (!m_node->m_framebuffers.empty())
             current_framebuffer().setCurrentFrame(uiContext().frame());
+        Thread::spawn(::FBUpdater, 1, m_node);
         return 1;
     }
     if (_knob->is("live_camera_knob"))
@@ -949,7 +949,6 @@ void Aton::setCurrentFrame(const double& frame)
     if (frame != uiContext().frame())
     {
         OutputContext ctxt = outputContext();
-        ReadGuard lock(m_mutex);
         ctxt.setFrame(frame);
         gotoContext(ctxt, true);
     }
