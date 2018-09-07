@@ -281,7 +281,7 @@ void RenderBuffer::setRAM(const long long& ram)
 
 }
 void RenderBuffer::setTime(const int& time,
-                          const int& dtime)
+                           const int& dtime)
 {
     _time = dtime > time ? time : time - dtime;
 }

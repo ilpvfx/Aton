@@ -32,11 +32,11 @@ long getFBIndex(Aton* node, const long long& index)
 
 FrameBuffer& addFrameBuffer(Aton* node)
 {
+    node->m_outputKnobChanged = Aton::item_added;
     std::vector<FrameBuffer>& fbs = node->m_framebuffers;
     
     FrameBuffer fb;
     fbs.push_back(fb);
-    node->m_outputKnobChanged = Aton::item_added;
     return fbs.back();
 }
 
@@ -59,11 +59,11 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
         // Session Index
         long long session_idx = 0;
         
-        // For progress percentage
-        long long progress, regionArea = 0;
-        
         // Time to reset per every IPR iteration
-        static int _active_time, delta_time = 0;
+        int _active_time = 0, delta_time = 0;
+        
+        // For progress percentage
+        long long progress = 0, regionArea = 0;
         
         // Loop over incoming data
         while (dataType != 2 || dataType != 9)
@@ -108,12 +108,12 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                                                                            %node->getDateTime()).str();
                     // Get image area to calculate the progress
                     regionArea = _area;
+                    
+                    // Get Current Session Index
+                    session_idx = _index;
 
                     // Get delta time per IPR iteration
                     delta_time = _active_time;
-
-                    // Get Current Session Index
-                    session_idx = _index;
 
                     bool& multiframe = node->m_multiframes;
                     std::vector<FrameBuffer>& fbs = node->m_framebuffers;

@@ -411,11 +411,15 @@ void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
 
 void Aton::knobs(Knob_Callback f)
 {
-    // Connect knobs
+    // Listen knobs
     Divider(f, "Listen");
-    Int_knob(f, &m_port, "port_number", "Port");
+    Int_knob(f, &m_port, "port_knob", "Port");
     Knob* reset_knob = Button(f, "reset_port_knob", "Reset");
 
+    // Camera knobs
+    Divider(f, "Camera");
+    Knob* live_cam_knob = Bool_knob(f, &m_live_camera, "live_camera_knob", "Create Live Camera");
+    
     // Sanpshots
     Divider(f, "Snapshots");
     Bool_knob(f, &m_enable_aovs, "enable_aovs_knob", "Enable AOVs");
@@ -432,9 +436,10 @@ void Aton::knobs(Knob_Callback f)
     Knob* move_down = Button(f, "move_down_knob", "<img src=\":qrc/images/ScriptEditor/outputOff.png\">");
     Knob* remove_selectd = Button(f, "remove_selected_knob", "<img src=\":qrc/images/ScriptEditor/clearOutput.png\">");
 
-    // Camera knobs
-    Divider(f, "Camera");
-    Knob* live_cam_knob = Bool_knob(f, &m_live_camera, "live_camera_knob", "Enable Live Camera");
+    // Render Region
+    Divider(f, "Render Region");
+    Knob* region_knob = BBox_knob(f, m_region, "region_knob", "Area");
+    Button(f, "copy_clipboard_knob", "Copy");
     
     // Write knobs
     Divider(f, "Write to Disk");
@@ -444,11 +449,6 @@ void Aton::knobs(Knob_Callback f)
     Button(f, "render_knob", "Render");
     Button(f, "import_latest_knob", "Read Latest");
     Button(f, "import_all_knob", "Read All");
-    
-    // Render Region
-    Divider(f, "Render Region");
-    Knob* region_knob = BBox_knob(f, m_region, "region_knob", "Area");
-    Button(f, "copy_clipboard_knob", "Copy");
     
     // Status Bar
     BeginToolbar(f, "status_bar");
