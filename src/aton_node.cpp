@@ -108,7 +108,7 @@ void Aton::changePort(int port)
             std::stringstream stream;
             stream << (m_server.getPort());
             std::string port = stream.str();
-            knob("port_number")->set_text(port.c_str());
+            knob("port_knob")->set_text(port.c_str());
         }
     }
 }
@@ -514,7 +514,7 @@ int Aton::knob_changed(Knob* _knob)
             changePort(9201);
         return 1;
     }
-    if (_knob->is("port_number"))
+    if (_knob->is("port_knob"))
     {
         changePort(m_port);
         return 1;
