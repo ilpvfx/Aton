@@ -301,7 +301,7 @@ void Aton::_validate(bool for_real)
             // Set the channels
             ChannelSet& channels = m_node->m_channels;
             
-            if (m_enable_aovs && rb.isReady())
+            if (m_enable_aovs && rb.ready())
             {
                 const int fb_size = static_cast<int>(rb.size());
                 
@@ -387,14 +387,14 @@ void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
         const float* END = cOut + (r - x);
         
         ReadGuard lock(m_mutex);
-        if (m_enable_aovs && !fbs.empty() &&!rbs.empty() && rbs[f].isReady())
+        if (m_enable_aovs && !fbs.empty() &&!rbs.empty() && rbs[f].ready())
             b = rbs[f].getBufferIndex(z);
         
         while (cOut < END)
         {
             if (fbs.empty() ||
                 rbs.empty() ||
-                !rbs[f].isReady() ||
+                !rbs[f].ready() ||
                 x >= rbs[f].getWidth() ||
                 y >= rbs[f].getHeight() ||
                 r > rbs[f].getWidth())

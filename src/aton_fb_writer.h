@@ -170,22 +170,22 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     // Reset Frame and Buffers if changed
                     if (!rb.empty() && !active_aovs.empty())
                     {
-                        if (rb.isFrameChanged(_frame))
+                        if (rb.frameChanged(_frame))
                         {
                             WriteGuard lock(node->m_mutex);
                             rb.setFrame(_frame);
                         }
-                        if(rb.isAovsChanged(active_aovs))
+                        if(rb.aovsChanged(active_aovs))
                         {
                             WriteGuard lock(node->m_mutex);
                             rb.resize(1);
-                            rb.ready(false);
+                            rb.setReady(false);
                             node->resetChannels(node->m_channels);
                         }
                     }
                     
                     // Set Camera
-                    if (rb.isCameraChanged(_fov, _matrix))
+                    if (rb.cameraChanged(_fov, _matrix))
                     {
                         WriteGuard lock(node->m_mutex);
                         rb.setCamera(_fov, _matrix);
@@ -234,7 +234,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     
                     RenderBuffer& rb = fbs[fb_index].currentFrame();
 
-                    if(rb.isResolutionChanged(_xres, _yres))
+                    if(rb.resolutionChanged(_xres, _yres))
                     {
                         WriteGuard lock(node->m_mutex);
                         rb.setResolution(_xres, _yres);
@@ -275,7 +275,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                         if(!rb.aovExists(_aov_name) && (node->m_enable_aovs || rb.empty()))
                             rb.addBuffer(_aov_name, _spp);
                         else
-                            rb.ready(true);
+                            rb.setReady(true);
 
                         // Get buffer index
                         const int b = rb.aovIndex(_aov_name);
@@ -299,7 +299,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                         node->m_mutex.unlock();
 
                         // Update only on first aov
-                        if(!node->m_capturing && rb.isFirstBufferName(_aov_name))
+                        if(!node->m_capturing && rb.firstBufferName(_aov_name))
                         {
                             // Calculate the progress percentage
                             regionArea -= _width * _height;

@@ -197,25 +197,25 @@ const char* RenderBuffer::getBufferName(const int& index)
 }
 
 // Get last buffer/aov name
-bool RenderBuffer::isFirstBufferName(const char* aovName)
+bool RenderBuffer::firstBufferName(const char* aovName)
 {
     return strcmp(_aovs.front().c_str(), aovName) == 0;;
 }
 
 // Check if Aovs has been changed
-bool RenderBuffer::isAovsChanged(const std::vector<std::string>& aovs)
+bool RenderBuffer::aovsChanged(const std::vector<std::string>& aovs)
 {
     return (aovs != _aovs);
 }
 
 // Check if Resolution has been changed
-bool RenderBuffer::isResolutionChanged(const unsigned int& w,
+bool RenderBuffer::resolutionChanged(const unsigned int& w,
                                        const unsigned int& h)
 {
     return (w != _width || h != _height);
 }
 
-bool RenderBuffer::isCameraChanged(const float& fov,
+bool RenderBuffer::cameraChanged(const float& fov,
                                   const Matrix4& matrix)
 {
     return (_fov != fov || _matrix != matrix);
@@ -319,11 +319,6 @@ void RenderBuffer::setCamera(const float& fov, const Matrix4& matrix)
 RenderBuffer& FrameBuffer::getFrame(double frame)
 {
     return _renderbuffers[getIndex(frame)];
-}
-
-FrameBuffer::FrameBuffer(long long index, std::string output, double frame, int xres, int yres, float pix_aspect)
-{
-    FrameBuffer::addFrame(index, output, frame, xres,  yres,  pix_aspect);
 }
 
 void FrameBuffer::addFrame(long long index, std::string output, double frame, int xres, int yres, float pix_aspect)

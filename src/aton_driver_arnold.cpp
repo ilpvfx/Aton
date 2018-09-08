@@ -107,7 +107,6 @@ driver_open
     data->yres = calc_res(yres, data->min_y, data->max_y);
     
     // Get Region Area
-//    const long long region_area = data->xres * data->yres;
     const long long region_area = calc_rarea(data_window.minx,
                                              data_window.maxx,
                                              data_window.miny,

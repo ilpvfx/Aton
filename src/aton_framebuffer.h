@@ -91,20 +91,20 @@ public:
     const char* getBufferName(const int& index);
     
     // Get last buffer/aov name
-    bool isFirstBufferName(const char* aovName);
+    bool firstBufferName(const char* aovName);
     
     // Check if Frame has been changed
-    bool isFrameChanged(const double& frame) { return frame != _frame; }
+    bool frameChanged(const double& frame) { return frame != _frame; }
     
     // Check if Aovs have been changed
-    bool isAovsChanged(const std::vector<std::string>& aovs);
+    bool aovsChanged(const std::vector<std::string>& aovs);
     
     // Check if Resolution has been changed
-    bool isResolutionChanged(const unsigned int& w,
+    bool resolutionChanged(const unsigned int& w,
                              const unsigned int& h);
     
     // Check if Camera fov has been changed
-    bool isCameraChanged(const float& fov, const Matrix4& matrix);
+    bool cameraChanged(const float& fov, const Matrix4& matrix);
     
     // Resize the containers to match the resolution
     void setResolution(const unsigned int& w,
@@ -167,8 +167,8 @@ public:
     bool empty() { return (_buffers.empty() && _aovs.empty()); }
     
     // To keep False while writing the buffer
-    void ready(const bool& ready) { _ready = ready; }
-    const bool& isReady() const { return _ready; }
+    void setReady(const bool& ready) { _ready = ready; }
+    const bool& ready() const { return _ready; }
     
     // Get Camera Fov
     const float& getCameraFov() { return _fov; }
@@ -202,7 +202,6 @@ class FrameBuffer
 {
 public:
     FrameBuffer() {};
-    FrameBuffer(long long index, std::string output, double frame, int xres, int yres, float pix_aspect);
     
     RenderBuffer& getFrame(double frame);
     
