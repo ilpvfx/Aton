@@ -26,10 +26,10 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
         int dataType = 0;
         
         // Session Index
-        long long session_idx = 0;
+        long long session = 0;
         
         // Time to reset per every IPR iteration
-        int _active_time = 0, delta_time = 0;
+        int active_time = 0, delta_time = 0;
         
         // For progress percentage
         long long progress = 0, regionArea = 0;
@@ -68,14 +68,14 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     const Matrix4& _matrix = Matrix4(&dh.camera_matrix()[0]);
                     const std::vector<int> _samples = dh.samples();
 
+                    // Get Current Session Index
+                    session = _session;
+                    
                     // Get image area to calculate the progress
                     regionArea = _area;
-                    
-                    // Get Current Session Index
-                    session_idx = _session;
 
                     // Get delta time per IPR iteration
-                    delta_time = _active_time;
+                    delta_time = active_time;
 
                     bool& multiframe = node->m_multiframes;
                     std::vector<FrameBuffer>& fbs = node->m_framebuffers;
@@ -187,7 +187,7 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
 
                     // Get Render Buffer
                     std::vector<FrameBuffer>& fbs = node->m_framebuffers;
-                    int fb_index = node->get_session_index(session_idx);
+                    int fb_index = node->get_session_index(session);
                     
                     if (fb_index == fbs.size())
                         fb_index-- ;
@@ -224,7 +224,7 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                         const int& _time = dp.time();
 
                         // Set active time
-                        _active_time = _time;
+                        active_time = _time;
 
                         // Get framebuffer width and height
                         const int& w = rb.get_width();
