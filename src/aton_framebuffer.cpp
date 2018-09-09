@@ -4,7 +4,6 @@ Dan Bethell, Johannes Saam, Vahan Sosoyan.
 All rights reserved. See COPYING.txt for more details.
 */
 
-
 #include "aton_framebuffer.h"
 #include "boost/format.hpp"
 #include <boost/lexical_cast.hpp>
@@ -86,7 +85,7 @@ RenderBuffer::RenderBuffer(const double& currentFrame,
                                             _pram(0),
                                             _ready(false) {}
 // Add new buffer
-void RenderBuffer::addBuffer(const char* aov,
+void RenderBuffer::add_aov(const char* aov,
                             const int& spp)
 {
     AOVBuffer buffer(_width, _height, spp);
@@ -96,7 +95,7 @@ void RenderBuffer::addBuffer(const char* aov,
 }
 
 // Get writable buffer object
-void RenderBuffer::setBufferPix(const int& b,
+void RenderBuffer::set_aov_pix(const int& b,
                                 const unsigned int& x,
                                 const unsigned int& y,
                                 const int& spp,
@@ -112,7 +111,7 @@ void RenderBuffer::setBufferPix(const int& b,
 }
 
 // Get read only buffer object
-const float& RenderBuffer::getBufferPix(const int& b,
+const float& RenderBuffer::get_aov_pix(const int& b,
                                         const unsigned int& x,
                                         const unsigned int& y,
                                         const int& c) const
@@ -126,7 +125,7 @@ const float& RenderBuffer::getBufferPix(const int& b,
 }
 
 // Get the current buffer index
-int RenderBuffer::getBufferIndex(const Channel& z)
+int RenderBuffer::get_aov_index(const Channel& z)
 {
     int b_index = 0;
     if (_aovs.size() > 1)
@@ -154,7 +153,7 @@ int RenderBuffer::getBufferIndex(const Channel& z)
 }
 
 // Get the current buffer index
-int RenderBuffer::aovIndex(const char* aovName)
+int RenderBuffer::get_aov_index(const char* aovName)
 {
     int b_index = 0;
     if (_aovs.size() > 1)
@@ -173,7 +172,7 @@ int RenderBuffer::aovIndex(const char* aovName)
 }
 
 // Get N buffer/aov name name
-const char* RenderBuffer::getBufferName(const int& index)
+const char* RenderBuffer::get_aov_name(const int& index)
 {
     const char* aovName = "";
 
@@ -197,32 +196,32 @@ const char* RenderBuffer::getBufferName(const int& index)
 }
 
 // Get last buffer/aov name
-bool RenderBuffer::firstBufferName(const char* aovName)
+bool RenderBuffer::first_aov_name(const char* aovName)
 {
     return strcmp(_aovs.front().c_str(), aovName) == 0;;
 }
 
 // Check if Aovs has been changed
-bool RenderBuffer::aovsChanged(const std::vector<std::string>& aovs)
+bool RenderBuffer::aovs_changed(const std::vector<std::string>& aovs)
 {
     return (aovs != _aovs);
 }
 
 // Check if Resolution has been changed
-bool RenderBuffer::resolutionChanged(const unsigned int& w,
+bool RenderBuffer::resolution_changed(const unsigned int& w,
                                        const unsigned int& h)
 {
     return (w != _width || h != _height);
 }
 
-bool RenderBuffer::cameraChanged(const float& fov,
+bool RenderBuffer::camera_changed(const float& fov,
                                   const Matrix4& matrix)
 {
     return (_fov != fov || _matrix != matrix);
 }
 
 // Resize the containers to match the resolution
-void RenderBuffer::setResolution(const unsigned int& w,
+void RenderBuffer::set_resolution(const unsigned int& w,
                                  const unsigned int& h)
 {
     _width = w;
@@ -248,14 +247,14 @@ void RenderBuffer::setResolution(const unsigned int& w,
 }
 
 // Clear buffers and aovs
-void RenderBuffer::clearAll()
+void RenderBuffer::clear_all()
 {
     _buffers = std::vector<AOVBuffer>();
     _aovs = std::vector<std::string>();
 }
 
 // Check if the given buffer/aov name name is exist
-bool RenderBuffer::aovExists(const char* aovName)
+bool RenderBuffer::aov_exists(const char* aovName)
 {
     return std::find(_aovs.begin(), _aovs.end(), aovName) != _aovs.end();
 }
@@ -268,26 +267,26 @@ void RenderBuffer::resize(const size_t& s)
 }
 
 // Set status parameters
-void RenderBuffer::setProgress(const long long& progress)
+void RenderBuffer::set_progress(const long long& progress)
 {
     _progress = progress > 100 ? 100 : progress;
 }
 
-void RenderBuffer::setRAM(const long long& ram)
+void RenderBuffer::set_memory(const long long& ram)
 {
     const int ramGb = static_cast<int>(ram / 1048576);
     _ram = ramGb;
     _pram = ramGb > _pram ? ramGb : _pram;
 
 }
-void RenderBuffer::setTime(const int& time,
+void RenderBuffer::set_time(const int& time,
                            const int& dtime)
 {
     _time = dtime > time ? time : time - dtime;
 }
 
 // Set Version
-void RenderBuffer::setVersion(const int& version)
+void RenderBuffer::set_version(const int& version)
 {
     const std::vector<int> ver = unpack_4_int(version);
 
@@ -298,7 +297,7 @@ void RenderBuffer::setVersion(const int& version)
 }
 
 // Set Samples
-void RenderBuffer::setSamples(std::vector<int> sp)
+void RenderBuffer::set_samples(std::vector<int> sp)
 {
     _samplesStr = lexical_cast<string>(sp[0]) + "/" +
                   lexical_cast<string>(sp[1]) + "/" +
@@ -309,43 +308,55 @@ void RenderBuffer::setSamples(std::vector<int> sp)
 }
 
 
-void RenderBuffer::setCamera(const float& fov, const Matrix4& matrix)
+void RenderBuffer::set_camera(const float& fov, const Matrix4& matrix)
 {
     _fov = fov;
     _matrix = matrix;
 }
 
 
-RenderBuffer& FrameBuffer::getFrame(double frame)
+RenderBuffer& FrameBuffer::get_frame(double frame)
 {
-    return _renderbuffers[getIndex(frame)];
+    return _renderbuffers[get_renderbuffer_index(frame)];
 }
 
-void FrameBuffer::addFrame(long long index, std::string output, double frame, int xres, int yres, float pix_aspect)
+void FrameBuffer::add_frame(DataHeader* dh)
 {
-        RenderBuffer rb(frame, xres, yres, pix_aspect);
+        RenderBuffer rb(dh->frame(), dh->xres(), dh->yres(), dh->pixel_aspect());
         if (!_frames.empty())
             rb = _renderbuffers.back();
     
-        _session_index = index;
-        _output_name = output;
-        _current_frame  = frame;
+        _session_index = dh->index();
+        _output_name = (boost::format("%s_%d_%s")%dh->output_name()
+                                                 %dh->frame()
+                                                 %get_date()).str();
+        _current_frame  = dh->frame();
 
-        _frames.push_back(frame);
+        _frames.push_back(dh->frame());
         _renderbuffers.push_back(rb);
 }
 
+// Udpate RenderBuffer
+void FrameBuffer::update_frame(DataHeader* dh)
+{
+    _session_index = dh->index();
+    _output_name = (boost::format("%s_%d_%s")%dh->output_name()
+                                             %dh->frame()
+                                             %get_date()).str();
+    _current_frame  = dh->frame();
+}
+
 // Clear All Data
-void FrameBuffer::clearAll()
+void FrameBuffer::clear_all()
 {
     _frames = std::vector<double>();
     _renderbuffers = std::vector<RenderBuffer>();
 }
 
-void FrameBuffer::clearAllExcept(double frame)
+void FrameBuffer::clear_all_except(double frame)
 {
-    std::swap(_frames.at(0), _frames.at(getIndex(frame)));
-    std::swap(_renderbuffers.at(0), _renderbuffers.at(getIndex(frame)));
+    std::swap(_frames.at(0), _frames.at(get_renderbuffer_index(frame)));
+    std::swap(_renderbuffers.at(0), _renderbuffers.at(get_renderbuffer_index(frame)));
 
     _frames.erase(_frames.begin() + 1, _frames.end());
     _renderbuffers.erase(_renderbuffers.begin() + 1, _renderbuffers.end());
@@ -354,7 +365,7 @@ void FrameBuffer::clearAllExcept(double frame)
 
 
 // Check if RenderBuffer already exists
-bool FrameBuffer::frameExists(double frame)
+bool FrameBuffer::frame_exists(double frame)
 {
     if (!_frames.empty())
         return (std::find(_frames.begin(), _frames.end(), frame) != _frames.end());
@@ -363,7 +374,7 @@ bool FrameBuffer::frameExists(double frame)
 }
 
 // Get RenderBuffer for given Frame
-int FrameBuffer::getIndex(double frame)
+int FrameBuffer::get_renderbuffer_index(double frame)
 {
     int index = 0;
     

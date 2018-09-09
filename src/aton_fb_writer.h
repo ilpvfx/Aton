@@ -7,41 +7,10 @@ All rights reserved. See COPYING.txt for more details.
 #ifndef FBWriter_h
 #define FBWriter_h
 
-#include "boost/format.hpp"
-
 #include "aton_node.h"
 
-long getFBIndex(Aton* node, const long long& index)
-{
-    long fb_index = 0;
-    std::vector<FrameBuffer>& fbs = node->m_framebuffers;
-    
-    if (!fbs.empty())
-    {
-        std::vector<FrameBuffer>::iterator it;
-        for(it = fbs.begin(); it != fbs.end(); ++it)
-        {
-            if (it->getSessionIndex() == index)
-                fb_index = it - fbs.begin();
-            else
-                fb_index = fbs.size();
-        }
-    }
-    return fb_index;
-}
-
-FrameBuffer& addFrameBuffer(Aton* node)
-{
-    node->m_outputKnobChanged = Aton::item_added;
-    std::vector<FrameBuffer>& fbs = node->m_framebuffers;
-    
-    FrameBuffer fb;
-    fbs.push_back(fb);
-    return fbs.back();
-}
-
 // Our RenderBuffer writer thread
-static void FBWriter(unsigned index, unsigned nthreads, void* data)
+static void fb_writer(unsigned index, unsigned nthreads, void* data)
 {
     bool killThread = false;
     std::vector<std::string> active_aovs;
@@ -71,7 +40,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
             // Listen for some data
             try
             {
-                dataType = node->m_server.listenType();
+                dataType = node->m_server.listen_type();
                 WriteGuard lock(node->m_mutex);
                 node->m_running = true;
             }
@@ -79,7 +48,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
             {
                 WriteGuard lock(node->m_mutex);
                 node->m_running = false;
-                node->flagForUpdate();
+                node->flag_update();
                 break;
             }
             
@@ -91,26 +60,19 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     // Get Data Header
                     DataHeader dh = node->m_server.listenHeader();
 
-                    const long long& _index = dh.index();
-                    const int& _xres = dh.xres();
-                    const int& _yres = dh.yres();
-                    const float& _pix_aspect = dh.pixel_aspect();
-                    const long long& _area = dh.rArea();
+                    const long long& _session = dh.index();
+                    const long long& _area = dh.region_area();
                     const int& _version = dh.version();
-                    const double& _frame = static_cast<double>(dh.currentFrame());
-                    const float& _fov = dh.camFov();
-                    const Matrix4& _matrix = Matrix4(&dh.camMatrix()[0]);
+                    const double& _frame = static_cast<double>(dh.frame());
+                    const float& _fov = dh.camera_fov();
+                    const Matrix4& _matrix = Matrix4(&dh.camera_matrix()[0]);
                     const std::vector<int> _samples = dh.samples();
-                    const char* _output_name = dh.outputName();
 
-                    // Output String
-                    std::string _output_string = (boost::format("%s_%d_%s")%_output_name%_frame
-                                                                           %node->getDateTime()).str();
                     // Get image area to calculate the progress
                     regionArea = _area;
                     
                     // Get Current Session Index
-                    session_idx = _index;
+                    session_idx = _session;
 
                     // Get delta time per IPR iteration
                     delta_time = _active_time;
@@ -119,7 +81,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     std::vector<FrameBuffer>& fbs = node->m_framebuffers;
                 
                     // Get FrameBuffer Index
-                    long fb_index = getFBIndex(node, _index);
+                    int fb_index = node->get_session_index(_session);
                     
                     if (multiframe)
                     {
@@ -130,17 +92,15 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                             
                             FrameBuffer& fb = fbs[fb_index];
                             
-                            if (!fb.frameExists(_frame))
+                            if (!fb.frame_exists(_frame))
                             {
                                 WriteGuard lock(node->m_mutex);
-                                fb.addFrame(_index, _output_string, _frame, _xres, _yres, _pix_aspect);
+                                fb.add_frame(&dh);
                             }
                             else
                             {
                                 WriteGuard lock(node->m_mutex);
-                                fb.setSessionIndex(_index);
-                                fb.setOutputName(_output_string);
-                                fb.setCurrentFrame(_frame);
+                                fb.update_frame(&dh);
                             }
                         }
                     }
@@ -151,8 +111,8 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                             if (fb_index == fbs.size())
                             {
                                 WriteGuard lock(node->m_mutex);
-                                FrameBuffer& fb = addFrameBuffer(node);
-                                fb.addFrame(_index, _output_string, _frame, _xres, _yres, _pix_aspect);
+                                FrameBuffer& fb = node->add_framebuffer();
+                                fb.add_frame(&dh);
                             }
                         }
                     }
@@ -160,51 +120,51 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     if (fbs.empty())
                     {
                         WriteGuard lock(node->m_mutex);
-                        FrameBuffer& fb = addFrameBuffer(node);
-                        fb.addFrame(_index, _output_string, _frame, _xres, _yres, _pix_aspect);
+                        FrameBuffer& fb = node->add_framebuffer();
+                        fb.add_frame(&dh);
                     }
                     
                     // Get current RenderBuffer
-                    RenderBuffer& rb = fbs[fb_index].getFrame(_frame);
+                    RenderBuffer& rb = fbs[fb_index].get_frame(_frame);
                     
                     // Reset Frame and Buffers if changed
                     if (!rb.empty() && !active_aovs.empty())
                     {
-                        if (rb.frameChanged(_frame))
+                        if (rb.frame_changed(_frame))
                         {
                             WriteGuard lock(node->m_mutex);
-                            rb.setFrame(_frame);
+                            rb.set_frame(_frame);
                         }
-                        if(rb.aovsChanged(active_aovs))
+                        if(rb.aovs_changed(active_aovs))
                         {
                             WriteGuard lock(node->m_mutex);
                             rb.resize(1);
-                            rb.setReady(false);
-                            node->resetChannels(node->m_channels);
+                            rb.set_ready(false);
+                            node->reset_channels(node->m_channels);
                         }
                     }
                     
                     // Set Camera
-                    if (rb.cameraChanged(_fov, _matrix))
+                    if (rb.camera_changed(_fov, _matrix))
                     {
                         WriteGuard lock(node->m_mutex);
-                        rb.setCamera(_fov, _matrix);
-                        node->setCameraKnobs(rb.getCameraFov(),
-                                             rb.getCameraMatrix());
+                        rb.set_camera(_fov, _matrix);
+                        node->set_camera_knobs(rb.get_camera_fov(),
+                                             rb.get_camera_matrix());
                     }
                     
                     // Set Version
-                    if (rb.getVersionInt() != _version)
+                    if (rb.get_version_int() != _version)
                     {
                         WriteGuard lock(node->m_mutex);
-                        rb.setVersion(_version);
+                        rb.set_version(_version);
                     }
                     
                     // Set Samples
-                    if (rb.getSamplesInt() != _samples)
+                    if (rb.get_samples_int() != _samples)
                     {
                         WriteGuard lock(node->m_mutex);
-                        rb.setSamples(_samples);
+                        rb.set_samples(_samples);
                     }
                     
                     // Reset active AOVs
@@ -213,7 +173,7 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     
                     // Set Frame on Timeline
                     if (_frame != node->outputContext().frame())
-                        node->setCurrentFrame(_frame);
+                        node->set_current_frame(_frame);
                     break;
                 }
                 case 1: // Write image data
@@ -223,21 +183,21 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                     
                     const int& _xres = dp.xres();
                     const int& _yres = dp.yres();
-                    const char* _aov_name = dp.aovName();
+                    const char* _aov_name = dp.aov_name();
 
                     // Get Render Buffer
                     std::vector<FrameBuffer>& fbs = node->m_framebuffers;
-                    long fb_index = getFBIndex(node, session_idx);
+                    int fb_index = node->get_session_index(session_idx);
                     
                     if (fb_index == fbs.size())
                         fb_index-- ;
                     
-                    RenderBuffer& rb = fbs[fb_index].currentFrame();
+                    RenderBuffer& rb = fbs[fb_index].current_frame();
 
-                    if(rb.resolutionChanged(_xres, _yres))
+                    if(rb.resolution_changed(_xres, _yres))
                     {
                         WriteGuard lock(node->m_mutex);
-                        rb.setResolution(_xres, _yres);
+                        rb.set_resolution(_xres, _yres);
                     }
 
                     // Get active aov names
@@ -267,18 +227,18 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                         _active_time = _time;
 
                         // Get framebuffer width and height
-                        const int& w = rb.getWidth();
-                        const int& h = rb.getHeight();
+                        const int& w = rb.get_width();
+                        const int& h = rb.get_height();
 
                         // Adding buffer
                         node->m_mutex.writeLock();
-                        if(!rb.aovExists(_aov_name) && (node->m_enable_aovs || rb.empty()))
-                            rb.addBuffer(_aov_name, _spp);
+                        if(!rb.aov_exists(_aov_name) && (node->m_enable_aovs || rb.empty()))
+                            rb.add_aov(_aov_name, _spp);
                         else
-                            rb.setReady(true);
+                            rb.set_ready(true);
 
                         // Get buffer index
-                        const int b = rb.aovIndex(_aov_name);
+                        const int b = rb.get_aov_index(_aov_name);
 
                         // Writing to buffer
                         int x, y, c, xpos, ypos, offset;
@@ -292,14 +252,14 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                                     xpos = x + _x;
                                     ypos = h - (y + _y + 1);
                                     const float& _pix = dp.pixel(offset + c);
-                                    rb.setBufferPix(b, xpos, ypos, _spp, c, _pix);
+                                    rb.set_aov_pix(b, xpos, ypos, _spp, c, _pix);
                                 }
                             }
                         }
                         node->m_mutex.unlock();
 
                         // Update only on first aov
-                        if(!node->m_capturing && rb.firstBufferName(_aov_name))
+                        if(!node->m_capturing && rb.first_aov_name(_aov_name))
                         {
                             // Calculate the progress percentage
                             regionArea -= _width * _height;
@@ -307,14 +267,14 @@ static void FBWriter(unsigned index, unsigned nthreads, void* data)
                             
                             // Set status parameters
                             node->m_mutex.writeLock();
-                            rb.setProgress(progress);
-                            rb.setRAM(_ram);
-                            rb.setTime(_time, delta_time);
+                            rb.set_progress(progress);
+                            rb.set_memory(_ram);
+                            rb.set_time(_time, delta_time);
                             node->m_mutex.unlock();
 
                             // Update the image
                             const Box box = Box(_x, h - _y - _width, _x + _height, h - _y);
-                            node->flagForUpdate(box);
+                            node->flag_update(box);
                         }
                     }
                     dp.free();

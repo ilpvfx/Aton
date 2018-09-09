@@ -59,23 +59,23 @@ public:
     const float& pixel_aspect() const { return mPixAspectRatio; }
     
     // Get area of the render region
-    const long long& rArea() const { return mRArea; }
+    const long long& region_area() const { return mRArea; }
     
     // Version number
     const int& version() const { return mVersion; }
     
     // Current frame
-    const float& currentFrame() const { return mCurrentFrame; }
+    const float& frame() const { return mFrame; }
     
     // Camera Fov
-    const float& camFov() const { return mCamFov; }
+    const float& camera_fov() const { return mCamFov; }
     
     // Camera matrix
-    const std::vector<float>& camMatrix() const { return mCamMatrixStore; }
+    const std::vector<float>& camera_matrix() const { return mCamMatrixStore; }
     
     const std::vector<int>& samples() const { return mSamplesStore; }
     
-    const char* outputName() const { return mOutputName; }
+    const char* output_name() const { return mOutputName; }
     
     // Deallocate output name
     void free();
@@ -97,7 +97,7 @@ private:
     long long mRArea;
     
     // Current frame
-    float mCurrentFrame;
+    float mFrame;
     
     // Camera Field of View
     float mCamFov;
@@ -163,7 +163,7 @@ public:
     const unsigned int& time() const { return mTime; }
     
     // Get Aov name
-    const char* aovName() const { return mAovName; }
+    const char* aov_name() const { return mAovName; }
     
     // Pointer to pixel data owned by the display driver (client-side)
     const float* data() const { return mpData; }
@@ -209,7 +209,7 @@ private:
 // Used to send an image to a Server
 // The Client class is created each time an application wants to send
 // an image to the Server. Once it is instantiated the application should
-// call openImage(), send(), and closeImage() to send an image to the Server
+// call open_image(), send_pixels(), and close_image() to send an image to the Server
 class Client
 {
     friend class Server;
@@ -223,21 +223,21 @@ public:
     // Sends a message to the Server to open a new image
     // The header parameter is used to tell the Server the size of image
     // buffer to allocate.
-    void openImage(DataHeader& header);
+    void open_image(DataHeader& header);
     
     // Sends a section of image data to the Server
     // Once an image is open a Client can use this to send a series of
     // pixel blocks to the Server. The Data object passed must correctly
     // specify the block position and dimensions as well as provide a
     // pointer to pixel data.
-    void sendPixels(DataPixels& data);
+    void send_pixels(DataPixels& data);
     
     // Sends a message to the Server that the Clients has finished
     // This tells the Server that a Client has finished sending pixel
     // information for an image.
-    void closeImage();
+    void close_image();
     
-    bool isConnected() { return mIsConnected; }
+    bool connected() { return mIsConnected; }
 
 private:
     void connect();

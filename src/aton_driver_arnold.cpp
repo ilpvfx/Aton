@@ -115,7 +115,7 @@ driver_open
     // Get Arnold version
     char arch[3], major[3], minor[3], fix[3];
     AiGetVersion(arch, major, minor, fix);
-    const int version = pack_4_int(atoi(arch), atoi(major), atoi(minor), atoi(fix));
+    const int version = pack4int(atoi(arch), atoi(major), atoi(minor), atoi(fix));
         
     // Get Frame
     const float frame = AiNodeGetFlt(options, AtString("frame"));
@@ -179,7 +179,7 @@ driver_open
     
     try
     {
-        data->client->openImage(dh);
+        data->client->open_image(dh);
     }
     catch(const std::exception &e)
     {
@@ -248,7 +248,7 @@ driver_write_bucket
                       ptr);
 
         // Send it to the server
-        data->client->sendPixels(dp);
+        data->client->send_pixels(dp);
     }
 }
 
@@ -262,8 +262,8 @@ node_finish
 #else
     ShaderData* data = (ShaderData*)AiDriverGetLocalData(node);
 #endif
-    if (data->client->isConnected())
-        data->client->closeImage();
+    if (data->client->connected())
+        data->client->close_image();
     delete data->client;
     AiFree(data);
 

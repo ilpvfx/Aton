@@ -28,7 +28,7 @@ public:
     // If true is passed as the second parameter then the server will
     // search for the first available port if the specified one is not
     // available. To find out which port the server managed to connect to,
-    // call getPort() afterwards
+    // call get_port() afterwards
     void connect(int port, bool search=false);
     
     // Sets up the server to accept an incoming Client connections.
@@ -38,7 +38,7 @@ public:
     // returning once a Client has sent a message.
     // The returned Data object is filled with the relevant information and
     // passed back ready for handling by the parent application
-    int listenType();
+    int listen_type();
     DataHeader listenHeader();
     DataPixels listenPixels();
     
@@ -46,10 +46,10 @@ public:
     void quit();
 
     // Returns whether or not the server is connected to a port
-    bool isConnected() { return mAcceptor.is_open(); }
+    bool connected() { return mAcceptor.is_open(); }
 
     //! Returns the port the server is currently connected to
-    int getPort() { return mPort; }
+    int get_port() { return mPort; }
 
 private:
     // Port we're listening to

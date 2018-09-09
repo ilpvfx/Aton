@@ -50,7 +50,7 @@ const long long get_unique_id()
     return diff.total_milliseconds();
 }
 
-const int pack_4_int(int a, int b, int c, int d)
+const int pack4int(int a, int b, int c, int d)
 {
     return a * 1000000 + b * 10000 + c * 100 + d;
 }
@@ -72,7 +72,7 @@ DataHeader::DataHeader(const long long& index,
                                                 mPixAspectRatio(pix_aspect),
                                                 mRArea(rArea),
                                                 mVersion(version),
-                                                mCurrentFrame(currentFrame),
+                                                mFrame(currentFrame),
                                                 mCamFov(cam_fov),
                                                 mOutputName(outputName)
 {
@@ -162,7 +162,7 @@ void Client::disconnect()
     mSocket.close();
 }
 
-void Client::openImage(DataHeader& header)
+void Client::open_image(DataHeader& header)
 {
     // Connect to port!
     connect();
@@ -181,7 +181,7 @@ void Client::openImage(DataHeader& header)
     write(mSocket, buffer(reinterpret_cast<char*>(&header.mPixAspectRatio), sizeof(float)));
     write(mSocket, buffer(reinterpret_cast<char*>(&header.mRArea), sizeof(long long)));
     write(mSocket, buffer(reinterpret_cast<char*>(&header.mVersion), sizeof(int)));
-    write(mSocket, buffer(reinterpret_cast<char*>(&header.mCurrentFrame), sizeof(float)));
+    write(mSocket, buffer(reinterpret_cast<char*>(&header.mFrame), sizeof(float)));
     write(mSocket, buffer(reinterpret_cast<char*>(&header.mCamFov), sizeof(float)));
 
     const int camMatrixSize = 16;
@@ -197,7 +197,7 @@ void Client::openImage(DataHeader& header)
     mIsConnected = true;
 }
 
-void Client::sendPixels(DataPixels& pixels)
+void Client::send_pixels(DataPixels& pixels)
 {
     if (mImageId < 0)
     {
@@ -231,7 +231,7 @@ void Client::sendPixels(DataPixels& pixels)
     write(mSocket, buffer(reinterpret_cast<char*>(&pixels.mpData[0]), sizeof(float)*num_samples));
 }
 
-void Client::closeImage()
+void Client::close_image()
 {
     // Send image complete message for image_id
     int key = 2;

@@ -86,7 +86,7 @@ void Server::accept()
     mAcceptor.accept(mSocket);
 }
 
-int Server::listenType()
+int Server::listen_type()
 {
     int type;
     
@@ -125,7 +125,7 @@ DataHeader Server::listenHeader()
     read(mSocket, buffer(reinterpret_cast<char*>(&dh.mPixAspectRatio), sizeof(float)));
     read(mSocket, buffer(reinterpret_cast<char*>(&dh.mRArea), sizeof(long long)));
     read(mSocket, buffer(reinterpret_cast<char*>(&dh.mVersion), sizeof(int)));
-    read(mSocket, buffer(reinterpret_cast<char*>(&dh.mCurrentFrame), sizeof(int)));
+    read(mSocket, buffer(reinterpret_cast<char*>(&dh.mFrame), sizeof(int)));
     read(mSocket, buffer(reinterpret_cast<char*>(&dh.mCamFov), sizeof(float)));
     
     const int camMatrixSize = 16;

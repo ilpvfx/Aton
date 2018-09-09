@@ -29,6 +29,22 @@ static const char* const HELP =
     "Listens for renders coming from the Aton display driver. "
     "For more info go to http://sosoyan.github.io/Aton/";
 
+std::string get_date()
+{
+    // Returns date and time
+    time_t rawtime;
+    struct tm *timeinfo;
+    char time_buffer[15];
+    
+    time (&rawtime);
+    timeinfo = localtime(&rawtime);
+    
+    // Setting up the Date and Time format style
+    strftime(time_buffer, 20, "%m.%d_%H:%M:%S", timeinfo);
+    
+    return std::string(time_buffer);
+}
+
 // Nuke node
 class Aton: public Iop
 {
@@ -64,10 +80,10 @@ class Aton: public Iop
         std::vector<FrameBuffer>  m_framebuffers;     // Framebuffers List
 
         Aton(Node* node): Iop(node),
-                          m_node(firstNode()),
+                          m_node(first_node()),
                           m_fmt(Format(0, 0, 1.0)),
                           m_channels(Mask_RGBA),
-                          m_port(getPort()),
+                          m_port(get_port()),
                           m_slimit(20),
                           m_cam_fov(0),
                           m_cam_matrix(0),
@@ -103,21 +119,25 @@ class Aton: public Iop
             item_renamed
         };
         
-        Aton* firstNode() { return dynamic_cast<Aton*>(firstOp()); }
+        Aton* first_node() { return dynamic_cast<Aton*>(firstOp()); }
     
         void attach();
         
         void detach();
 
-        void flagForUpdate(const Box& box = Box(0,0,0,0));
+        void flag_update(const Box& box = Box(0,0,0,0));
 
-        void changePort(int port);
+        void change_port(int port);
 
         void disconnect();
 
         void append(Hash& hash);
     
         int current_fb_index(bool direction = true);
+    
+        int get_session_index(const long long& session);
+    
+        FrameBuffer& add_framebuffer();
     
         FrameBuffer& current_framebuffer();
     
@@ -131,29 +151,27 @@ class Aton: public Iop
 
         int knob_changed(Knob* _knob);
 
-        void resetChannels(ChannelSet& channels);
+        void reset_channels(ChannelSet& channels);
     
-        bool isPathValid(std::string path);
+        bool path_valid(std::string path);
     
-        std::string getPath();
+        std::string get_path();
     
-        int getPort();
-
-        std::string getDateTime();
+        int get_port();
     
-        std::vector<std::string> getCaptures();
+        std::vector<std::string> get_captures();
     
         void move_cmd(bool direction);
     
         void remove_selected_cmd();
     
-        void copyClipboardCmd();
-        void captureCmd();
-        void importCmd(bool all);
+        void copy_region_cmd();
+        void capture_cmd();
+        void import_cmd(bool all);
     
-        void liveCameraToogle();
+        void live_camera_toogle();
     
-        void setStatus(const long long& progress = 0,
+        void set_status(const long long& progress = 0,
                        const long long& ram = 0,
                        const long long& p_ram = 0,
                        const int& time = 0,
@@ -161,9 +179,9 @@ class Aton: public Iop
                        const char* version = "",
                        const char* samples = "");
     
-        void setCameraKnobs(const float& fov, const Matrix4& matrix);
+        void set_camera_knobs(const float& fov, const Matrix4& matrix);
     
-        void setCurrentFrame(const double& frame);
+        void set_current_frame(const double& frame);
     
         bool firstEngineRendersWholeRequest() const { return true; }
         const char* Class() const { return CLASS; }

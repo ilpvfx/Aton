@@ -10,7 +10,7 @@ All rights reserved. See COPYING.txt for more details.
 #include "aton_node.h"
 
 // Our FrameBuffer updater thread
-static void FBUpdater(unsigned index, unsigned nthreads, void* data)
+static void fb_updater(unsigned index, unsigned nthreads, void* data)
 {
     Aton* node = reinterpret_cast<Aton*>(data);
     double frame, prevFrame = 0;
@@ -22,7 +22,7 @@ static void FBUpdater(unsigned index, unsigned nthreads, void* data)
         
         if (!node->m_framebuffers.empty() && frame != prevFrame)
         {
-            node->flagForUpdate();
+            node->flag_update();
             prevFrame = frame;
         }
         else

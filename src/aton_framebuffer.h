@@ -8,8 +8,12 @@ All rights reserved. See COPYING.txt for more details.
 #define FenderBuffer_h
 
 #include "DDImage/Iop.h"
+#include "aton_client.h"
+
 
 using namespace DD::Image;
+
+std::string get_date();
 
 namespace chStr
 {
@@ -64,11 +68,11 @@ public:
                  const float& _pix_aspect = 1.0f);
     
     // Add new buffer
-    void addBuffer(const char* aov = NULL,
+    void add_aov(const char* aov = NULL,
                    const int& spp = 0);
     
     // Set writable buffer's pixel
-    void setBufferPix(const int& b,
+    void set_aov_pix(const int& b,
                       const unsigned int& x,
                       const unsigned int& y,
                       const int& spp,
@@ -76,54 +80,54 @@ public:
                       const float& pix);
     
     // Get read only buffer's pixel
-    const float& getBufferPix(const int& b,
+    const float& get_aov_pix(const int& b,
                               const unsigned int& x,
                               const unsigned int& y,
                               const int& c) const;
     
     // Get the current buffer index
-    int getBufferIndex(const Channel& z);
+    int get_aov_index(const Channel& z);
     
     // Get the current buffer index
-    int aovIndex(const char* aovName);
+    int get_aov_index(const char* aovName);
     
     // Get N buffer/aov name name
-    const char* getBufferName(const int& index);
+    const char* get_aov_name(const int& index);
     
     // Get last buffer/aov name
-    bool firstBufferName(const char* aovName);
+    bool first_aov_name(const char* aovName);
     
     // Check if Frame has been changed
-    bool frameChanged(const double& frame) { return frame != _frame; }
+    bool frame_changed(const double& frame) { return frame != _frame; }
     
     // Check if Aovs have been changed
-    bool aovsChanged(const std::vector<std::string>& aovs);
+    bool aovs_changed(const std::vector<std::string>& aovs);
     
     // Check if Resolution has been changed
-    bool resolutionChanged(const unsigned int& w,
+    bool resolution_changed(const unsigned int& w,
                              const unsigned int& h);
     
     // Check if Camera fov has been changed
-    bool cameraChanged(const float& fov, const Matrix4& matrix);
+    bool camera_changed(const float& fov, const Matrix4& matrix);
     
     // Resize the containers to match the resolution
-    void setResolution(const unsigned int& w,
+    void set_resolution(const unsigned int& w,
                        const unsigned int& h);
     
     // Clear buffers and aovs
-    void clearAll();
+    void clear_all();
     
     // Check if the given buffer/aov name name is exist
-    bool aovExists(const char* aovName);
+    bool aov_exists(const char* aovName);
     
     // Get width of the buffer
-    const int& getWidth() const { return _width; }
+    const int& get_width() const { return _width; }
     
     // Get height of the buffer
-    const int& getHeight() const { return _height; }
+    const int& get_height() const { return _height; }
     
     // Get pixel aspect of the buffer
-    const float& getPixelAspect() const { return _pix_aspect; }
+    const float& get_pixel_aspect() const { return _pix_aspect; }
     
     // Get size of the buffers aka AOVs count
     size_t size() { return _aovs.size(); }
@@ -132,50 +136,50 @@ public:
     void resize(const size_t& s);
     
     // Set status parameters
-    void setProgress(const long long& progress = 0);
-    void setRAM(const long long& ram = 0);
-    void setTime(const int& time = 0,
+    void set_progress(const long long& progress = 0);
+    void set_memory(const long long& ram = 0);
+    void set_time(const int& time = 0,
                  const int& dtime = 0);
     
     // Get status parameters
-    const long long& getProgress() { return _progress; }
-    const long long& getRAM() { return _ram; }
-    const long long& getPRAM() { return _pram; }
-    const int& getTime() { return _time; }
+    const long long& get_progress() { return _progress; }
+    const long long& get_memory() { return _ram; }
+    const long long& get_peak_memory() { return _pram; }
+    const int& get_time() { return _time; }
     
     // Set Version
-    void setVersion(const int& version);
+    void set_version(const int& version);
     
     // Set Samples
-    void setSamples(const std::vector<int> samples);
+    void set_samples(const std::vector<int> samples);
     
     // Get Arnold core version
-    const int& getVersionInt() { return _versionInt; }
-    const char* getVersion() { return _versionStr.c_str(); }
+    const int& get_version_int() { return _versionInt; }
+    const char* get_version_str() { return _versionStr.c_str(); }
     
     // Get Samples
-    const std::vector<int> getSamplesInt() { return _samples; }
-    const char* getSamples() { return _samplesStr.c_str(); }
+    const std::vector<int> get_samples_int() { return _samples; }
+    const char* get_samples() { return _samplesStr.c_str(); }
     
     // Set the frame number of this RenderBuffer
-    void setFrame(const double& frame) { _frame = frame; }
+    void set_frame(const double& frame) { _frame = frame; }
     
     // Get the frame number of this RenderBuffer
-    const double& getFrame() { return _frame; }
+    const double& get_frame() { return _frame; }
     
     // Check if this RenderBuffer is empty
     bool empty() { return (_buffers.empty() && _aovs.empty()); }
     
     // To keep False while writing the buffer
-    void setReady(const bool& ready) { _ready = ready; }
+    void set_ready(const bool& ready) { _ready = ready; }
     const bool& ready() const { return _ready; }
     
     // Get Camera Fov
-    const float& getCameraFov() { return _fov; }
+    const float& get_camera_fov() { return _fov; }
     
-    const Matrix4& getCameraMatrix() { return _matrix; }
+    const Matrix4& get_camera_matrix() { return _matrix; }
     
-    void setCamera(const float& fov, const Matrix4& matrix);
+    void set_camera(const float& fov, const Matrix4& matrix);
     
 private:
     double _frame;
@@ -203,39 +207,42 @@ class FrameBuffer
 public:
     FrameBuffer() {};
     
-    RenderBuffer& getFrame(double frame);
+    RenderBuffer& get_frame(double frame);
     
-    RenderBuffer& currentFrame() { return getFrame(_current_frame); }
+    RenderBuffer& current_frame() { return get_frame(_current_frame); }
     
-    std::vector<RenderBuffer>& getBuffers() { return _renderbuffers; }
+    std::vector<RenderBuffer>& get_renderbuffers() { return _renderbuffers; }
     
     // Get RenderBuffer index for given Frame
-    int getIndex(double frame);
+    int get_renderbuffer_index(double frame);
     
     const std::vector<double>& frames() { return _frames; }
     
     size_t size() { return _frames.size(); }
     
     // Add New RenderBuffer
-    void addFrame(long long index, std::string output, double frame, int xres, int yres, float pix_aspect);
+    void add_frame(DataHeader* dh);
+    
+    // Update RenderBuffer
+    void update_frame(DataHeader* dh);
     
     // Clear All Data
-    void clearAll();
-    void clearAllExcept(double frame);
+    void clear_all();
+    void clear_all_except(double frame);
     
     bool empty() { return (_frames.empty() && _renderbuffers.empty()); }
     
     // Check if RenderBuffer already exists
-    bool frameExists(double frame);
+    bool frame_exists(double frame);
     
-    double getCurrentFrame() { return _current_frame; }
-    void setCurrentFrame(double frame) { _current_frame = frame; }
+    double get_current_frame() { return _current_frame; }
+    void set_current_frame(double frame) { _current_frame = frame; }
     
-    long long& getSessionIndex() { return _session_index; }
-    void setSessionIndex(long long index) { _session_index = index; }
+    long long& get_session() { return _session_index; }
+    void set_session(long long index) { _session_index = index; }
     
-    std::string getOutputName() { return _output_name; }
-    void setOutputName(std::string name) { _output_name = name; }
+    std::string get_output_name() { return _output_name; }
+    void set_output_name(std::string name) { _output_name = name; }
 
 private:
     double _current_frame;
