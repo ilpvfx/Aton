@@ -36,9 +36,9 @@ public:
                const int& xres = 0,
                const int& yres = 0,
                const float& pix_aspect = 0.0f,
-               const long long& rArea = 0,
+               const long long& region_area = 0,
                const int& version = 0,
-               const float& currentFrame = 0.0f,
+               const float& current_frame = 0.0f,
                const float& cam_fov = 0.0f,
                const float* cam_matrix = NULL,
                const int* samples = NULL,
@@ -47,7 +47,7 @@ public:
     ~DataHeader();
     
     // Get Session Index
-    const long long& index() const { return mIndex; }
+    const long long& session() const { return mSession; }
     
     // Get x resolution
     const int& xres() const { return mXres; }
@@ -81,8 +81,8 @@ public:
     void free();
 
 private:
-    // Session Index
-    long long mIndex;
+    // Session ID
+    long long mSession;
     
     // Resolution, X & Y
     int mXres, mYres;

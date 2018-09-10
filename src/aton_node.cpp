@@ -56,10 +56,10 @@ void Aton::attach()
     {
         const char* f_name = Format::index(i)->name();
         if (f_name != NULL && m_node_name == f_name)
-            m_formatExists = true;
+            m_format_exists = true;
     }
     
-    if (!m_formatExists)
+    if (!m_format_exists)
         m_fmt.add(m_node_name.c_str());
 }
 
@@ -77,7 +77,7 @@ void Aton::change_port(int port)
 {
     m_inError = false;
     m_legit = false;
-    m_connectionError = "";
+    m_connection_error = "";
     
     // Try to reconnect
     disconnect();
@@ -91,7 +91,7 @@ void Aton::change_port(int port)
     {
         std::stringstream stream;
         stream << "Could not connect to port: " << port;
-        m_connectionError = stream.str();
+        m_connection_error = stream.str();
         m_inError = true;
         print_name( std::cerr );
         std::cerr << ": " << stream.str() << std::endl;
@@ -145,6 +145,7 @@ void Aton::append(Hash& hash)
 int Aton::get_session_index(const long long& session)
 {
     int fb_index = 0;
+    ReadGuard lock(m_node->m_mutex);
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     
     if (!fbs.empty())
@@ -180,8 +181,9 @@ int Aton::current_fb_index(bool direction)
 FrameBuffer& Aton::add_framebuffer()
 {
     FrameBuffer fb;
+    WriteGuard lock(m_node->m_mutex);
     m_node->m_framebuffers.push_back(fb);
-    m_node->m_outputKnobChanged = Aton::item_added;
+    m_node->m_output_changed = Aton::item_added;
     return m_node->m_framebuffers.back();
 }
 
@@ -212,13 +214,14 @@ void Aton::_validate(bool for_real)
 
     // Handle any connection error
     if (m_inError)
-        error(m_connectionError.c_str());
+        error(m_connection_error.c_str());
     
     // Setup dynamic knob
+    ReadGuard lock(m_node->m_mutex);
     Table_KnobI* outputKnob = m_node->m_outputKnob->tableKnob();
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
-    
-    int& knob_changed = m_node->m_outputKnobChanged;
+
+    int& knob_changed = m_node->m_output_changed;
     if (knob_changed)
     {
         int idx = current_fb_index();
@@ -279,12 +282,12 @@ void Aton::_validate(bool for_real)
         {
             // Set the progress
             set_status(rb.get_progress(),
-                      rb.get_memory(),
-                      rb.get_peak_memory(),
-                      rb.get_time(),
-                      rb.get_frame(),
-                      rb.get_version_str(),
-                      rb.get_samples());
+                       rb.get_memory(),
+                       rb.get_peak_memory(),
+                       rb.get_time(),
+                       rb.get_frame(),
+                       rb.get_version_str(),
+                       rb.get_samples());
             
             // Set the format
             const int width = rb.get_width();
@@ -295,7 +298,7 @@ void Aton::_validate(bool for_real)
                 m_node->m_fmt.height() != height)
             {
                 Format* m_fmt_ptr = &m_node->m_fmt;
-                if (m_node->m_formatExists)
+                if (m_node->m_format_exists)
                 {
                     bool fmtFound = false;
                     unsigned int i;
@@ -400,7 +403,8 @@ void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
     int f = 0;
     if (!fbs.empty())
     {
-        ReadGuard lock(m_mutex);
+        ReadGuard lock(m_node->m_mutex);
+        
         if (!m_multiframes)
             f = fb.get_renderbuffer_index(fb.get_current_frame());
         else
@@ -415,7 +419,7 @@ void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
         float* cOut = out.writable(z) + x;
         const float* END = cOut + (r - x);
         
-        ReadGuard lock(m_mutex);
+        ReadGuard lock(m_node->m_mutex);
         if (m_enable_aovs && !fbs.empty() &&!rbs.empty() && rbs[f].ready())
             b = rbs[f].get_aov_index(z);
         
@@ -517,7 +521,7 @@ int Aton::knob_changed(Knob* _knob)
     {
         // Check if item has renamed
         Table_KnobI* outputKnob = _knob->tableKnob();
-        int& knob_changed = m_node->m_outputKnobChanged;
+        int& knob_changed = m_node->m_output_changed;
 
         int idx = outputKnob->getSelectedRow();
         if (idx >= 0 && knob_changed == Aton::item_not_changed)
@@ -572,7 +576,7 @@ int Aton::knob_changed(Knob* _knob)
             fb_index = fb_index > 0 ? fb_index-- : 0;
             WriteGuard lock(m_node->m_mutex);
             fbs.insert(fbs.begin() + fb_index, current_framebuffer());
-            m_node->m_outputKnobChanged = Aton::item_copied;
+            m_node->m_output_changed = Aton::item_copied;
             flag_update();
         }
         return 1;
@@ -699,23 +703,21 @@ std::vector<std::string> Aton::get_captures()
 
 void Aton::move_cmd(bool direction)
 {
+    WriteGuard lock(m_node->m_mutex);
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
-    
     int idx = m_node->current_fb_index(false);
     
     if (!fbs.empty())
     {
         if (direction && idx < (fbs.size()-1))
         {
-            WriteGuard lock(m_node->m_mutex);
             std::swap(fbs[idx], fbs[idx + 1]);
-            m_node->m_outputKnobChanged = Aton::item_moved_up;;
+            m_node->m_output_changed = Aton::item_moved_up;;
         }
         else if (!direction && idx != 0)
         {
-            WriteGuard lock(m_node->m_mutex);
             std::swap(fbs[idx], fbs[idx - 1]);
-            m_node->m_outputKnobChanged = Aton::item_moved_down;
+            m_node->m_output_changed = Aton::item_moved_down;
         }
         flag_update();
     }
@@ -723,14 +725,14 @@ void Aton::move_cmd(bool direction)
 
 void Aton::remove_selected_cmd()
 {
+    WriteGuard lock(m_node->m_mutex);
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
 
-    if (!m_node->m_running && !fbs.empty())
+    if (!fbs.empty() && !m_node->m_running)
     {
         int idx = m_node->current_fb_index(false);
-        m_node->m_outputKnobChanged = Aton::item_removed;
-
-        WriteGuard lock(m_node->m_mutex);
+        m_node->m_output_changed = Aton::item_removed;
+        
         fbs.erase(fbs.begin() + idx);
         if (fbs.empty())
             set_status();
@@ -904,12 +906,12 @@ void Aton::live_camera_toogle()
 }
 
 void Aton::set_status(const long long& progress,
-                     const long long& ram,
-                     const long long& p_ram,
-                     const int& time,
-                     const double& frame,
-                     const char* version,
-                     const char* samples)
+                      const long long& ram,
+                      const long long& p_ram,
+                      const int& time,
+                      const double& frame,
+                      const char* version,
+                      const char* samples)
 {
     const int hour = time / 3600000;
     const int minute = (time % 3600000) / 60000;

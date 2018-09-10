@@ -23,7 +23,7 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
         node->m_server.accept();
 
         // Our incoming data object
-        int dataType = 0;
+        int data_type = 0;
         
         // Session Index
         long long session = 0;
@@ -32,15 +32,15 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
         int active_time = 0, delta_time = 0;
         
         // For progress percentage
-        long long progress = 0, regionArea = 0;
+        long long progress = 0, region_area = 0;
         
         // Loop over incoming data
-        while (dataType != 2 || dataType != 9)
+        while (data_type != 2 || data_type != 9)
         {
             // Listen for some data
             try
             {
-                dataType = node->m_server.listen_type();
+                data_type = node->m_server.listen_type();
                 WriteGuard lock(node->m_mutex);
                 node->m_running = true;
             }
@@ -53,35 +53,29 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
             }
             
             // Handle the data we received
-            switch (dataType)
+            switch (data_type)
             {
                 case 0: // Open a new image
                 {
                     // Get Data Header
                     DataHeader dh = node->m_server.listenHeader();
 
-                    const long long& _session = dh.index();
-                    const long long& _area = dh.region_area();
-                    const int& _version = dh.version();
-                    const double& _frame = static_cast<double>(dh.frame());
-                    const float& _fov = dh.camera_fov();
-                    const Matrix4& _matrix = Matrix4(&dh.camera_matrix()[0]);
-                    const std::vector<int> _samples = dh.samples();
-
                     // Get Current Session Index
-                    session = _session;
+                    session = dh.session();
                     
                     // Get image area to calculate the progress
-                    regionArea = _area;
-
-                    // Get delta time per IPR iteration
-                    delta_time = active_time;
+                    region_area = dh.region_area();
+                    
+                    // Set Frame on Timeline
+                    const double& _frame = static_cast<double>(dh.frame());
+                    if (_frame != node->outputContext().frame())
+                        node->set_current_frame(_frame);
 
                     bool& multiframe = node->m_multiframes;
                     std::vector<FrameBuffer>& fbs = node->m_framebuffers;
                 
                     // Get FrameBuffer Index
-                    int fb_index = node->get_session_index(_session);
+                    int fb_index = node->get_session_index(session);
                     
                     if (multiframe)
                     {
@@ -110,8 +104,8 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                         {
                             if (fb_index == fbs.size())
                             {
-                                WriteGuard lock(node->m_mutex);
                                 FrameBuffer& fb = node->add_framebuffer();
+                                WriteGuard lock(node->m_mutex);
                                 fb.add_frame(&dh);
                             }
                         }
@@ -119,8 +113,8 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     
                     if (fbs.empty())
                     {
-                        WriteGuard lock(node->m_mutex);
                         FrameBuffer& fb = node->add_framebuffer();
+                        WriteGuard lock(node->m_mutex);
                         fb.add_frame(&dh);
                     }
                     
@@ -145,6 +139,8 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     }
                     
                     // Set Camera
+                    const float& _fov = dh.camera_fov();
+                    const Matrix4& _matrix = Matrix4(&dh.camera_matrix()[0]);
                     if (rb.camera_changed(_fov, _matrix))
                     {
                         WriteGuard lock(node->m_mutex);
@@ -154,6 +150,7 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     }
                     
                     // Set Version
+                    const int& _version = dh.version();
                     if (rb.get_version_int() != _version)
                     {
                         WriteGuard lock(node->m_mutex);
@@ -161,6 +158,7 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     }
                     
                     // Set Samples
+                    const std::vector<int> _samples = dh.samples();
                     if (rb.get_samples_int() != _samples)
                     {
                         WriteGuard lock(node->m_mutex);
@@ -171,9 +169,9 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     if(!active_aovs.empty())
                         active_aovs.clear();
                     
-                    // Set Frame on Timeline
-                    if (_frame != node->outputContext().frame())
-                        node->set_current_frame(_frame);
+                    // Get delta time per IPR iteration
+                    delta_time = active_time;
+
                     break;
                 }
                 case 1: // Write image data
@@ -262,8 +260,8 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                         if(!node->m_capturing && rb.first_aov_name(_aov_name))
                         {
                             // Calculate the progress percentage
-                            regionArea -= _width * _height;
-                            progress = 100 - (regionArea * 100) / (w * h);
+                            region_area -= _width * _height;
+                            progress = 100 - (region_area * 100) / (w * h);
                             
                             // Set status parameters
                             node->m_mutex.writeLock();

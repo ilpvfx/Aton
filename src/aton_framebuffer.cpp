@@ -83,10 +83,15 @@ RenderBuffer::RenderBuffer(const double& currentFrame,
                                             _time(0),
                                             _ram(0),
                                             _pram(0),
-                                            _ready(false) {}
+                                            _ready(false),
+                                            _fov(0.0f),
+                                            _matrix(Matrix4()),
+                                            _versionInt(0),
+                                            _version_str(""),
+                                            _samples_str(""){}
 // Add new buffer
 void RenderBuffer::add_aov(const char* aov,
-                            const int& spp)
+                           const int& spp)
 {
     AOVBuffer buffer(_width, _height, spp);
     
@@ -96,11 +101,11 @@ void RenderBuffer::add_aov(const char* aov,
 
 // Get writable buffer object
 void RenderBuffer::set_aov_pix(const int& b,
-                                const unsigned int& x,
-                                const unsigned int& y,
-                                const int& spp,
-                                const int& c,
-                                const float& pix)
+                               const unsigned int& x,
+                               const unsigned int& y,
+                               const int& spp,
+                               const int& c,
+                               const float& pix)
 {
     AOVBuffer& rb = _buffers[b];
     const unsigned int index = (_width * y) + x;
@@ -112,9 +117,9 @@ void RenderBuffer::set_aov_pix(const int& b,
 
 // Get read only buffer object
 const float& RenderBuffer::get_aov_pix(const int& b,
-                                        const unsigned int& x,
-                                        const unsigned int& y,
-                                        const int& c) const
+                                       const unsigned int& x,
+                                       const unsigned int& y,
+                                       const int& c) const
 {
     const AOVBuffer& rb = _buffers[b];
     const unsigned int index = (_width * y) + x;
@@ -209,7 +214,7 @@ bool RenderBuffer::aovs_changed(const std::vector<std::string>& aovs)
 
 // Check if Resolution has been changed
 bool RenderBuffer::resolution_changed(const unsigned int& w,
-                                       const unsigned int& h)
+                                      const unsigned int& h)
 {
     return (w != _width || h != _height);
 }
@@ -222,7 +227,7 @@ bool RenderBuffer::camera_changed(const float& fov,
 
 // Resize the containers to match the resolution
 void RenderBuffer::set_resolution(const unsigned int& w,
-                                 const unsigned int& h)
+                                  const unsigned int& h)
 {
     _width = w;
     _height = h;
@@ -280,7 +285,7 @@ void RenderBuffer::set_memory(const long long& ram)
 
 }
 void RenderBuffer::set_time(const int& time,
-                           const int& dtime)
+                            const int& dtime)
 {
     _time = dtime > time ? time : time - dtime;
 }
@@ -290,21 +295,21 @@ void RenderBuffer::set_version(const int& version)
 {
     const std::vector<int> ver = unpack_4_int(version);
 
-    _versionStr = lexical_cast<string>(ver[0]) + "." +
-                  lexical_cast<string>(ver[1]) + "." +
-                  lexical_cast<string>(ver[2]) + "." +
-                  lexical_cast<string>(ver[3]);
+    _version_str = lexical_cast<string>(ver[0]) + "." +
+                   lexical_cast<string>(ver[1]) + "." +
+                   lexical_cast<string>(ver[2]) + "." +
+                   lexical_cast<string>(ver[3]);
 }
 
 // Set Samples
 void RenderBuffer::set_samples(std::vector<int> sp)
 {
-    _samplesStr = lexical_cast<string>(sp[0]) + "/" +
-                  lexical_cast<string>(sp[1]) + "/" +
-                  lexical_cast<string>(sp[2]) + "/" +
-                  lexical_cast<string>(sp[3]) + "/" +
-                  lexical_cast<string>(sp[4]) + "/" +
-                  lexical_cast<string>(sp[5]);
+    _samples_str = lexical_cast<string>(sp[0]) + "/" +
+                   lexical_cast<string>(sp[1]) + "/" +
+                   lexical_cast<string>(sp[2]) + "/" +
+                   lexical_cast<string>(sp[3]) + "/" +
+                   lexical_cast<string>(sp[4]) + "/" +
+                   lexical_cast<string>(sp[5]);
 }
 
 
@@ -326,7 +331,7 @@ void FrameBuffer::add_frame(DataHeader* dh)
         if (!_frames.empty())
             rb = _renderbuffers.back();
     
-        _session_index = dh->index();
+        _session_index = dh->session();
         _output_name = (boost::format("%s_%d_%s")%dh->output_name()
                                                  %dh->frame()
                                                  %get_date()).str();
@@ -339,7 +344,7 @@ void FrameBuffer::add_frame(DataHeader* dh)
 // Udpate RenderBuffer
 void FrameBuffer::update_frame(DataHeader* dh)
 {
-    _session_index = dh->index();
+    _session_index = dh->session();
     _output_name = (boost::format("%s_%d_%s")%dh->output_name()
                                              %dh->frame()
                                              %get_date()).str();

@@ -73,17 +73,17 @@ public:
     
     // Set writable buffer's pixel
     void set_aov_pix(const int& b,
-                      const unsigned int& x,
-                      const unsigned int& y,
-                      const int& spp,
-                      const int& c,
-                      const float& pix);
+                     const unsigned int& x,
+                     const unsigned int& y,
+                     const int& spp,
+                     const int& c,
+                     const float& pix);
     
     // Get read only buffer's pixel
     const float& get_aov_pix(const int& b,
-                              const unsigned int& x,
-                              const unsigned int& y,
-                              const int& c) const;
+                             const unsigned int& x,
+                             const unsigned int& y,
+                             const int& c) const;
     
     // Get the current buffer index
     int get_aov_index(const Channel& z);
@@ -105,14 +105,14 @@ public:
     
     // Check if Resolution has been changed
     bool resolution_changed(const unsigned int& w,
-                             const unsigned int& h);
+                            const unsigned int& h);
     
     // Check if Camera fov has been changed
     bool camera_changed(const float& fov, const Matrix4& matrix);
     
     // Resize the containers to match the resolution
     void set_resolution(const unsigned int& w,
-                       const unsigned int& h);
+                        const unsigned int& h);
     
     // Clear buffers and aovs
     void clear_all();
@@ -139,7 +139,7 @@ public:
     void set_progress(const long long& progress = 0);
     void set_memory(const long long& ram = 0);
     void set_time(const int& time = 0,
-                 const int& dtime = 0);
+                  const int& dtime = 0);
     
     // Get status parameters
     const long long& get_progress() { return _progress; }
@@ -155,11 +155,11 @@ public:
     
     // Get Arnold core version
     const int& get_version_int() { return _versionInt; }
-    const char* get_version_str() { return _versionStr.c_str(); }
+    const char* get_version_str() { return _version_str.c_str(); }
     
     // Get Samples
     const std::vector<int> get_samples_int() { return _samples; }
-    const char* get_samples() { return _samplesStr.c_str(); }
+    const char* get_samples() { return _samples_str.c_str(); }
     
     // Set the frame number of this RenderBuffer
     void set_frame(const double& frame) { _frame = frame; }
@@ -195,8 +195,8 @@ private:
     Matrix4 _matrix;
     int _versionInt;
     std::vector<int> _samples;
-    std::string _versionStr;
-    std::string _samplesStr;
+    std::string _version_str;
+    std::string _samples_str;
     std::vector<AOVBuffer> _buffers;
     std::vector<std::string> _aovs;
 };

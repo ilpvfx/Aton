@@ -60,21 +60,21 @@ DataHeader::DataHeader(const long long& index,
                        const int& xres,
                        const int& yres,
                        const float& pix_aspect,
-                       const long long& rArea,
+                       const long long& region_area,
                        const int& version,
-                       const float& currentFrame,
+                       const float& frame,
                        const float& cam_fov,
                        const float* cam_matrix,
                        const int* samples,
-                       const char* outputName): mIndex(index),
-                                                mXres(xres),
-                                                mYres(yres),
-                                                mPixAspectRatio(pix_aspect),
-                                                mRArea(rArea),
-                                                mVersion(version),
-                                                mFrame(currentFrame),
-                                                mCamFov(cam_fov),
-                                                mOutputName(outputName)
+                       const char* output_name): mSession(index),
+                                                 mXres(xres),
+                                                 mYres(yres),
+                                                 mPixAspectRatio(pix_aspect),
+                                                 mRArea(region_area),
+                                                 mVersion(version),
+                                                 mFrame(frame),
+                                                 mCamFov(cam_fov),
+                                                 mOutputName(output_name)
 {
     if (cam_matrix != NULL)
         mCamMatrix = const_cast<float*>(cam_matrix);
@@ -175,7 +175,7 @@ void Client::open_image(DataHeader& header)
     read(mSocket, buffer(reinterpret_cast<char*>(&mImageId), sizeof(int)));
     
     // Send our width & height
-    write(mSocket, buffer(reinterpret_cast<char*>(&header.mIndex), sizeof(long long)));
+    write(mSocket, buffer(reinterpret_cast<char*>(&header.mSession), sizeof(long long)));
     write(mSocket, buffer(reinterpret_cast<char*>(&header.mXres), sizeof(int)));
     write(mSocket, buffer(reinterpret_cast<char*>(&header.mYres), sizeof(int)));
     write(mSocket, buffer(reinterpret_cast<char*>(&header.mPixAspectRatio), sizeof(float)));
