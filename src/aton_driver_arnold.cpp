@@ -115,7 +115,7 @@ driver_open
     // Get Arnold version
     char arch[3], major[3], minor[3], fix[3];
     AiGetVersion(arch, major, minor, fix);
-    const int version = pack4int(atoi(arch), atoi(major), atoi(minor), atoi(fix));
+    const int version = pack_4_int(atoi(arch), atoi(major), atoi(minor), atoi(fix));
         
     // Get Frame
     const float frame = AiNodeGetFlt(options, AtString("frame"));
