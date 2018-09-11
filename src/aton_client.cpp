@@ -50,7 +50,7 @@ const long long get_unique_id()
     return diff.total_milliseconds();
 }
 
-const int pack4int(int a, int b, int c, int d)
+const int pack_4_int(int a, int b, int c, int d)
 {
     return a * 1000000 + b * 10000 + c * 100 + d;
 }
