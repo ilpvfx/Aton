@@ -229,7 +229,7 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                         const int& h = rb.get_height();
 
                         // Adding buffer
-                        node->m_mutex.writeLock();
+                        WriteGuard lock(node->m_mutex);
                         if(!rb.aov_exists(_aov_name) && (node->m_enable_aovs || rb.empty()))
                             rb.add_aov(_aov_name, _spp);
                         else
@@ -254,7 +254,6 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                                 }
                             }
                         }
-                        node->m_mutex.unlock();
 
                         // Update only on first aov
                         if(!node->m_capturing && rb.first_aov_name(_aov_name))
@@ -264,11 +263,9 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                             progress = 100 - (region_area * 100) / (w * h);
                             
                             // Set status parameters
-                            node->m_mutex.writeLock();
                             rb.set_progress(progress);
                             rb.set_memory(_ram);
                             rb.set_time(_time, delta_time);
-                            node->m_mutex.unlock();
 
                             // Update the image
                             const Box box = Box(_x, h - _y - _width, _x + _height, h - _y);

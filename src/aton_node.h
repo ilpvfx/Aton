@@ -115,8 +115,7 @@ class Aton: public Iop
             item_copied,
             item_moved_up,
             item_moved_down,
-            item_removed,
-            item_renamed
+            item_removed
         };
         
         Aton* first_node() { return dynamic_cast<Aton*>(firstOp()); }

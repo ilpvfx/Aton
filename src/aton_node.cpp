@@ -190,7 +190,6 @@ FrameBuffer& Aton::add_framebuffer()
 
 FrameBuffer& Aton::current_framebuffer()
 {
-    ReadGuard lock(m_node->m_mutex);
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     int idx = m_node->current_fb_index(false);
     return fbs[idx];
@@ -198,7 +197,6 @@ FrameBuffer& Aton::current_framebuffer()
 
 RenderBuffer& Aton::current_renderbuffer()
 {
-    ReadGuard lock(m_node->m_mutex);
     FrameBuffer& fb = current_framebuffer();
 
     double frame;
@@ -219,10 +217,10 @@ void Aton::_validate(bool for_real)
         error(m_connection_error.c_str());
 
     // Setup dynamic knob
-    ReadGuard lock(m_node->m_mutex);
     Table_KnobI* outputKnob = m_node->m_outputKnob->tableKnob();
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
 
+    ReadGuard lock(m_node->m_mutex);
     int& knob_changed = m_node->m_output_changed;
     if (knob_changed)
     {
@@ -252,19 +250,13 @@ void Aton::_validate(bool for_real)
             case Aton::item_removed:
             {
                 if (idx >= fbs.size())
-                    idx = static_cast<int>(fbs.size() - 1);
-                break;
-            }
-            case Aton::item_renamed:
-            {
-                std::string row = outputKnob->getCellString(idx, 0);
-                WriteGuard lock(m_node->m_mutex);
-                fbs[current_fb_index(false)].set_output_name(row);
+                    idx = static_cast<int>(fbs.end() - fbs.begin());
                 break;
             }
         }
 
         outputKnob->deleteAllItems();
+        
         std::vector<FrameBuffer>::reverse_iterator it;
         for(it = fbs.rbegin(); it != fbs.rend(); ++it)
         {
@@ -326,11 +318,8 @@ void Aton::_validate(bool for_real)
 
             // Update Camera knobs
             if (m_node->m_live_camera)
-            {
-                RenderBuffer& rb = current_renderbuffer();
                 m_node->set_camera_knobs(rb.get_camera_fov(),
-                                       rb.get_camera_matrix());
-            }
+                                         rb.get_camera_matrix());
 
             // Set the channels
             ChannelSet& channels = m_node->m_channels;
@@ -406,7 +395,6 @@ void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
     if (!fbs.empty())
     {
         ReadGuard lock(m_node->m_mutex);
-
         if (!m_multiframes)
             f = fb.get_renderbuffer_index(fb.get_current_frame());
         else
@@ -521,21 +509,20 @@ int Aton::knob_changed(Knob* _knob)
 {
     if (_knob->is("output_knob"))
     {
-        // Check if item has renamed
+        // Check if item has renamed from UI
         Table_KnobI* outputKnob = _knob->tableKnob();
-        int& knob_changed = m_node->m_output_changed;
-
-        ReadGuard lock(m_node->m_mutex);
         int idx = outputKnob->getSelectedRow();
+        int& knob_changed = m_node->m_output_changed;
+       
+        WriteGuard lock(m_node->m_mutex);
         if (idx >= 0 && knob_changed == Aton::item_not_changed)
         {
             std::string row = outputKnob->getCellString(idx, 0);
             std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
-
+            
             if (!fbs.empty() && row != current_framebuffer().get_output_name())
             {
-                WriteGuard lock(m_node->m_mutex);
-                knob_changed = Aton::item_renamed;
+                fbs[current_fb_index(false)].set_output_name(row);
             }
         }
 
