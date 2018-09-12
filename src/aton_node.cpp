@@ -659,8 +659,8 @@ void Aton::set_status(const long long& progress,
                                             "Frame: %s(%s) | "
                                             "Samples: %s | "
                                             "Progress: %s%%")%version%ram%p_ram
-                              %hour%minute%second
-                              %frame%f_size%samples%progress).str();
+                                                             %hour%minute%second
+                                                             %frame%f_size%samples%progress).str();
     Knob* statusKnob = m_node->knob("status_knob");
     if (m_node->m_running)
         status_str += "...";
