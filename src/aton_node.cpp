@@ -14,6 +14,35 @@ All rights reserved. See COPYING.txt for more details.
 #include "boost/filesystem.hpp"
 #include "boost/algorithm/string.hpp"
 
+std::string Aton::get_path()
+{
+    char* aton_path = getenv("ATON_CAPTURE_PATH");
+    
+    // Get OS specific tmp directory path
+    using namespace boost::filesystem;
+    std::string def_path = temp_directory_path().string();
+    
+    if (aton_path != NULL)
+        def_path = aton_path;
+    
+    boost::replace_all(def_path, "\\", "/");
+    
+    return def_path;
+}
+
+int Aton::get_port()
+{
+    const char* def_port = getenv("ATON_PORT");
+    int aton_port;
+    
+    if (def_port == NULL)
+        aton_port = 9201;
+    else
+        aton_port = atoi(def_port);
+    
+    return aton_port;
+}
+
 void Aton::attach()
 {
     m_legit = true;
@@ -124,6 +153,18 @@ void Aton::disconnect()
     }
 }
 
+void Aton::reset_channels(ChannelSet& channels)
+{
+    if (channels.size() > 4)
+    {
+        channels.clear();
+        channels.insert(Chan_Red);
+        channels.insert(Chan_Green);
+        channels.insert(Chan_Blue);
+        channels.insert(Chan_Alpha);
+    }
+}
+
 void Aton::flag_update(const Box& box)
 {
     if (m_node->m_hash_count == UINT_MAX)
@@ -142,10 +183,16 @@ void Aton::append(Hash& hash)
     hash.append(outputContext().frame());
 }
 
+FrameBuffer& Aton::add_framebuffer()
+{
+    FrameBuffer fb;
+    WriteGuard lock(m_node->m_mutex);
+    m_node->m_framebuffers.push_back(fb);
+    return m_node->m_framebuffers.back();
+}
 int Aton::get_session_index(const long long& session)
 {
     int fb_index = 0;
-    ReadGuard lock(m_node->m_mutex);
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
 
     if (!fbs.empty())
@@ -177,16 +224,6 @@ int Aton::current_fb_index(bool direction)
 
     return idx;
 }
-
-FrameBuffer& Aton::add_framebuffer()
-{
-    FrameBuffer fb;
-    WriteGuard lock(m_node->m_mutex);
-    m_node->m_framebuffers.push_back(fb);
-    m_node->m_output_changed = Aton::item_added;
-    return m_node->m_framebuffers.back();
-}
-
 
 FrameBuffer& Aton::current_framebuffer()
 {
@@ -220,7 +257,6 @@ void Aton::_validate(bool for_real)
     Table_KnobI* outputKnob = m_node->m_outputKnob->tableKnob();
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
 
-    ReadGuard lock(m_node->m_mutex);
     int& knob_changed = m_node->m_output_changed;
     if (knob_changed)
     {
@@ -507,30 +543,6 @@ void Aton::knobs(Knob_Callback f)
 
 int Aton::knob_changed(Knob* _knob)
 {
-    if (_knob->is("output_knob"))
-    {
-        // Check if item has renamed from UI
-        Table_KnobI* outputKnob = _knob->tableKnob();
-        int idx = outputKnob->getSelectedRow();
-        int& knob_changed = m_node->m_output_changed;
-       
-        WriteGuard lock(m_node->m_mutex);
-        if (idx >= 0 && knob_changed == Aton::item_not_changed)
-        {
-            std::string row = outputKnob->getCellString(idx, 0);
-            std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
-            
-            if (!fbs.empty() && row != current_framebuffer().get_output_name())
-            {
-                fbs[current_fb_index(false)].set_output_name(row);
-            }
-        }
-
-        FrameBuffer& fb = current_framebuffer();
-        set_current_frame(fb.get_current_frame());
-        flag_update();
-        return 1;
-    }
     if (_knob->is("reset_port_knob"))
     {
         if (m_port != 9201)
@@ -540,6 +552,11 @@ int Aton::knob_changed(Knob* _knob)
     if (_knob->is("port_knob"))
     {
         change_port(m_port);
+        return 1;
+    }
+    if (_knob->is("output_knob"))
+    {
+        select_output_cmd(_knob->tableKnob());
         return 1;
     }
     if (_knob->is("move_up_knob"))
@@ -559,27 +576,12 @@ int Aton::knob_changed(Knob* _knob)
     }
     if (_knob->is("snapshot_knob"))
     {
-        std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
-        if (!fbs.empty())
-        {
-            int fb_index = current_fb_index(false);
-            fb_index = fb_index > 0 ? fb_index-- : 0;
-            WriteGuard lock(m_node->m_mutex);
-            fbs.insert(fbs.begin() + fb_index, current_framebuffer());
-            m_node->m_output_changed = Aton::item_copied;
-            flag_update();
-        }
+        snapshot_cmd();
         return 1;
     }
     if (_knob->is("multi_frame_knob"))
     {
-        if (!m_node->m_framebuffers.empty())
-        {
-            WriteGuard lock(m_node->m_mutex);
-            current_framebuffer().set_current_frame(uiContext().frame());
-        }
-        if (m_multiframes)
-            Thread::spawn(::fb_updater, 1, m_node);
+        multiframe_cmd();
         return 1;
     }
     if (_knob->is("live_camera_knob"))
@@ -611,93 +613,63 @@ int Aton::knob_changed(Knob* _knob)
     return 0;
 }
 
-void Aton::reset_channels(ChannelSet& channels)
+void Aton::multiframe_cmd()
 {
-    if (channels.size() > 4)
+    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
+    
+    if (!fbs.empty())
     {
-        channels.clear();
-        channels.insert(Chan_Red);
-        channels.insert(Chan_Green);
-        channels.insert(Chan_Blue);
-        channels.insert(Chan_Alpha);
+        FrameBuffer& fb = current_framebuffer();
+        WriteGuard lock(m_node->m_mutex);
+        fb.set_current_frame(uiContext().frame());
     }
+    if (m_multiframes)
+        Thread::spawn(::fb_updater, 1, m_node);
 }
 
-bool Aton::path_valid(std::string path)
+void Aton::select_output_cmd(Table_KnobI* outputKnob)
 {
-    boost::filesystem::path filepath(path);
-    boost::filesystem::path dir = filepath.parent_path();
-    return boost::filesystem::exists(dir);
-}
-
-std::string Aton::get_path()
-{
-    char* aton_path = getenv("ATON_CAPTURE_PATH");
-
-    // Get OS specific tmp directory path
-    using namespace boost::filesystem;
-    std::string def_path = temp_directory_path().string();
-
-    if (aton_path != NULL)
-        def_path = aton_path;
-
-    boost::replace_all(def_path, "\\", "/");
-
-    return def_path;
-}
-
-int Aton::get_port()
-{
-    const char* def_port = getenv("ATON_PORT");
-    int aton_port;
-
-    if (def_port == NULL)
-        aton_port = 9201;
-    else
-        aton_port = atoi(def_port);
-
-    return aton_port;
-}
-
-std::vector<std::string> Aton::get_captures()
-{
-    // Our captured filenames list
-    std::vector<std::string> results;
-
-    // If the directory exist
-    if (path_valid(m_path))
+    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
+    
+    if (!fbs.empty())
     {
-        using namespace boost::filesystem;
-        path filepath(m_path);
-        directory_iterator it(filepath.parent_path());
-        directory_iterator end;
-
-        // Regex expression to find captured files
-        std::string exp = ( boost::format("%s.+.%s")%filepath.stem().string()
-                                                    %filepath.extension().string() ).str();
-        const boost::regex filter(exp);
-
-        // Iterating through directory to find matching files
-        BOOST_FOREACH(path const& p, std::make_pair(it, end))
+        // Check if item has renamed from UI
+        FrameBuffer& fb = current_framebuffer();
+        
+        int idx = outputKnob->getSelectedRow();
+        
+        if (idx >= 0 && m_node->m_output_changed == Aton::item_not_changed)
         {
-            if(is_regular_file(p))
+            std::string row_name = outputKnob->getCellString(idx, 0);
+            
+            if (row_name != fb.get_output_name())
             {
-                boost::match_results<std::string::const_iterator> what;
-                if (boost::regex_search(it->path().filename().string(),
-                                        what, filter, boost::match_default))
-                {
-                    std::string res = p.filename().string();
-                    results.push_back(res);
-                }
+                WriteGuard lock(m_node->m_mutex);
+                fb.set_output_name(row_name);
             }
         }
+        
+        set_current_frame(fb.get_current_frame());
+        flag_update();
     }
-    return results;
+}
+
+void Aton::snapshot_cmd()
+{
+    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
+    if (!fbs.empty())
+    {
+        int fb_index = current_fb_index(false);
+        fb_index = fb_index > 0 ? fb_index-- : 0;
+        WriteGuard lock(m_node->m_mutex);
+        fbs.insert(fbs.begin() + fb_index, current_framebuffer());
+        m_node->m_output_changed = Aton::item_copied;
+        flag_update();
+    }
 }
 
 void Aton::move_cmd(bool direction)
 {
-    WriteGuard lock(m_node->m_mutex);
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     int idx = m_node->current_fb_index(false);
 
@@ -705,11 +677,13 @@ void Aton::move_cmd(bool direction)
     {
         if (direction && idx < (fbs.size()-1))
         {
+            WriteGuard lock(m_node->m_mutex);
             std::swap(fbs[idx], fbs[idx + 1]);
             m_node->m_output_changed = Aton::item_moved_up;;
         }
         else if (!direction && idx != 0)
         {
+            WriteGuard lock(m_node->m_mutex);
             std::swap(fbs[idx], fbs[idx - 1]);
             m_node->m_output_changed = Aton::item_moved_down;
         }
@@ -719,12 +693,13 @@ void Aton::move_cmd(bool direction)
 
 void Aton::remove_selected_cmd()
 {
-    WriteGuard lock(m_node->m_mutex);
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
 
     if (!fbs.empty() && !m_node->m_running)
     {
         int idx = m_node->current_fb_index(false);
+        
+        WriteGuard lock(m_node->m_mutex);
         m_node->m_output_changed = Aton::item_removed;
 
         fbs.erase(fbs.begin() + idx);
@@ -751,6 +726,13 @@ void Aton::copy_region_cmd()
     script_unlock();
 }
 
+bool Aton::path_valid(std::string path)
+{
+    boost::filesystem::path filepath(path);
+    boost::filesystem::path dir = filepath.parent_path();
+    return boost::filesystem::exists(dir);
+}
+
 void Aton::capture_cmd()
 {
     std::string path = std::string(m_path);
@@ -765,7 +747,6 @@ void Aton::capture_cmd()
         double startFrame;
         double endFrame;
 
-        ReadGuard lock(m_node->m_mutex);
         FrameBuffer& fb = current_framebuffer();
 
         std::vector<double> sortedFrames = fb.frames();
@@ -833,6 +814,42 @@ void Aton::capture_cmd()
         script_command(cmd.c_str(), true, false);
         script_unlock();
     }
+}
+
+std::vector<std::string> Aton::get_captures()
+{
+    // Our captured filenames list
+    std::vector<std::string> results;
+    
+    // If the directory exist
+    if (path_valid(m_path))
+    {
+        using namespace boost::filesystem;
+        path filepath(m_path);
+        directory_iterator it(filepath.parent_path());
+        directory_iterator end;
+        
+        // Regex expression to find captured files
+        std::string exp = ( boost::format("%s.+.%s")%filepath.stem().string()
+                           %filepath.extension().string() ).str();
+        const boost::regex filter(exp);
+        
+        // Iterating through directory to find matching files
+        BOOST_FOREACH(path const& p, std::make_pair(it, end))
+        {
+            if(is_regular_file(p))
+            {
+                boost::match_results<std::string::const_iterator> what;
+                if (boost::regex_search(it->path().filename().string(),
+                                        what, filter, boost::match_default))
+                {
+                    std::string res = p.filename().string();
+                    results.push_back(res);
+                }
+            }
+        }
+    }
+    return results;
 }
 
 void Aton::import_cmd(bool all)

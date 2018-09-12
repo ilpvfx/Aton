@@ -57,7 +57,7 @@ class Aton: public Iop
         ChannelSet                m_channels;           // Channels aka AOVs object
         int                       m_port;               // Port we're listening on (knob)
         int                       m_slimit;             // The limit size
-        int                       m_output_changed;  // If Snapshots needs to be updated
+        int                       m_output_changed;     // If Snapshots needs to be updated
         float                     m_cam_fov;            // Default Camera fov
         float                     m_cam_matrix;         // Default Camera matrix value
         bool                      m_multiframes;        // Enable Multiple Frames toogle
@@ -65,7 +65,7 @@ class Aton: public Iop
         bool                      m_enable_aovs;        // Enable AOVs toogle
         bool                      m_live_camera;        // Enable Live Camera toogle
         bool                      m_inError;            // Error handling
-        bool                      m_format_exists;       // If the format was already exist
+        bool                      m_format_exists;      // If the format was already exist
         bool                      m_capturing;          // Capturing signal
         bool                      m_legit;              // Used to throw the threads
         bool                      m_running;            // Thread Rendering
@@ -75,7 +75,7 @@ class Aton: public Iop
         std::string               m_node_name;          // Node name
         std::string               m_status;             // Status bar text
         std::string               m_details;            // Render layer details
-        std::string               m_connection_error;    // Connection error report
+        std::string               m_connection_error;   // Connection error report
         Knob*                     m_outputKnob;         // Shapshots Knob
         std::vector<FrameBuffer>  m_framebuffers;       // Framebuffers List
 
@@ -160,10 +160,11 @@ class Aton: public Iop
     
         std::vector<std::string> get_captures();
     
+        void multiframe_cmd();
+        void select_output_cmd(Table_KnobI* outputKnob);
+        void snapshot_cmd();
         void move_cmd(bool direction);
-    
         void remove_selected_cmd();
-    
         void copy_region_cmd();
         void capture_cmd();
         void import_cmd(bool all);
