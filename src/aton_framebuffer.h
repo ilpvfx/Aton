@@ -154,7 +154,7 @@ public:
     void set_samples(const std::vector<int> samples);
     
     // Get Arnold core version
-    const int& get_version_int() { return _versionInt; }
+    const int& get_version_int() { return _version_int; }
     const char* get_version_str() { return _version_str.c_str(); }
     
     // Get Samples
@@ -193,7 +193,7 @@ private:
     bool _ready;
     float _fov;
     Matrix4 _matrix;
-    int _versionInt;
+    int _version_int;
     std::vector<int> _samples;
     std::string _version_str;
     std::string _samples_str;

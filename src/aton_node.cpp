@@ -392,18 +392,6 @@ void Aton::disconnect()
     }
 }
 
-void Aton::reset_channels(ChannelSet& channels)
-{
-    if (channels.size() > 4)
-    {
-        channels.clear();
-        channels.insert(Chan_Red);
-        channels.insert(Chan_Green);
-        channels.insert(Chan_Blue);
-        channels.insert(Chan_Alpha);
-    }
-}
-
 void Aton::flag_update(const Box& box)
 {
     if (m_node->m_hash_count == UINT_MAX)
@@ -415,19 +403,11 @@ void Aton::flag_update(const Box& box)
     asapUpdate(box);
 }
 
-FrameBuffer& Aton::add_framebuffer()
-{
-    FrameBuffer fb;
-    WriteGuard lock(m_node->m_mutex);
-    m_node->m_framebuffers.push_back(fb);
-    m_node->m_output_changed = Aton::item_added;
-    return m_node->m_framebuffers.back();
-}
 int Aton::get_session_index(const long long& session)
 {
     int fb_index = 0;
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
-
+    
     if (!fbs.empty())
     {
         std::vector<FrameBuffer>::iterator it;
@@ -448,14 +428,23 @@ int Aton::current_fb_index(bool direction)
     int idx = outputKnob->getSelectedRow();
     if (idx < 0)
         return 0;
-
+    
     if (!direction)
     {
         int count = outputKnob->getRowCount();
         idx = count - idx - 1;
     }
-
+    
     return idx;
+}
+
+FrameBuffer& Aton::add_framebuffer()
+{
+    FrameBuffer fb;
+    WriteGuard lock(m_node->m_mutex);
+    m_node->m_framebuffers.push_back(fb);
+    m_node->m_output_changed = Aton::item_added;
+    return m_node->m_framebuffers.back();
 }
 
 FrameBuffer& Aton::current_framebuffer()
@@ -481,8 +470,8 @@ void Aton::set_output(std::vector<FrameBuffer>& fbs)
 {
     // Setup dynamic knob
     Table_KnobI* outputKnob = m_node->m_outputKnob->tableKnob();
-    
     int& knob_changed = m_node->m_output_changed;
+    
     if (knob_changed)
     {
         int idx = current_fb_index();
@@ -498,7 +487,7 @@ void Aton::set_output(std::vector<FrameBuffer>& fbs)
             case Aton::item_removed:
             {
                 if (idx >= fbs.size())
-                    idx = static_cast<int>(fbs.end() - fbs.begin());
+                    idx = static_cast<int>(fbs.size() - 1);
                 break;
             }
         }
@@ -516,7 +505,6 @@ void Aton::set_output(std::vector<FrameBuffer>& fbs)
         outputKnob->selectRow(idx);
         knob_changed = Aton::item_not_changed;
     }
-    
 }
 
 void Aton::set_camera(RenderBuffer& rb)
@@ -544,12 +532,13 @@ void Aton::set_camera(RenderBuffer& rb)
 void Aton::set_format(RenderBuffer& rb)
 {
     // Set the format
-    const int width = rb.get_width();
-    const int height = rb.get_height();
-    const float pixel_aspect = rb.get_pixel_aspect();
+    const int& width = rb.get_width();
+    const int& height = rb.get_height();
+    const float& pixel_aspect = rb.get_pixel_aspect();
     
     if (m_node->m_fmt.width() != width ||
-        m_node->m_fmt.height() != height)
+        m_node->m_fmt.height() != height ||
+        m_node->m_fmt.pixel_aspect() != pixel_aspect)
     {
         Format* m_fmt_ptr = &m_node->m_fmt;
         if (m_node->m_format_exists)
@@ -633,6 +622,18 @@ void Aton::set_channels(RenderBuffer& rb)
     }
     else
         reset_channels(channels);
+}
+
+void Aton::reset_channels(ChannelSet& channels)
+{
+    if (channels.size() > 4)
+    {
+        channels.clear();
+        channels.insert(Chan_Red);
+        channels.insert(Chan_Green);
+        channels.insert(Chan_Blue);
+        channels.insert(Chan_Alpha);
+    }
 }
 
 void Aton::set_status(const long long& progress,
@@ -800,6 +801,42 @@ bool Aton::path_valid(std::string path)
     return boost::filesystem::exists(dir);
 }
 
+std::vector<std::string> Aton::get_captures()
+{
+    // Our captured filenames list
+    std::vector<std::string> results;
+    
+    // If the directory exist
+    if (path_valid(m_path))
+    {
+        using namespace boost::filesystem;
+        path filepath(m_path);
+        directory_iterator it(filepath.parent_path());
+        directory_iterator end;
+        
+        // Regex expression to find captured files
+        std::string exp = ( boost::format("%s.+.%s")%filepath.stem().string()
+                           %filepath.extension().string() ).str();
+        const boost::regex filter(exp);
+        
+        // Iterating through directory to find matching files
+        BOOST_FOREACH(path const& p, std::make_pair(it, end))
+        {
+            if(is_regular_file(p))
+            {
+                boost::match_results<std::string::const_iterator> what;
+                if (boost::regex_search(it->path().filename().string(),
+                                        what, filter, boost::match_default))
+                {
+                    std::string res = p.filename().string();
+                    results.push_back(res);
+                }
+            }
+        }
+    }
+    return results;
+}
+
 void Aton::capture_cmd()
 {
     std::string path = std::string(m_path);
@@ -881,42 +918,6 @@ void Aton::capture_cmd()
         script_command(cmd.c_str(), true, false);
         script_unlock();
     }
-}
-
-std::vector<std::string> Aton::get_captures()
-{
-    // Our captured filenames list
-    std::vector<std::string> results;
-    
-    // If the directory exist
-    if (path_valid(m_path))
-    {
-        using namespace boost::filesystem;
-        path filepath(m_path);
-        directory_iterator it(filepath.parent_path());
-        directory_iterator end;
-        
-        // Regex expression to find captured files
-        std::string exp = ( boost::format("%s.+.%s")%filepath.stem().string()
-                           %filepath.extension().string() ).str();
-        const boost::regex filter(exp);
-        
-        // Iterating through directory to find matching files
-        BOOST_FOREACH(path const& p, std::make_pair(it, end))
-        {
-            if(is_regular_file(p))
-            {
-                boost::match_results<std::string::const_iterator> what;
-                if (boost::regex_search(it->path().filename().string(),
-                                        what, filter, boost::match_default))
-                {
-                    std::string res = p.filename().string();
-                    results.push_back(res);
-                }
-            }
-        }
-    }
-    return results;
 }
 
 void Aton::import_cmd(bool all)

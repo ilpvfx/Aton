@@ -86,9 +86,9 @@ RenderBuffer::RenderBuffer(const double& currentFrame,
                                             _ready(false),
                                             _fov(0.0f),
                                             _matrix(Matrix4()),
-                                            _versionInt(0),
+                                            _version_int(0),
                                             _version_str(""),
-                                            _samples_str(""){}
+                                            _samples_str("") {}
 // Add new buffer
 void RenderBuffer::add_aov(const char* aov,
                            const int& spp)
