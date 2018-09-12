@@ -628,7 +628,9 @@ class Aton(QtWidgets.QWidget):
 
         def resetUI(*args):
             if self.ipr.isActive():
-                self.removeAtonOverrides()
+                self.stopRender()
+            
+            # Update Defualt Settings
             self.outputsList = [Output(rop) for rop in getOutputDrivers()]
 
             self.hostCheckBox.setChecked(True)
