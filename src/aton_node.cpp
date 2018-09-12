@@ -188,6 +188,7 @@ FrameBuffer& Aton::add_framebuffer()
     FrameBuffer fb;
     WriteGuard lock(m_node->m_mutex);
     m_node->m_framebuffers.push_back(fb);
+    m_node->m_output_changed = Aton::item_added;
     return m_node->m_framebuffers.back();
 }
 int Aton::get_session_index(const long long& session)
