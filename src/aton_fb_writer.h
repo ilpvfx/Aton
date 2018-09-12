@@ -145,8 +145,7 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     {
                         WriteGuard lock(node->m_mutex);
                         rb.set_camera(_fov, _matrix);
-                        node->set_camera_knobs(rb.get_camera_fov(),
-                                             rb.get_camera_matrix());
+                        node->set_camera(rb);
                     }
                     
                     // Set Version

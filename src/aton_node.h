@@ -107,6 +107,17 @@ class Aton: public Iop
         }
 
         ~Aton() { disconnect(); }
+        
+        Aton* first_node() { return dynamic_cast<Aton*>(firstOp()); }
+    
+        void attach();
+        void detach();
+        void append(Hash& hash);
+
+        void _validate(bool for_real);
+        void engine(int y, int x, int r, ChannelMask channels, Row& out);
+        void knobs(Knob_Callback f);
+        int knob_changed(Knob* _knob);
     
         enum KnobChanged
         {
@@ -117,47 +128,37 @@ class Aton: public Iop
             item_moved_down,
             item_removed
         };
-        
-        Aton* first_node() { return dynamic_cast<Aton*>(firstOp()); }
-    
-        void attach();
-        
-        void detach();
-
-        void flag_update(const Box& box = Box(0,0,0,0));
-
-        void change_port(int port);
-
-        void disconnect();
-
-        void append(Hash& hash);
-    
-        int current_fb_index(bool direction = true);
-    
-        int get_session_index(const long long& session);
-    
-        FrameBuffer& add_framebuffer();
-    
-        FrameBuffer& current_framebuffer();
-    
-        RenderBuffer& current_renderbuffer();
-    
-        void _validate(bool for_real);
-
-        void engine(int y, int x, int r, ChannelMask channels, Row& out);
-
-        void knobs(Knob_Callback f);
-
-        int knob_changed(Knob* _knob);
-
-        void reset_channels(ChannelSet& channels);
-    
-        bool path_valid(std::string path);
-    
-        std::string get_path();
     
         int get_port();
+        std::string get_path();
     
+        void disconnect();
+        void change_port(int port);
+        void flag_update(const Box& box = Box(0,0,0,0));
+
+        FrameBuffer& add_framebuffer();
+        FrameBuffer& current_framebuffer();
+        RenderBuffer& current_renderbuffer();
+    
+        int current_fb_index(bool direction = true);
+        int get_session_index(const long long& session);
+    
+        void set_output(std::vector<FrameBuffer>& fbs);
+        void set_format(RenderBuffer& rb);
+        void set_channels(RenderBuffer& rb);
+        void reset_channels(ChannelSet& channels);
+        void set_camera(RenderBuffer& rb);
+        void set_current_frame(const double& frame);
+        void set_status(const long long& progress = 0,
+                        const long long& ram = 0,
+                        const long long& p_ram = 0,
+                        const int& time = 0,
+                        const double& frame = 0,
+                        const char* version = "",
+                        const char* samples = "");
+    
+        void live_camera_toogle();
+        bool path_valid(std::string path);
         std::vector<std::string> get_captures();
     
         void multiframe_cmd();
@@ -168,20 +169,6 @@ class Aton: public Iop
         void copy_region_cmd();
         void capture_cmd();
         void import_cmd(bool all);
-    
-        void live_camera_toogle();
-    
-        void set_status(const long long& progress = 0,
-                        const long long& ram = 0,
-                        const long long& p_ram = 0,
-                        const int& time = 0,
-                        const double& frame = 0,
-                        const char* version = "",
-                        const char* samples = "");
-    
-        void set_camera_knobs(const float& fov, const Matrix4& matrix);
-    
-        void set_current_frame(const double& frame);
     
         bool firstEngineRendersWholeRequest() const { return true; }
         const char* Class() const { return CLASS; }

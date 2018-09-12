@@ -14,6 +14,19 @@ All rights reserved. See COPYING.txt for more details.
 #include "boost/filesystem.hpp"
 #include "boost/algorithm/string.hpp"
 
+int Aton::get_port()
+{
+    const char* def_port = getenv("ATON_PORT");
+    int aton_port;
+    
+    if (def_port == NULL)
+        aton_port = 9201;
+    else
+        aton_port = atoi(def_port);
+    
+    return aton_port;
+}
+
 std::string Aton::get_path()
 {
     char* aton_path = getenv("ATON_CAPTURE_PATH");
@@ -28,19 +41,6 @@ std::string Aton::get_path()
     boost::replace_all(def_path, "\\", "/");
     
     return def_path;
-}
-
-int Aton::get_port()
-{
-    const char* def_port = getenv("ATON_PORT");
-    int aton_port;
-    
-    if (def_port == NULL)
-        aton_port = 9201;
-    else
-        aton_port = atoi(def_port);
-    
-    return aton_port;
 }
 
 void Aton::attach()
@@ -99,6 +99,245 @@ void Aton::detach()
     m_legit = false;
     disconnect();
     m_node->m_framebuffers = std::vector<FrameBuffer>();
+}
+
+void Aton::append(Hash& hash)
+{
+    hash.append(m_node->m_hash_count);
+    hash.append(uiContext().frame());
+    hash.append(outputContext().frame());
+}
+
+void Aton::_validate(bool for_real)
+{
+    if (!m_node->m_server.connected() && !m_inError && m_legit)
+        change_port(m_port);
+    
+    // Handle any connection error
+    if (m_inError)
+        error(m_connection_error.c_str());
+    
+    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
+    set_output(fbs);
+    
+    if (!fbs.empty())
+    {
+        RenderBuffer& rb = current_renderbuffer();
+        if (!rb.empty())
+        {
+            set_format(rb);
+            set_channels(rb);
+            set_status(rb.get_progress(),
+                       rb.get_memory(),
+                       rb.get_peak_memory(),
+                       rb.get_time(),
+                       rb.get_frame(),
+                       rb.get_version_str(),
+                       rb.get_samples());
+            
+            // Update Camera knobs
+            if (m_node->m_live_camera)
+                m_node->set_camera(rb);
+        }
+    }
+    
+    // Setup format etc
+    info_.format(*m_node->m_fmtp.format());
+    info_.full_size_format(*m_node->m_fmtp.fullSizeFormat());
+    info_.channels(m_node->m_channels);
+    info_.set(m_node->info().format());
+}
+
+void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
+{
+    FrameBuffer& fb = current_framebuffer();
+    std::vector<RenderBuffer>& rbs = fb.get_renderbuffers();
+    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
+    
+    int f = 0;
+    if (!fbs.empty())
+    {
+        ReadGuard lock(m_node->m_mutex);
+        if (!m_multiframes)
+            f = fb.get_renderbuffer_index(fb.get_current_frame());
+        else
+            f = fb.get_renderbuffer_index(outputContext().frame());
+    }
+    
+    foreach(z, channels)
+    {
+        int b = 0;
+        int xx = x;
+        const int c = colourIndex(z);
+        float* cOut = out.writable(z) + x;
+        const float* END = cOut + (r - x);
+        
+        ReadGuard lock(m_node->m_mutex);
+        if (m_enable_aovs && !fbs.empty() &&!rbs.empty() && rbs[f].ready())
+            b = rbs[f].get_aov_index(z);
+        
+        while (cOut < END)
+        {
+            if (fbs.empty() ||
+                rbs.empty() ||
+                !rbs[f].ready() ||
+                x >= rbs[f].get_width() ||
+                y >= rbs[f].get_height() ||
+                r > rbs[f].get_width())
+            {
+                *cOut = 0.0f;
+            }
+            else
+                *cOut = rbs[f].get_aov_pix(b, xx, y, c);
+            ++cOut;
+            ++xx;
+        }
+    }
+}
+
+void Aton::knobs(Knob_Callback f)
+{
+    // Listen knobs
+    Divider(f, "Listen");
+    Int_knob(f, &m_port, "port_knob", "Port");
+    Knob* reset_knob = Button(f, "reset_port_knob", "Reset");
+    
+    // Camera knobs
+    Divider(f, "Camera");
+    Knob* live_cam_knob = Bool_knob(f, &m_live_camera, "live_camera_knob", "Create Live Camera");
+    
+    // Sanpshots
+    Divider(f, "Snapshots");
+    Bool_knob(f, &m_enable_aovs, "enable_aovs_knob", "Enable AOVs");
+    Bool_knob(f, &m_multiframes, "multi_frame_knob", "Multiple Frames Mode");
+    m_outputKnob = Table_knob(f, "output_knob", "Output");
+    if (f.makeKnobs())
+    {
+        Table_KnobI* outputKnob = m_outputKnob->tableKnob();
+        outputKnob->addStringColumn("snapshots", "", true, 512);
+    }
+    Newline(f);
+    Knob* snapshot = Button(f, "snapshot_knob", "<img src=\":qrc/images/ScriptEditor/load.png\">");
+    Knob* move_up = Button(f, "move_up_knob", "<img src=\":qrc/images/ScriptEditor/inputOff.png\">");
+    Knob* move_down = Button(f, "move_down_knob", "<img src=\":qrc/images/ScriptEditor/outputOff.png\">");
+    Knob* remove_selectd = Button(f, "remove_selected_knob", "<img src=\":qrc/images/ScriptEditor/clearOutput.png\">");
+    
+    // Render Region
+    Divider(f, "Render Region");
+    Knob* region_knob = BBox_knob(f, m_region, "region_knob", "Area");
+    Button(f, "copy_clipboard_knob", "Copy");
+    
+    // Write knobs
+    Divider(f, "Write to Disk");
+    Knob* write_multi_frame_knob = Bool_knob(f, &m_write_frames, "write_multi_frame_knob", "Write Multiple Frames");
+    Knob* path_knob = File_knob(f, &m_path, "path_knob", "Path");
+    Newline(f);
+    Button(f, "render_knob", "Render");
+    Button(f, "import_latest_knob", "Read Latest");
+    Button(f, "import_all_knob", "Read All");
+    
+    // Status Bar
+    BeginToolbar(f, "status_bar");
+    Knob* statusKnob = String_knob(f, &m_status, "status_knob", "");
+    EndToolbar(f);
+    
+    // Hidden knobs
+    Format_knob(f, &m_fmtp, "formats_knob", "format");
+    Bool_knob(f, &m_capturing, "capturing_knob");
+    Float_knob(f, &m_cam_fov, "cam_fov_knob", " cFov");
+    
+    for (int i=0; i<16; i++)
+    {
+        std::string knob_name = (boost::format("cM%s")%i).str();
+        Float_knob(f, &m_cam_matrix, knob_name.c_str(), knob_name.c_str());
+    }
+    
+    // Setting Flags
+    reset_knob->set_flag(Knob::NO_RERENDER, true);
+    path_knob->set_flag(Knob::NO_RERENDER, true);
+    live_cam_knob->set_flag(Knob::NO_RERENDER, true);
+    move_up->set_flag(Knob::NO_RERENDER, true);
+    snapshot->set_flag(Knob::NO_RERENDER, true);
+    move_down->set_flag(Knob::NO_RERENDER, true);
+    remove_selectd->set_flag(Knob::NO_RERENDER, true);
+    write_multi_frame_knob->set_flag(Knob::NO_RERENDER, true);
+    region_knob->set_flag(Knob::NO_RERENDER, true);
+    statusKnob->set_flag(Knob::NO_RERENDER, true);
+    statusKnob->set_flag(Knob::DISABLED, true);
+    statusKnob->set_flag(Knob::READ_ONLY, true);
+    statusKnob->set_flag(Knob::OUTPUT_ONLY, true);
+}
+
+int Aton::knob_changed(Knob* _knob)
+{
+    if (_knob->is("reset_port_knob"))
+    {
+        if (m_port != 9201)
+            change_port(9201);
+        return 1;
+    }
+    if (_knob->is("port_knob"))
+    {
+        change_port(m_port);
+        return 1;
+    }
+    if (_knob->is("output_knob"))
+    {
+        select_output_cmd(_knob->tableKnob());
+        return 1;
+    }
+    if (_knob->is("move_up_knob"))
+    {
+        move_cmd(true);
+        return 1;
+    }
+    if (_knob->is("move_down_knob"))
+    {
+        move_cmd(false);
+        return 1;
+    }
+    if (_knob->is("remove_selected_knob"))
+    {
+        remove_selected_cmd();
+        return 1;
+    }
+    if (_knob->is("snapshot_knob"))
+    {
+        snapshot_cmd();
+        return 1;
+    }
+    if (_knob->is("multi_frame_knob"))
+    {
+        multiframe_cmd();
+        return 1;
+    }
+    if (_knob->is("live_camera_knob"))
+    {
+        live_camera_toogle();
+        return 1;
+    }
+    
+    if (_knob->is("copy_clipboard_knob"))
+    {
+        copy_region_cmd();
+        return 1;
+    }
+    if (_knob->is("render_knob"))
+    {
+        capture_cmd();
+        return 1;
+    }
+    if (_knob->is("import_latest_knob"))
+    {
+        import_cmd(false);
+        return 1;
+    }
+    if (_knob->is("import_all_knob"))
+    {
+        import_cmd(true);
+        return 1;
+    }
+    return 0;
 }
 
 // We can use this to change our tcp port
@@ -176,13 +415,6 @@ void Aton::flag_update(const Box& box)
     asapUpdate(box);
 }
 
-void Aton::append(Hash& hash)
-{
-    hash.append(m_node->m_hash_count);
-    hash.append(uiContext().frame());
-    hash.append(outputContext().frame());
-}
-
 FrameBuffer& Aton::add_framebuffer()
 {
     FrameBuffer fb;
@@ -245,45 +477,24 @@ RenderBuffer& Aton::current_renderbuffer()
     return fb.get_frame(frame);
 }
 
-void Aton::_validate(bool for_real)
+void Aton::set_output(std::vector<FrameBuffer>& fbs)
 {
-    if (!m_node->m_server.connected() && !m_inError && m_legit)
-        change_port(m_port);
-
-    // Handle any connection error
-    if (m_inError)
-        error(m_connection_error.c_str());
-
     // Setup dynamic knob
     Table_KnobI* outputKnob = m_node->m_outputKnob->tableKnob();
-    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
-
+    
     int& knob_changed = m_node->m_output_changed;
     if (knob_changed)
     {
         int idx = current_fb_index();
-
+        
         switch (knob_changed)
         {
-            case Aton::item_added:
-            {
-                idx = 0;
+            case Aton::item_added: idx = 0;
                 break;
-            }
-            case Aton::item_copied:
-            {
+            case Aton::item_moved_up: idx--;
                 break;
-            }
-            case Aton::item_moved_up:
-            {
-                idx--;
+            case Aton::item_moved_down: idx++;
                 break;
-            }
-            case Aton::item_moved_down:
-            {
-                idx++;
-                break;
-            }
             case Aton::item_removed:
             {
                 if (idx >= fbs.size())
@@ -291,7 +502,7 @@ void Aton::_validate(bool for_real)
                 break;
             }
         }
-
+        
         outputKnob->deleteAllItems();
         
         std::vector<FrameBuffer>::reverse_iterator it;
@@ -300,318 +511,173 @@ void Aton::_validate(bool for_real)
             int row = outputKnob->addRow();
             outputKnob->setCellString(row, 0, it->get_output_name());
         }
-
+        
         outputKnob->reset();
         outputKnob->selectRow(idx);
         knob_changed = Aton::item_not_changed;
     }
-
-    if (!fbs.empty())
-    {
-        RenderBuffer& rb = current_renderbuffer();
-        if (!rb.empty())
-        {
-            // Set the progress
-            set_status(rb.get_progress(),
-                       rb.get_memory(),
-                       rb.get_peak_memory(),
-                       rb.get_time(),
-                       rb.get_frame(),
-                       rb.get_version_str(),
-                       rb.get_samples());
-
-            // Set the format
-            const int width = rb.get_width();
-            const int height = rb.get_height();
-            const float pixel_aspect = rb.get_pixel_aspect();
-
-            if (m_node->m_fmt.width() != width ||
-                m_node->m_fmt.height() != height)
-            {
-                Format* m_fmt_ptr = &m_node->m_fmt;
-                if (m_node->m_format_exists)
-                {
-                    bool fmtFound = false;
-                    unsigned int i;
-                    for (i=0; i < Format::size(); ++i)
-                    {
-                        const char* f_name = Format::index(i)->name();
-                        if (f_name != NULL && m_node->m_node_name == f_name)
-                        {
-                            m_fmt_ptr = Format::index(i);
-                            fmtFound = true;
-                        }
-                    }
-                    if (!fmtFound)
-                        m_fmt_ptr->add(m_node->m_node_name.c_str());
-                }
-
-                m_fmt_ptr->set(0, 0, width, height);
-                m_fmt_ptr->width(width);
-                m_fmt_ptr->height(height);
-                m_fmt_ptr->pixel_aspect(pixel_aspect);
-                knob("formats_knob")->set_text(m_node->m_node_name.c_str());
-            }
-
-            // Update Camera knobs
-            if (m_node->m_live_camera)
-                m_node->set_camera_knobs(rb.get_camera_fov(),
-                                         rb.get_camera_matrix());
-
-            // Set the channels
-            ChannelSet& channels = m_node->m_channels;
-
-            if (m_enable_aovs && rb.ready())
-            {
-                const int fb_size = static_cast<int>(rb.size());
-
-                if (channels.size() != fb_size)
-                    channels.clear();
-
-                for(int i = 0; i < fb_size; ++i)
-                {
-                    std::string bfName = rb.get_aov_name(i);
-
-                    using namespace chStr;
-                    if (bfName == RGBA && !channels.contains(Chan_Red))
-                    {
-                        channels.insert(Chan_Red);
-                        channels.insert(Chan_Green);
-                        channels.insert(Chan_Blue);
-                        channels.insert(Chan_Alpha);
-                        continue;
-                    }
-                    else if (bfName == Z && !channels.contains(Chan_Z))
-                    {
-                        channels.insert(Chan_Z);
-                        continue;
-                    }
-                    else if (bfName == N || bfName == P)
-                    {
-                        if (!channels.contains(channel((bfName + _X).c_str())))
-                        {
-                            channels.insert(channel((bfName + _X).c_str()));
-                            channels.insert(channel((bfName + _Y).c_str()));
-                            channels.insert(channel((bfName + _Z).c_str()));
-                        }
-                        continue;
-                    }
-                    else if (bfName == ID)
-                    {
-                        if (!channels.contains(channel((bfName + _red).c_str())))
-                            channels.insert(channel((bfName + _red).c_str()));
-                        continue;
-                    }
-                    else if (!channels.contains(channel((bfName + _red).c_str())))
-                    {
-                        channels.insert(channel((bfName + _red).c_str()));
-                        channels.insert(channel((bfName + _green).c_str()));
-                        channels.insert(channel((bfName + _blue).c_str()));
-                    }
-                }
-            }
-            else
-                reset_channels(channels);
-        }
-    }
-
-    // Setup format etc
-    info_.format(*m_node->m_fmtp.format());
-    info_.full_size_format(*m_node->m_fmtp.fullSizeFormat());
-    info_.channels(m_node->m_channels);
-    info_.set(m_node->info().format());
+    
 }
 
-void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
+void Aton::set_camera(RenderBuffer& rb)
 {
+    const float& fov = rb.get_camera_fov();
+    const Matrix4& matrix = rb.get_camera_matrix();
+    
+    std::string knob_value = (boost::format("%s")%fov).str();
+    knob("cam_fov_knob")->set_text(knob_value.c_str());
+    
+    int k_index = 0;
+    for (int i=0; i<4; i++)
+    {
+        for (int j=0; j<4; j++)
+        {
+            const float value_m = *(matrix[i]+j);
+            knob_value = (boost::format("%s")%value_m).str();
+            std::string knob_name = (boost::format("cM%s")%k_index).str();
+            knob(knob_name.c_str())->set_text(knob_value.c_str());
+            k_index++;
+        }
+    }
+}
+
+void Aton::set_format(RenderBuffer& rb)
+{
+    // Set the format
+    const int width = rb.get_width();
+    const int height = rb.get_height();
+    const float pixel_aspect = rb.get_pixel_aspect();
+    
+    if (m_node->m_fmt.width() != width ||
+        m_node->m_fmt.height() != height)
+    {
+        Format* m_fmt_ptr = &m_node->m_fmt;
+        if (m_node->m_format_exists)
+        {
+            bool fmtFound = false;
+            unsigned int i;
+            for (i=0; i < Format::size(); ++i)
+            {
+                const char* f_name = Format::index(i)->name();
+                if (f_name != NULL && m_node->m_node_name == f_name)
+                {
+                    m_fmt_ptr = Format::index(i);
+                    fmtFound = true;
+                }
+            }
+            if (!fmtFound)
+                m_fmt_ptr->add(m_node->m_node_name.c_str());
+        }
+        
+        m_fmt_ptr->set(0, 0, width, height);
+        m_fmt_ptr->width(width);
+        m_fmt_ptr->height(height);
+        m_fmt_ptr->pixel_aspect(pixel_aspect);
+        knob("formats_knob")->set_text(m_node->m_node_name.c_str());
+    }
+}
+
+void Aton::set_channels(RenderBuffer& rb)
+{
+    // Set the channels
+    ChannelSet& channels = m_node->m_channels;
+    
+    if (m_enable_aovs && rb.ready())
+    {
+        const int fb_size = static_cast<int>(rb.size());
+        
+        if (channels.size() != fb_size)
+            channels.clear();
+        
+        for(int i = 0; i < fb_size; ++i)
+        {
+            std::string bfName = rb.get_aov_name(i);
+            
+            using namespace chStr;
+            if (bfName == RGBA && !channels.contains(Chan_Red))
+            {
+                channels.insert(Chan_Red);
+                channels.insert(Chan_Green);
+                channels.insert(Chan_Blue);
+                channels.insert(Chan_Alpha);
+                continue;
+            }
+            else if (bfName == Z && !channels.contains(Chan_Z))
+            {
+                channels.insert(Chan_Z);
+                continue;
+            }
+            else if (bfName == N || bfName == P)
+            {
+                if (!channels.contains(channel((bfName + _X).c_str())))
+                {
+                    channels.insert(channel((bfName + _X).c_str()));
+                    channels.insert(channel((bfName + _Y).c_str()));
+                    channels.insert(channel((bfName + _Z).c_str()));
+                }
+                continue;
+            }
+            else if (bfName == ID)
+            {
+                if (!channels.contains(channel((bfName + _red).c_str())))
+                    channels.insert(channel((bfName + _red).c_str()));
+                continue;
+            }
+            else if (!channels.contains(channel((bfName + _red).c_str())))
+            {
+                channels.insert(channel((bfName + _red).c_str()));
+                channels.insert(channel((bfName + _green).c_str()));
+                channels.insert(channel((bfName + _blue).c_str()));
+            }
+        }
+    }
+    else
+        reset_channels(channels);
+}
+
+void Aton::set_status(const long long& progress,
+                      const long long& ram,
+                      const long long& p_ram,
+                      const int& time,
+                      const double& frame,
+                      const char* version,
+                      const char* samples)
+{
+    const int hour = time / 3600000;
+    const int minute = (time % 3600000) / 60000;
+    const int second = ((time % 3600000) % 60000) / 1000;
+    
     FrameBuffer& fb = current_framebuffer();
-    std::vector<RenderBuffer>& rbs = fb.get_renderbuffers();
-    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
-
-    int f = 0;
-    if (!fbs.empty())
-    {
-        ReadGuard lock(m_node->m_mutex);
-        if (!m_multiframes)
-            f = fb.get_renderbuffer_index(fb.get_current_frame());
-        else
-            f = fb.get_renderbuffer_index(outputContext().frame());
-    }
-
-    foreach(z, channels)
-    {
-        int b = 0;
-        int xx = x;
-        const int c = colourIndex(z);
-        float* cOut = out.writable(z) + x;
-        const float* END = cOut + (r - x);
-
-        ReadGuard lock(m_node->m_mutex);
-        if (m_enable_aovs && !fbs.empty() &&!rbs.empty() && rbs[f].ready())
-            b = rbs[f].get_aov_index(z);
-
-        while (cOut < END)
-        {
-            if (fbs.empty() ||
-                rbs.empty() ||
-                !rbs[f].ready() ||
-                x >= rbs[f].get_width() ||
-                y >= rbs[f].get_height() ||
-                r > rbs[f].get_width())
-            {
-                *cOut = 0.0f;
-            }
-            else
-                *cOut = rbs[f].get_aov_pix(b, xx, y, c);
-            ++cOut;
-            ++xx;
-        }
-    }
+    size_t f_size = 0;
+    if (!m_node->m_framebuffers.empty())
+        f_size = fb.size();
+    
+    std::string status_str = (boost::format("Arnold %s | "
+                                            "Memory: %sMB / %sMB | "
+                                            "Time: %02ih:%02im:%02is | "
+                                            "Frame: %s(%s) | "
+                                            "Samples: %s | "
+                                            "Progress: %s%%")%version%ram%p_ram
+                              %hour%minute%second
+                              %frame%f_size%samples%progress).str();
+    Knob* statusKnob = m_node->knob("status_knob");
+    if (m_node->m_running)
+        status_str += "...";
+    
+    bool disabled = (progress == 100) || !m_node->m_running;
+    statusKnob->set_flag(Knob::DISABLED, disabled);
+    statusKnob->set_text(status_str.c_str());
 }
 
-void Aton::knobs(Knob_Callback f)
+void Aton::set_current_frame(const double& frame)
 {
-    // Listen knobs
-    Divider(f, "Listen");
-    Int_knob(f, &m_port, "port_knob", "Port");
-    Knob* reset_knob = Button(f, "reset_port_knob", "Reset");
-
-    // Camera knobs
-    Divider(f, "Camera");
-    Knob* live_cam_knob = Bool_knob(f, &m_live_camera, "live_camera_knob", "Create Live Camera");
-
-    // Sanpshots
-    Divider(f, "Snapshots");
-    Bool_knob(f, &m_enable_aovs, "enable_aovs_knob", "Enable AOVs");
-    Bool_knob(f, &m_multiframes, "multi_frame_knob", "Multiple Frames Mode");
-    m_outputKnob = Table_knob(f, "output_knob", "Output");
-    if (f.makeKnobs())
+    // Set Current Frame and update the UI
+    if (frame != uiContext().frame())
     {
-        Table_KnobI* outputKnob = m_outputKnob->tableKnob();
-        outputKnob->addStringColumn("snapshots", "", true, 512);
+        OutputContext ctxt = outputContext();
+        ctxt.setFrame(frame);
+        gotoContext(ctxt, true);
     }
-    Newline(f);
-    Knob* snapshot = Button(f, "snapshot_knob", "<img src=\":qrc/images/ScriptEditor/load.png\">");
-    Knob* move_up = Button(f, "move_up_knob", "<img src=\":qrc/images/ScriptEditor/inputOff.png\">");
-    Knob* move_down = Button(f, "move_down_knob", "<img src=\":qrc/images/ScriptEditor/outputOff.png\">");
-    Knob* remove_selectd = Button(f, "remove_selected_knob", "<img src=\":qrc/images/ScriptEditor/clearOutput.png\">");
-
-    // Render Region
-    Divider(f, "Render Region");
-    Knob* region_knob = BBox_knob(f, m_region, "region_knob", "Area");
-    Button(f, "copy_clipboard_knob", "Copy");
-
-    // Write knobs
-    Divider(f, "Write to Disk");
-    Knob* write_multi_frame_knob = Bool_knob(f, &m_write_frames, "write_multi_frame_knob", "Write Multiple Frames");
-    Knob* path_knob = File_knob(f, &m_path, "path_knob", "Path");
-    Newline(f);
-    Button(f, "render_knob", "Render");
-    Button(f, "import_latest_knob", "Read Latest");
-    Button(f, "import_all_knob", "Read All");
-
-    // Status Bar
-    BeginToolbar(f, "status_bar");
-    Knob* statusKnob = String_knob(f, &m_status, "status_knob", "");
-    EndToolbar(f);
-
-    // Hidden knobs
-    Format_knob(f, &m_fmtp, "formats_knob", "format");
-    Bool_knob(f, &m_capturing, "capturing_knob");
-    Float_knob(f, &m_cam_fov, "cam_fov_knob", " cFov");
-
-    for (int i=0; i<16; i++)
-    {
-        std::string knob_name = (boost::format("cM%s")%i).str();
-        Float_knob(f, &m_cam_matrix, knob_name.c_str(), knob_name.c_str());
-    }
-
-    // Setting Flags
-    reset_knob->set_flag(Knob::NO_RERENDER, true);
-    path_knob->set_flag(Knob::NO_RERENDER, true);
-    live_cam_knob->set_flag(Knob::NO_RERENDER, true);
-    move_up->set_flag(Knob::NO_RERENDER, true);
-    snapshot->set_flag(Knob::NO_RERENDER, true);
-    move_down->set_flag(Knob::NO_RERENDER, true);
-    remove_selectd->set_flag(Knob::NO_RERENDER, true);
-    write_multi_frame_knob->set_flag(Knob::NO_RERENDER, true);
-    region_knob->set_flag(Knob::NO_RERENDER, true);
-    statusKnob->set_flag(Knob::NO_RERENDER, true);
-    statusKnob->set_flag(Knob::DISABLED, true);
-    statusKnob->set_flag(Knob::READ_ONLY, true);
-    statusKnob->set_flag(Knob::OUTPUT_ONLY, true);
-}
-
-int Aton::knob_changed(Knob* _knob)
-{
-    if (_knob->is("reset_port_knob"))
-    {
-        if (m_port != 9201)
-            change_port(9201);
-        return 1;
-    }
-    if (_knob->is("port_knob"))
-    {
-        change_port(m_port);
-        return 1;
-    }
-    if (_knob->is("output_knob"))
-    {
-        select_output_cmd(_knob->tableKnob());
-        return 1;
-    }
-    if (_knob->is("move_up_knob"))
-    {
-        move_cmd(true);
-        return 1;
-    }
-    if (_knob->is("move_down_knob"))
-    {
-        move_cmd(false);
-        return 1;
-    }
-    if (_knob->is("remove_selected_knob"))
-    {
-        remove_selected_cmd();
-        return 1;
-    }
-    if (_knob->is("snapshot_knob"))
-    {
-        snapshot_cmd();
-        return 1;
-    }
-    if (_knob->is("multi_frame_knob"))
-    {
-        multiframe_cmd();
-        return 1;
-    }
-    if (_knob->is("live_camera_knob"))
-    {
-        live_camera_toogle();
-        return 1;
-    }
-
-    if (_knob->is("copy_clipboard_knob"))
-    {
-        copy_region_cmd();
-        return 1;
-    }
-    if (_knob->is("render_knob"))
-    {
-        capture_cmd();
-        return 1;
-    }
-    if (_knob->is("import_latest_knob"))
-    {
-        import_cmd(false);
-        return 1;
-    }
-    if (_knob->is("import_all_knob"))
-    {
-        import_cmd(true);
-        return 1;
-    }
-    return 0;
 }
 
 void Aton::multiframe_cmd()
@@ -916,70 +982,6 @@ void Aton::live_camera_toogle()
 
     script_command(cmd.c_str(), true, false);
     script_unlock();
-}
-
-void Aton::set_status(const long long& progress,
-                      const long long& ram,
-                      const long long& p_ram,
-                      const int& time,
-                      const double& frame,
-                      const char* version,
-                      const char* samples)
-{
-    const int hour = time / 3600000;
-    const int minute = (time % 3600000) / 60000;
-    const int second = ((time % 3600000) % 60000) / 1000;
-
-    FrameBuffer& fb = current_framebuffer();
-    size_t f_size = 0;
-    if (!m_node->m_framebuffers.empty())
-        f_size = fb.size();
-
-    std::string status_str = (boost::format("Arnold %s | "
-                                            "Memory: %sMB / %sMB | "
-                                            "Time: %02ih:%02im:%02is | "
-                                            "Frame: %s(%s) | "
-                                            "Samples: %s | "
-                                            "Progress: %s%%")%version%ram%p_ram
-                                                             %hour%minute%second
-                                                             %frame%f_size%samples%progress).str();
-    Knob* statusKnob = m_node->knob("status_knob");
-    if (m_node->m_running)
-        status_str += "...";
-
-    bool disabled = (progress == 100) || !m_node->m_running;
-    statusKnob->set_flag(Knob::DISABLED, disabled);
-    statusKnob->set_text(status_str.c_str());
-}
-
-void Aton::set_camera_knobs(const float& fov, const Matrix4& matrix)
-{
-    std::string knob_value = (boost::format("%s")%fov).str();
-    knob("cam_fov_knob")->set_text(knob_value.c_str());
-
-    int k_index = 0;
-    for (int i=0; i<4; i++)
-    {
-        for (int j=0; j<4; j++)
-        {
-            const float value_m = *(matrix[i]+j);
-            knob_value = (boost::format("%s")%value_m).str();
-            std::string knob_name = (boost::format("cM%s")%k_index).str();
-            knob(knob_name.c_str())->set_text(knob_value.c_str());
-            k_index++;
-        }
-    }
-}
-
-void Aton::set_current_frame(const double& frame)
-{
-    // Set Current Frame and update the UI
-    if (frame != uiContext().frame())
-    {
-        OutputContext ctxt = outputContext();
-        ctxt.setFrame(frame);
-        gotoContext(ctxt, true);
-    }
 }
 
 // Nuke node builder
