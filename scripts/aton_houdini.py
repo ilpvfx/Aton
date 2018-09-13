@@ -496,7 +496,8 @@ class Aton(QtWidgets.QWidget):
             IPRUpdateLayout = QtWidgets.QHBoxLayout()
             self.IPRUpdateCheckBox = CheckBox('IPR', " Auto Update")
             self.IPRUpdateCheckBox.setChecked(True)
-            self.IPRUpdateCheckBox.stateChanged.connect(IPRUpdateUI)
+            self.IPRUpdateCheckBox.stateChanged.connect(lambda: self.ipr.setAutoUpdate(
+                                                                self.IPRUpdateCheckBox.isChecked()))
             IPRUpdateLayout.addWidget(self.IPRUpdateCheckBox)
 
             # Bucket Layout
@@ -606,10 +607,6 @@ class Aton(QtWidgets.QWidget):
 
         def portUpdateUI(value):
             self.portSlider.spinBox.setValue(value + self.defaultPort)
-
-        def IPRUpdateUI(value):
-            self.ipr.setPreview(self.IPRUpdateCheckBox.isChecked())  
-            self.ipr.setAutoUpdate(self.IPRUpdateCheckBox.isChecked())
 
         def outputUpdateUI(index):
             if index >= 0:
@@ -756,8 +753,7 @@ class Aton(QtWidgets.QWidget):
         if self.output:
             
             # Set IPR Options
-            self.ipr.setPreview(self.IPRUpdateCheckBox.isChecked())  
-            self.ipr.setAutoUpdate(self.IPRUpdateCheckBox.isChecked())
+            self.ipr.setPreview(True)  
             self.ipr.killRender()
             self.ipr.setRopNode(self.output.rop)
             self.ipr.startRender()
