@@ -101,8 +101,8 @@ void RenderBuffer::add_aov(const char* aov,
 
 // Get writable buffer object
 void RenderBuffer::set_aov_pix(const int& b,
-                               const unsigned int& x,
-                               const unsigned int& y,
+                               const int& x,
+                               const int& y,
                                const int& spp,
                                const int& c,
                                const float& pix)
@@ -117,8 +117,8 @@ void RenderBuffer::set_aov_pix(const int& b,
 
 // Get read only buffer object
 const float& RenderBuffer::get_aov_pix(const int& b,
-                                       const unsigned int& x,
-                                       const unsigned int& y,
+                                       const int& x,
+                                       const int& y,
                                        const int& c) const
 {
     const AOVBuffer& rb = _buffers[b];

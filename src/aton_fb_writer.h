@@ -75,6 +75,7 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     std::vector<FrameBuffer>& fbs = node->m_framebuffers;
                 
                     // Get FrameBuffer Index
+                    WriteGuard lock(node->m_mutex);
                     int fb_index = node->get_session_index(session);
                     
                     if (multiframe)
@@ -87,15 +88,9 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                             FrameBuffer& fb = fbs[fb_index];
                             
                             if (!fb.frame_exists(_frame))
-                            {
-                                WriteGuard lock(node->m_mutex);
                                 fb.add_frame(&dh);
-                            }
                             else
-                            {
-                                WriteGuard lock(node->m_mutex);
                                 fb.update_frame(&dh);
-                            }
                         }
                     }
                     else
@@ -105,7 +100,6 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                             if (fb_index == fbs.size())
                             {
                                 FrameBuffer& fb = node->add_framebuffer();
-                                WriteGuard lock(node->m_mutex);
                                 fb.add_frame(&dh);
                             }
                         }
@@ -114,7 +108,6 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     if (fbs.empty())
                     {
                         FrameBuffer& fb = node->add_framebuffer();
-                        WriteGuard lock(node->m_mutex);
                         fb.add_frame(&dh);
                     }
                     
@@ -125,13 +118,10 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     if (!rb.empty() && !active_aovs.empty())
                     {
                         if (rb.frame_changed(_frame))
-                        {
-                            WriteGuard lock(node->m_mutex);
                             rb.set_frame(_frame);
-                        }
+
                         if(rb.aovs_changed(active_aovs))
                         {
-                            WriteGuard lock(node->m_mutex);
                             rb.resize(1);
                             rb.set_ready(false);
                             node->reset_channels(node->m_channels);
@@ -142,26 +132,17 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     const float& _fov = dh.camera_fov();
                     const Matrix4& _matrix = Matrix4(&dh.camera_matrix()[0]);
                     if (rb.camera_changed(_fov, _matrix))
-                    {
-                        WriteGuard lock(node->m_mutex);
                         rb.set_camera(_fov, _matrix);
-                    }
                     
                     // Set Version
                     const int& _version = dh.version();
                     if (rb.get_version_int() != _version)
-                    {
-                        WriteGuard lock(node->m_mutex);
                         rb.set_version(_version);
-                    }
                     
                     // Set Samples
                     const std::vector<int> _samples = dh.samples();
                     if (rb.get_samples_int() != _samples)
-                    {
-                        WriteGuard lock(node->m_mutex);
                         rb.set_samples(_samples);
-                    }
                     
                     // Reset active AOVs
                     if(!active_aovs.empty())
@@ -182,6 +163,7 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     const char* _aov_name = dp.aov_name();
 
                     // Get Render Buffer
+                    WriteGuard lock(node->m_mutex);
                     std::vector<FrameBuffer>& fbs = node->m_framebuffers;
                     int fb_index = node->get_session_index(session);
                     
@@ -191,10 +173,7 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     RenderBuffer& rb = fbs[fb_index].current_frame();
 
                     if(rb.resolution_changed(_xres, _yres))
-                    {
-                        WriteGuard lock(node->m_mutex);
                         rb.set_resolution(_xres, _yres);
-                    }
 
                     // Get active aov names
                     if(std::find(active_aovs.begin(),
@@ -227,7 +206,6 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                         const int& h = rb.get_height();
 
                         // Adding buffer
-                        WriteGuard lock(node->m_mutex);
                         if(!rb.aov_exists(_aov_name) && (node->m_enable_aovs || rb.empty()))
                             rb.add_aov(_aov_name, _spp);
                         else

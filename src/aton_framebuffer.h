@@ -69,20 +69,20 @@ public:
     
     // Add new buffer
     void add_aov(const char* aov = NULL,
-                   const int& spp = 0);
+                 const int& spp = 0);
     
     // Set writable buffer's pixel
     void set_aov_pix(const int& b,
-                     const unsigned int& x,
-                     const unsigned int& y,
+                     const int& x,
+                     const int& y,
                      const int& spp,
                      const int& c,
                      const float& pix);
     
     // Get read only buffer's pixel
     const float& get_aov_pix(const int& b,
-                             const unsigned int& x,
-                             const unsigned int& y,
+                             const int& x,
+                             const int& y,
                              const int& c) const;
     
     // Get the current buffer index

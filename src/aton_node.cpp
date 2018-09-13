@@ -117,6 +117,7 @@ void Aton::_validate(bool for_real)
     if (m_inError)
         error(m_connection_error.c_str());
     
+    ReadGuard lock(m_node->m_mutex);
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     set_output(fbs);
     
@@ -316,7 +317,6 @@ int Aton::knob_changed(Knob* _knob)
         live_camera_toogle();
         return 1;
     }
-    
     if (_knob->is("copy_clipboard_knob"))
     {
         copy_region_cmd();
@@ -405,9 +405,9 @@ void Aton::flag_update(const Box& box)
 
 int Aton::get_session_index(const long long& session)
 {
-    int fb_index = 0;
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     
+    int fb_index = static_cast<int>(fbs.size());
     if (!fbs.empty())
     {
         std::vector<FrameBuffer>::iterator it;
@@ -415,8 +415,6 @@ int Aton::get_session_index(const long long& session)
         {
             if (it->get_session() == session)
                 fb_index = static_cast<int>(it - fbs.begin());
-            else
-                fb_index = static_cast<int>(fbs.size());
         }
     }
     return fb_index;
@@ -687,8 +685,8 @@ void Aton::multiframe_cmd()
     
     if (!fbs.empty())
     {
-        FrameBuffer& fb = current_framebuffer();
         WriteGuard lock(m_node->m_mutex);
+        FrameBuffer& fb = current_framebuffer();
         fb.set_current_frame(uiContext().frame());
     }
     if (m_multiframes)
@@ -702,6 +700,7 @@ void Aton::select_output_cmd(Table_KnobI* outputKnob)
     if (!fbs.empty())
     {
         // Check if item has renamed from UI
+        WriteGuard lock(m_node->m_mutex);
         FrameBuffer& fb = current_framebuffer();
         
         int idx = outputKnob->getSelectedRow();
@@ -712,7 +711,6 @@ void Aton::select_output_cmd(Table_KnobI* outputKnob)
             
             if (row_name != fb.get_output_name())
             {
-                WriteGuard lock(m_node->m_mutex);
                 fb.set_output_name(row_name);
             }
         }
@@ -727,9 +725,9 @@ void Aton::snapshot_cmd()
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     if (!fbs.empty())
     {
+        WriteGuard lock(m_node->m_mutex);
         int fb_index = current_fb_index(false);
         fb_index = fb_index > 0 ? fb_index-- : 0;
-        WriteGuard lock(m_node->m_mutex);
         fbs.insert(fbs.begin() + fb_index, current_framebuffer());
         m_node->m_output_changed = Aton::item_copied;
         flag_update();
@@ -739,19 +737,18 @@ void Aton::snapshot_cmd()
 void Aton::move_cmd(bool direction)
 {
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
-    int idx = m_node->current_fb_index(false);
-
+    
     if (!fbs.empty())
     {
+        WriteGuard lock(m_node->m_mutex);
+        int idx = m_node->current_fb_index(false);
         if (direction && idx < (fbs.size()-1))
         {
-            WriteGuard lock(m_node->m_mutex);
             std::swap(fbs[idx], fbs[idx + 1]);
             m_node->m_output_changed = Aton::item_moved_up;;
         }
         else if (!direction && idx != 0)
         {
-            WriteGuard lock(m_node->m_mutex);
             std::swap(fbs[idx], fbs[idx - 1]);
             m_node->m_output_changed = Aton::item_moved_down;
         }
@@ -765,9 +762,8 @@ void Aton::remove_selected_cmd()
 
     if (!fbs.empty() && !m_node->m_running)
     {
-        int idx = m_node->current_fb_index(false);
-        
         WriteGuard lock(m_node->m_mutex);
+        int idx = m_node->current_fb_index(false);
         m_node->m_output_changed = Aton::item_removed;
 
         fbs.erase(fbs.begin() + idx);
