@@ -700,11 +700,10 @@ void Aton::select_output_cmd(Table_KnobI* outputKnob)
     
     if (!fbs.empty())
     {
-        // Check if item has renamed from UI
         FrameBuffer& fb = current_framebuffer();
         
+        // Check if item has renamed from UI
         int idx = outputKnob->getSelectedRow();
-        
         if (idx >= 0 && m_node->m_output_changed == Aton::item_not_changed)
         {
             std::string row_name = outputKnob->getCellString(idx, 0);
@@ -720,6 +719,8 @@ void Aton::select_output_cmd(Table_KnobI* outputKnob)
         
         if (frame != outputContext().frame())
             set_current_frame(frame);
+        
+        flag_update();
     }
 }
 
