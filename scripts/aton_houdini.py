@@ -396,7 +396,7 @@ class Aton(QtWidgets.QWidget):
     
     def __init__(self):
         QtWidgets.QWidget.__init__(self)
-
+        
         # Properties
         self._output = None
         
@@ -653,20 +653,20 @@ class Aton(QtWidgets.QWidget):
             outputUpdateUI(self.outputComboBox.currentIndex())
   
         def addUICallbacks():
-            self.cameraComboBox.currentIndexChanged.connect(lambda : self.addAtonOverrides(0))
-            self.bucketComboBox.currentIndexChanged.connect(lambda : self.addAtonOverrides(3))
-            self.cameraAaSlider.valueChanged.connect(lambda : self.addAtonOverrides(1))
-            self.resolutionSlider.valueChanged.connect(lambda : self.addAtonOverrides(2))
-            self.renderRegionXSpinBox.valueChanged.connect(lambda: self.addAtonOverrides(2))
-            self.renderRegionYSpinBox.valueChanged.connect(lambda: self.addAtonOverrides(2))
-            self.renderRegionRSpinBox.valueChanged.connect(lambda: self.addAtonOverrides(2))
-            self.renderRegionTSpinBox.valueChanged.connect(lambda: self.addAtonOverrides(2))
-            self.overscanSlider.valueChanged.connect(lambda : self.addAtonOverrides(2))
-            self.motionBlurCheckBox.toggled.connect(lambda: self.addAtonOverrides(4))
-            self.subdivsCheckBox.toggled.connect(lambda: self.addAtonOverrides(4))
-            self.displaceCheckBox.toggled.connect(lambda: self.addAtonOverrides(4))
-            self.bumpCheckBox.toggled.connect(lambda: self.addAtonOverrides(4))
-            self.sssCheckBox.toggled.connect(lambda: self.addAtonOverrides(4))
+            self.cameraComboBox.currentIndexChanged.connect(self.addAtonOverrides)
+            self.bucketComboBox.currentIndexChanged.connect(self.addAtonOverrides)
+            self.cameraAaSlider.valueChanged.connect(self.addAtonOverrides)
+            self.resolutionSlider.valueChanged.connect(self.addAtonOverrides)
+            self.renderRegionXSpinBox.valueChanged.connect(self.addAtonOverrides)
+            self.renderRegionYSpinBox.valueChanged.connect(self.addAtonOverrides)
+            self.renderRegionRSpinBox.valueChanged.connect(self.addAtonOverrides)
+            self.renderRegionTSpinBox.valueChanged.connect(self.addAtonOverrides)
+            self.overscanSlider.valueChanged.connect(self.addAtonOverrides)
+            self.motionBlurCheckBox.toggled.connect(self.addAtonOverrides)
+            self.subdivsCheckBox.toggled.connect(self.addAtonOverrides)
+            self.displaceCheckBox.toggled.connect(self.addAtonOverrides)
+            self.bumpCheckBox.toggled.connect(self.addAtonOverrides)
+            self.sssCheckBox.toggled.connect(self.addAtonOverrides)
 
         self.setLayout(buildUI())
 
@@ -767,20 +767,22 @@ class Aton(QtWidgets.QWidget):
         self.removeAtonOverrides()
         self.generalUISetEnabled(True)
 
-    def addAtonOverrides(self, mode=None):
+    def addAtonOverrides(self,):
         if self.ipr.isActive():
-            self.ipr.pauseRender()
-            userOptions = self.removeAtonOverrides()
+            
+            userOptions = self.output.userOptions
             
             if not userOptions is None:
-               
+                
+                self.ipr.pauseRender()
+                
                 # Enable User Options Overrides
                 self.output.rop.parm('ar_user_options_enable').set(True)
 
                 # Aton Attributes
                 userOptions += ' ' if userOptions else ''
                 userOptions += 'declare aton_enable constant BOOL aton_enable on '
-                userOptions += 'declare aton_host constant STR aton_host \"%s\" '%self.hostLineEdit.text()
+                userOptions += 'declare aton_host constant STRING aton_host \"%s\" '%self.hostLineEdit.text()
                 userOptions += 'declare aton_port constant INT aton_port %d '%self.portSlider.value()
                 userOptions += 'declare aton_output constant STRING aton_output \"%s\" '%self.output.name
 
@@ -803,7 +805,7 @@ class Aton(QtWidgets.QWidget):
                 userOptions += 'declare aton_region_max_y constant INT aton_region_max_y %d '%self.getRegion(5)
 
                 # Bucket Scanning
-                userOptions += 'declare aton_bucket constant STRING aton_bucket %s '%self.bucketComboBox.currentName()
+                userOptions += 'declare aton_bucket constant STRING aton_bucket \"%s\" '%self.bucketComboBox.currentName()
 
                 # Ignore Feautres
                 userOptions += 'declare aton_ignore_mbl constant BOOL aton_ignore_mbl %s '%('on' if self.motionBlurCheckBox.isChecked() else 'off')
@@ -813,13 +815,9 @@ class Aton(QtWidgets.QWidget):
                 userOptions += 'declare aton_ignore_sss constant BOOL aton_ignore_sss %s '%('on' if self.sssCheckBox.isChecked() else 'off')
 
                 self.output.userOptionsParm.set(userOptions)
-            self.ipr.resumeRender()
+           
+                self.ipr.resumeRender()
 
     def removeAtonOverrides(self):
         for output in self.outputsList:
             output.rollback()
-
-        return self.output.userOptions
-
-
-
