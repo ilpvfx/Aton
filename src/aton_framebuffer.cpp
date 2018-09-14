@@ -320,12 +320,12 @@ void RenderBuffer::set_camera(const float& fov, const Matrix4& matrix)
 }
 
 
-RenderBuffer& FrameBuffer::get_frame(double frame)
+RenderBuffer& FrameBuffer::get_renderbuffer(double frame)
 {
     return _renderbuffers[get_renderbuffer_index(frame)];
 }
 
-void FrameBuffer::add_frame(DataHeader* dh)
+void FrameBuffer::add_renderbuffer(DataHeader* dh)
 {
         RenderBuffer rb(dh->frame(), dh->xres(), dh->yres(), dh->pixel_aspect());
         if (!_frames.empty())
@@ -335,20 +335,20 @@ void FrameBuffer::add_frame(DataHeader* dh)
         _output_name = (boost::format("%s_%d_%s")%dh->output_name()
                                                  %dh->frame()
                                                  %get_date()).str();
-        _current_frame  = dh->frame();
+        _frame  = dh->frame();
 
         _frames.push_back(dh->frame());
         _renderbuffers.push_back(rb);
 }
 
 // Udpate RenderBuffer
-void FrameBuffer::update_frame(DataHeader* dh)
+void FrameBuffer::update_renderbuffer(DataHeader* dh)
 {
     _session_index = dh->session();
     _output_name = (boost::format("%s_%d_%s")%dh->output_name()
                                              %dh->frame()
                                              %get_date()).str();
-    _current_frame  = dh->frame();
+    _frame  = dh->frame();
 }
 
 // Clear All Data
@@ -365,12 +365,12 @@ void FrameBuffer::clear_all_except(double frame)
 
     _frames.erase(_frames.begin() + 1, _frames.end());
     _renderbuffers.erase(_renderbuffers.begin() + 1, _renderbuffers.end());
-    _current_frame = frame;
+    _frame = frame;
 }
 
 
 // Check if RenderBuffer already exists
-bool FrameBuffer::frame_exists(double frame)
+bool FrameBuffer::renderbuffer_exists(double frame)
 {
     if (!_frames.empty())
         return (std::find(_frames.begin(), _frames.end(), frame) != _frames.end());

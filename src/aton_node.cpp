@@ -160,7 +160,7 @@ void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
     if (!fbs.empty())
     {
         if (!m_multiframes)
-            f = fb.get_renderbuffer_index(fb.get_current_frame());
+            f = fb.get_renderbuffer_index(fb.get_frame());
         else
             f = fb.get_renderbuffer_index(outputContext().frame());
     }
@@ -459,8 +459,8 @@ RenderBuffer& Aton::current_renderbuffer()
     if  (m_multiframes)
         frame = outputContext().frame();
     else
-        frame = fb.get_current_frame();
-    return fb.get_frame(frame);
+        frame = fb.get_frame();
+    return fb.get_renderbuffer(frame);
 }
 
 void Aton::set_output(std::vector<FrameBuffer>& fbs)
@@ -684,7 +684,7 @@ void Aton::multiframe_cmd()
     if (!fbs.empty())
     {
         FrameBuffer& fb = current_framebuffer();
-        fb.set_current_frame(uiContext().frame());
+        fb.set_frame(uiContext().frame());
     }
     if (m_multiframes)
         Thread::spawn(::fb_updater, 1, m_node);
@@ -711,7 +711,7 @@ void Aton::select_output_cmd(Table_KnobI* outputKnob)
             }
         }
 
-        double frame = fb.get_current_frame();
+        double frame = fb.get_frame();
         m_node->m_mutex.unlock();
         
         if (frame != outputContext().frame())

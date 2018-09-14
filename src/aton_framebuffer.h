@@ -207,9 +207,9 @@ class FrameBuffer
 public:
     FrameBuffer() {};
     
-    RenderBuffer& get_frame(double frame);
+    RenderBuffer& get_renderbuffer(double frame);
     
-    RenderBuffer& current_frame() { return get_frame(_current_frame); }
+    RenderBuffer& current_renderbuffer() { return get_renderbuffer(_frame); }
     
     std::vector<RenderBuffer>& get_renderbuffers() { return _renderbuffers; }
     
@@ -221,10 +221,10 @@ public:
     size_t size() { return _frames.size(); }
     
     // Add New RenderBuffer
-    void add_frame(DataHeader* dh);
+    void add_renderbuffer(DataHeader* dh);
     
     // Update RenderBuffer
-    void update_frame(DataHeader* dh);
+    void update_renderbuffer(DataHeader* dh);
     
     // Clear All Data
     void clear_all();
@@ -233,10 +233,10 @@ public:
     bool empty() { return (_frames.empty() && _renderbuffers.empty()); }
     
     // Check if RenderBuffer already exists
-    bool frame_exists(double frame);
+    bool renderbuffer_exists(double frame);
     
-    double get_current_frame() { return _current_frame; }
-    void set_current_frame(double frame) { _current_frame = frame; }
+    double get_frame() { return _frame; }
+    void set_frame(double frame) { _frame = frame; }
     
     long long& get_session() { return _session_index; }
     void set_session(long long index) { _session_index = index; }
@@ -245,7 +245,7 @@ public:
     void set_output_name(std::string name) { _output_name = name; }
 
 private:
-    double _current_frame;
+    double _frame;
     long long _session_index;
     std::string _output_name;
     std::vector<double> _frames;

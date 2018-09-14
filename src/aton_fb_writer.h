@@ -87,10 +87,10 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                             
                             FrameBuffer& fb = fbs[fb_index];
                             
-                            if (!fb.frame_exists(_frame))
-                                fb.add_frame(&dh);
+                            if (!fb.renderbuffer_exists(_frame))
+                                fb.add_renderbuffer(&dh);
                             else
-                                fb.update_frame(&dh);
+                                fb.update_renderbuffer(&dh);
                         }
                     }
                     else
@@ -100,7 +100,7 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                             if (fb_index == fbs.size())
                             {
                                 FrameBuffer& fb = node->add_framebuffer();
-                                fb.add_frame(&dh);
+                                fb.add_renderbuffer(&dh);
                             }
                         }
                     }
@@ -108,11 +108,11 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     if (fbs.empty())
                     {
                         FrameBuffer& fb = node->add_framebuffer();
-                        fb.add_frame(&dh);
+                        fb.add_renderbuffer(&dh);
                     }
                     
                     // Get current RenderBuffer
-                    RenderBuffer& rb = fbs[fb_index].get_frame(_frame);
+                    RenderBuffer& rb = fbs[fb_index].get_renderbuffer(_frame);
                     
                     // Reset Frame and Buffers if changed
                     if (!rb.empty() && !active_aovs.empty())
@@ -170,7 +170,7 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     if (fb_index == fbs.size())
                         fb_index-- ;
                     
-                    RenderBuffer& rb = fbs[fb_index].current_frame();
+                    RenderBuffer& rb = fbs[fb_index].current_renderbuffer();
 
                     if(rb.resolution_changed(_xres, _yres))
                         rb.set_resolution(_xres, _yres);
