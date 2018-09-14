@@ -769,13 +769,13 @@ class Aton(QtWidgets.QWidget):
 
     def addAtonOverrides(self,):
         if self.ipr.isActive():
-            
+
             userOptions = self.output.userOptions
             
             if not userOptions is None:
-                
+
                 self.ipr.pauseRender()
-                
+
                 # Enable User Options Overrides
                 self.output.rop.parm('ar_user_options_enable').set(True)
 
@@ -817,6 +817,9 @@ class Aton(QtWidgets.QWidget):
                 self.output.userOptionsParm.set(userOptions)
            
                 self.ipr.resumeRender()
+            else:
+                self.stopRender()
+
 
     def removeAtonOverrides(self):
         for output in self.outputsList:
