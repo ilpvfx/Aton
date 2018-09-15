@@ -210,7 +210,8 @@ def getSceneOption(attr):
                     10 : lambda: cmds.getAttr("defaultArnoldRenderOptions.ignoreSss"),
                     11 : lambda: cmds.playbackOptions(q=True, minTime=True),
                     12 : lambda: cmds.playbackOptions(q=True, maxTime=True),
-                    13 : lambda: cmds.getAttr("defaultArnoldRenderOptions.progressive_rendering")}[attr]()
+                    13 : lambda: cmds.getAttr("defaultArnoldRenderOptions.progressive_rendering"),
+                    14 : lambda: cmds.getAttr("defaultArnoldRenderOptions.bucketScanning")}[attr]()
         except ValueError:
             pass
     return 0
@@ -329,6 +330,13 @@ class Aton(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         overridesGroupBox = QtWidgets.QGroupBox("Overrides")
         overridesGroupBox.setMaximumSize(9999, 450)
         overridesLayout = QtWidgets.QVBoxLayout(overridesGroupBox)
+
+        # Bucket Layout
+        bucketLayout = QtWidgets.QHBoxLayout()
+        self.bucketComboBox = ComboBox("Bucket Scan")
+        self.bucketComboBox.addItems(['top', 'left', 'random', 'spiral', 'hilbert'])
+        self.bucketComboBox.setCurrentIndex(getSceneOption(14))
+        bucketLayout.addWidget(self.bucketComboBox)
 
         # Resolution Layout
         resolutionLayout = QtWidgets.QHBoxLayout()
@@ -456,6 +464,7 @@ class Aton(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         generalLayout.addLayout(hostLayout)
         generalLayout.addLayout(portLayout)
         generalLayout.addLayout(cameraLayout)
+        overridesLayout.addLayout(bucketLayout)
         overridesLayout.addLayout(resolutionLayout)
         overridesLayout.addLayout(cameraAaLayout)
         overridesLayout.addLayout(renderRegionLayout)
@@ -472,6 +481,7 @@ class Aton(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
         # IPR Updates
         self.cameraComboBox.currentIndexChanged.connect(lambda: self.IPRUpdate(0))
+        self.bucketComboBox.currentIndexChanged.connect(lambda: self.IPRUpdate(6))
         self.resolutionSlider.valueChanged.connect(lambda: self.IPRUpdate(1))
         self.cameraAaSlider.valueChanged.connect(lambda: self.IPRUpdate(2))
         self.renderRegionXSpinBox.valueChanged.connect(lambda: self.IPRUpdate(1))
@@ -867,6 +877,11 @@ class Aton(MayaQWidgetDockableMixin, QtWidgets.QWidget):
                 AiNodeSetVec2(self.placeTexture, "repeatUV", texRepeat, texRepeat)
             else:
                 AiNodeSetPnt2(self.placeTexture, "repeatUV", texRepeat, texRepeat)
+
+        if attr == None or attr == 6:
+            scanning = self.bucketComboBox.currentName()
+            AiNodeSetStr(options, "bucket_scanning", scanning)
+
         try:
             cmds.arnoldIpr(mode='unpause')
         except RuntimeError:
