@@ -8,11 +8,11 @@ All rights reserved. See COPYING.txt for more details.
 #include "aton_fb_writer.h"
 #include "aton_fb_updater.h"
 
-#include "boost/regex.hpp"
-#include "boost/format.hpp"
-#include "boost/foreach.hpp"
-#include "boost/filesystem.hpp"
-#include "boost/algorithm/string.hpp"
+#include <boost/regex.hpp>
+#include <boost/format.hpp>
+#include <boost/foreach.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/algorithm/string.hpp>
 
 int Aton::get_port()
 {
@@ -158,17 +158,13 @@ void Aton::_validate(bool for_real)
 void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
 {
     ReadGuard lock(m_node->m_mutex);
-    FrameBuffer* fb = current_framebuffer();
-    std::vector<RenderBuffer>& rbs = fb->get_renderbuffers();
-    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
+    RenderBuffer* rb = current_renderbuffer();
     
-    int f = 0;
-    if (!fbs.empty())
+    int w = 0, h = 0;
+    if (rb != NULL)
     {
-        if (!m_multiframes)
-            f = fb->get_renderbuffer_index(fb->get_frame());
-        else
-            f = fb->get_renderbuffer_index(outputContext().frame());
+        w = rb->get_width();
+        h = rb->get_height();
     }
     
     foreach(z, channels)
@@ -179,22 +175,15 @@ void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
         float* cOut = out.writable(z) + x;
         const float* END = cOut + (r - x);
         
-        if (m_enable_aovs && !fbs.empty() &&!rbs.empty() && rbs[f].ready())
-            b = rbs[f].get_aov_index(z);
+        if (m_enable_aovs && rb != NULL && rb->ready())
+            b = rb->get_aov_index(z);
         
         while (cOut < END)
         {
-            if (fbs.empty() ||
-                rbs.empty() ||
-                !rbs[f].ready() ||
-                x >= rbs[f].get_width() ||
-                y >= rbs[f].get_height() ||
-                r > rbs[f].get_width())
-            {
+            if (rb == NULL || !rb->ready() || x >= w || y >= h || r > w)
                 *cOut = 0.0f;
-            }
             else
-                *cOut = rbs[f].get_aov_pix(b, xx, y, c);
+                *cOut = rb->get_aov_pix(b, xx, y, c);
             ++cOut;
             ++xx;
         }
@@ -440,13 +429,18 @@ FrameBuffer* Aton::current_framebuffer()
 RenderBuffer* Aton::current_renderbuffer()
 {
     FrameBuffer* fb = current_framebuffer();
-
-    double frame;
-    if  (m_multiframes)
-        frame = outputContext().frame();
+    
+    if (fb != NULL)
+    {
+        double frame;
+        if  (m_multiframes)
+            frame = outputContext().frame();
+        else
+            frame = fb->get_frame();
+        return fb->get_renderbuffer(frame);
+    }
     else
-        frame = fb->get_frame();
-    return fb->get_renderbuffer(frame);
+        return NULL;
 }
 
 int Aton::current_fb_index(bool direction)
@@ -765,6 +759,7 @@ void Aton::remove_selected_cmd()
     if (!fbs.empty() && !m_node->m_running)
     {
         int idx = m_node->current_fb_index(false);
+        current_renderbuffer()->set_ready(false);
         m_node->m_output_changed = Aton::item_removed;
 
         fbs.erase(fbs.begin() + idx);

@@ -6,7 +6,7 @@ All rights reserved. See COPYING.txt for more details.
 
 #include "aton_client.h"
 #include <boost/lexical_cast.hpp>
-#include "boost/date_time/posix_time/posix_time.hpp"
+#include <boost/date_time/posix_time/posix_time.hpp>
 
 using namespace boost::asio;
 

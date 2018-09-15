@@ -10,7 +10,6 @@ All rights reserved. See COPYING.txt for more details.
 #include <vector>
 #include <boost/asio.hpp>
 
-
 const int get_port();
 
 const std::string get_host();
@@ -23,7 +22,6 @@ const int pack_4_int(int a, int b, int c, int d);
 
 
 class Client;
-
 
 class DataHeader
 {
@@ -113,7 +111,6 @@ private:
     const char *mOutputName;
 
 };
-
 
 class DataPixels
 {

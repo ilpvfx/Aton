@@ -7,7 +7,7 @@ All rights reserved. See COPYING.txt for more details.
 #ifndef FenderBuffer_h
 #define FenderBuffer_h
 
-#include "DDImage/Iop.h"
+#include <DDImage/Iop.h>
 #include "aton_client.h"
 
 
@@ -213,9 +213,6 @@ public:
     
     std::vector<RenderBuffer>& get_renderbuffers() { return _renderbuffers; }
     
-    // Get RenderBuffer index for given Frame
-    int get_renderbuffer_index(double frame);
-    
     const std::vector<double>& frames() { return _frames; }
     
     size_t size() { return _frames.size(); }
@@ -225,12 +222,6 @@ public:
     
     // Update RenderBuffer
     void update_renderbuffer(DataHeader* dh);
-    
-    // Clear All Data
-    void clear_all();
-    void clear_all_except(double frame);
-    
-    bool empty() { return (_frames.empty() && _renderbuffers.empty()); }
     
     // Check if RenderBuffer already exists
     bool renderbuffer_exists(double frame);
@@ -243,6 +234,10 @@ public:
     
     std::string get_output_name() { return _output_name; }
     void set_output_name(std::string name) { _output_name = name; }
+    
+    // Clear All Data
+    void clear_all();
+    bool empty() { return _renderbuffers.empty(); }
 
 private:
     double _frame;
