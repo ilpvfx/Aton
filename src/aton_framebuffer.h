@@ -85,6 +85,9 @@ public:
                              const int& y,
                              const int& c) const;
     
+    // Get AOVs
+    std::vector<std::string>& get_aovs() { return _aovs; }
+    
     // Get the current buffer index
     int get_aov_index(const Channel& z);
     
@@ -92,7 +95,7 @@ public:
     int get_aov_index(const char* aovName);
     
     // Get N buffer/aov name name
-    const char* get_aov_name(const int& index);
+    std::string get_aov_name(const int& index);
     
     // Get last buffer/aov name
     bool first_aov_name(const char* aovName);
@@ -129,57 +132,53 @@ public:
     // Get pixel aspect of the buffer
     const float& get_pixel_aspect() const { return _pix_aspect; }
     
+    // Check if this RenderBuffer is empty
+    bool empty() { return _aovs.empty(); }
+    
     // Get size of the buffers aka AOVs count
     size_t size() { return _aovs.size(); }
     
     // Resize the buffers
     void resize(const size_t& s);
     
-    // Set status parameters
+    // Status parameters
+    const long long& get_progress() { return _progress; }
     void set_progress(const long long& progress = 0);
+    
+    const long long& get_memory() { return _ram; }
+    const long long& get_peak_memory() { return _pram; }
     void set_memory(const long long& ram = 0);
+    
+    const int& get_time() { return _time; }
     void set_time(const int& time = 0,
                   const int& dtime = 0);
     
-    // Get status parameters
-    const long long& get_progress() { return _progress; }
-    const long long& get_memory() { return _ram; }
-    const long long& get_peak_memory() { return _pram; }
-    const int& get_time() { return _time; }
-    
-    // Set Version
-    void set_version(const int& version);
-    
-    // Set Samples
-    void set_samples(const std::vector<int> samples);
-    
-    // Get Arnold core version
+    // Arnold core version
     const int& get_version_int() { return _version_int; }
     const char* get_version_str() { return _version_str.c_str(); }
-    
-    // Get Samples
+    void set_version(const int& version);
+
+    // Sampling
     const std::vector<int> get_samples_int() { return _samples; }
     const char* get_samples() { return _samples_str.c_str(); }
-    
-    // Set the frame number of this RenderBuffer
-    void set_frame(const double& frame) { _frame = frame; }
-    
-    // Get the frame number of this RenderBuffer
+    void set_samples(const std::vector<int> samples);
+
+    // Get/Set the frame number of this RenderBuffer
     const double& get_frame() { return _frame; }
-    
-    // Check if this RenderBuffer is empty
-    bool empty() { return (_buffers.empty() && _aovs.empty()); }
+    void set_frame(const double& frame) { _frame = frame; }
     
     // To keep False while writing the buffer
     void set_ready(const bool& ready) { _ready = ready; }
     const bool& ready() const { return _ready; }
     
-    // Get Camera Fov
+    // Camera
     const float& get_camera_fov() { return _fov; }
-    
     const Matrix4& get_camera_matrix() { return _matrix; }
-    
     void set_camera(const float& fov, const Matrix4& matrix);
+    
+    // Name
+    const char* get_name() { return _name.c_str(); }
+    void set_name(std::string name) { _name = name; }
     
 private:
     double _frame;
@@ -194,6 +193,7 @@ private:
     float _fov;
     Matrix4 _matrix;
     int _version_int;
+    std::string _name;
     std::vector<int> _samples;
     std::string _version_str;
     std::string _samples_str;
@@ -207,9 +207,9 @@ class FrameBuffer
 public:
     FrameBuffer() {};
     
-    RenderBuffer& get_renderbuffer(double frame);
+    RenderBuffer* get_renderbuffer(double frame);
     
-    RenderBuffer& current_renderbuffer() { return get_renderbuffer(_frame); }
+    RenderBuffer* current_renderbuffer() { return get_renderbuffer(_frame); }
     
     std::vector<RenderBuffer>& get_renderbuffers() { return _renderbuffers; }
     
@@ -221,7 +221,7 @@ public:
     size_t size() { return _frames.size(); }
     
     // Add New RenderBuffer
-    void add_renderbuffer(DataHeader* dh);
+    RenderBuffer* add_renderbuffer(DataHeader* dh);
     
     // Update RenderBuffer
     void update_renderbuffer(DataHeader* dh);
@@ -238,15 +238,15 @@ public:
     double get_frame() { return _frame; }
     void set_frame(double frame) { _frame = frame; }
     
-    long long& get_session() { return _session_index; }
-    void set_session(long long index) { _session_index = index; }
+    long long& get_session() { return _session; }
+    void set_session(long long index) { _session = index; }
     
     std::string get_output_name() { return _output_name; }
     void set_output_name(std::string name) { _output_name = name; }
 
 private:
     double _frame;
-    long long _session_index;
+    long long _session;
     std::string _output_name;
     std::vector<double> _frames;
     std::vector<RenderBuffer> _renderbuffers;

@@ -177,15 +177,15 @@ int RenderBuffer::get_aov_index(const char* aovName)
 }
 
 // Get N buffer/aov name name
-const char* RenderBuffer::get_aov_name(const int& index)
+std::string RenderBuffer::get_aov_name(const int& index)
 {
-    const char* aovName = "";
+    std::string aov_name = "";
 
     if(!_aovs.empty())
     {
         try
         {
-            aovName = _aovs.at(index).c_str();
+            aov_name = _aovs.at(index);
         }
         catch (const std::out_of_range& e)
         {
@@ -197,7 +197,7 @@ const char* RenderBuffer::get_aov_name(const int& index)
         }
     }
     
-    return aovName;
+    return aov_name;
 }
 
 // Get last buffer/aov name
@@ -320,31 +320,35 @@ void RenderBuffer::set_camera(const float& fov, const Matrix4& matrix)
 }
 
 
-RenderBuffer& FrameBuffer::get_renderbuffer(double frame)
+RenderBuffer* FrameBuffer::get_renderbuffer(double frame)
 {
-    return _renderbuffers[get_renderbuffer_index(frame)];
+    return &_renderbuffers[get_renderbuffer_index(frame)];
 }
 
-void FrameBuffer::add_renderbuffer(DataHeader* dh)
+RenderBuffer* FrameBuffer::add_renderbuffer(DataHeader* dh)
 {
         RenderBuffer rb(dh->frame(), dh->xres(), dh->yres(), dh->pixel_aspect());
+    
+        _output_name = (boost::format("%s_%d_%s")%dh->output_name()
+                        %dh->frame()
+                        %get_date()).str();
+    
         if (!_frames.empty())
             rb = _renderbuffers.back();
     
-        _session_index = dh->session();
-        _output_name = (boost::format("%s_%d_%s")%dh->output_name()
-                                                 %dh->frame()
-                                                 %get_date()).str();
+        rb.set_name(dh->output_name());
+    
         _frame  = dh->frame();
-
+        _session = dh->session();
         _frames.push_back(dh->frame());
         _renderbuffers.push_back(rb);
+        return &_renderbuffers.back();
 }
 
 // Udpate RenderBuffer
 void FrameBuffer::update_renderbuffer(DataHeader* dh)
 {
-    _session_index = dh->session();
+    _session = dh->session();
     _output_name = (boost::format("%s_%d_%s")%dh->output_name()
                                              %dh->frame()
                                              %get_date()).str();

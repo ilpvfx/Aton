@@ -116,29 +116,35 @@ void Aton::_validate(bool for_real)
     // Handle any connection error
     if (m_inError)
         error(m_connection_error.c_str());
-    
+   
+    set_output();
     ReadGuard lock(m_node->m_mutex);
-    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
-    set_output(fbs);
-    
-    if (!fbs.empty())
+    if (!m_node->m_framebuffers.empty())
     {
-        RenderBuffer& rb = current_renderbuffer();
-        if (!rb.empty())
+        RenderBuffer* rb = current_renderbuffer();
+        
+        if (!rb->empty())
         {
-            set_format(rb);
-            set_channels(rb);
-            set_status(rb.get_progress(),
-                       rb.get_memory(),
-                       rb.get_peak_memory(),
-                       rb.get_time(),
-                       rb.get_frame(),
-                       rb.get_version_str(),
-                       rb.get_samples());
+            set_format(rb->get_width(),
+                       rb->get_height(),
+                       rb->get_pixel_aspect());
+            
+            set_channels(rb->get_aovs(),
+                         rb->ready());
+            
+            set_status(rb->get_progress(),
+                       rb->get_memory(),
+                       rb->get_peak_memory(),
+                       rb->get_time(),
+                       rb->get_frame(),
+                       rb->get_name(),
+                       rb->get_version_str(),
+                       rb->get_samples());
             
             // Update Camera knobs
             if (m_node->m_live_camera)
-                m_node->set_camera(rb);
+                m_node->set_camera(rb->get_camera_fov(),
+                                   rb->get_camera_matrix());
         }
     }
     
@@ -152,17 +158,17 @@ void Aton::_validate(bool for_real)
 void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
 {
     ReadGuard lock(m_node->m_mutex);
-    FrameBuffer& fb = current_framebuffer();
-    std::vector<RenderBuffer>& rbs = fb.get_renderbuffers();
+    FrameBuffer* fb = current_framebuffer();
+    std::vector<RenderBuffer>& rbs = fb->get_renderbuffers();
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     
     int f = 0;
     if (!fbs.empty())
     {
         if (!m_multiframes)
-            f = fb.get_renderbuffer_index(fb.get_frame());
+            f = fb->get_renderbuffer_index(fb->get_frame());
         else
-            f = fb.get_renderbuffer_index(outputContext().frame());
+            f = fb->get_renderbuffer_index(outputContext().frame());
     }
     
     foreach(z, channels)
@@ -402,21 +408,45 @@ void Aton::flag_update(const Box& box)
     asapUpdate(box);
 }
 
-int Aton::get_session_index(const long long& session)
+FrameBuffer* Aton::get_framebuffer(const long long& session)
 {
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
-    
-    int fb_index = static_cast<int>(fbs.size());
     if (!fbs.empty())
     {
         std::vector<FrameBuffer>::iterator it;
         for(it = fbs.begin(); it != fbs.end(); ++it)
-        {
             if (it->get_session() == session)
-                fb_index = static_cast<int>(it - fbs.begin());
-        }
+                return &(*it);
     }
-    return fb_index;
+    return NULL;
+}
+
+FrameBuffer* Aton::add_framebuffer()
+{
+    FrameBuffer fb;
+    WriteGuard lock(m_node->m_mutex);
+    m_node->m_framebuffers.push_back(fb);
+    m_node->m_output_changed = Aton::item_added;
+    return &m_node->m_framebuffers.back();
+}
+
+FrameBuffer* Aton::current_framebuffer()
+{
+    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
+    int idx = m_node->current_fb_index(false);
+    return &fbs[idx];
+}
+
+RenderBuffer* Aton::current_renderbuffer()
+{
+    FrameBuffer* fb = current_framebuffer();
+
+    double frame;
+    if  (m_multiframes)
+        frame = outputContext().frame();
+    else
+        frame = fb->get_frame();
+    return fb->get_renderbuffer(frame);
 }
 
 int Aton::current_fb_index(bool direction)
@@ -435,38 +465,11 @@ int Aton::current_fb_index(bool direction)
     return idx;
 }
 
-FrameBuffer& Aton::add_framebuffer()
-{
-    FrameBuffer fb;
-    WriteGuard lock(m_node->m_mutex);
-    m_node->m_framebuffers.push_back(fb);
-    m_node->m_output_changed = Aton::item_added;
-    return m_node->m_framebuffers.back();
-}
-
-FrameBuffer& Aton::current_framebuffer()
-{
-    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
-    int idx = m_node->current_fb_index(false);
-    return fbs[idx];
-}
-
-RenderBuffer& Aton::current_renderbuffer()
-{
-    FrameBuffer& fb = current_framebuffer();
-
-    double frame;
-    if  (m_multiframes)
-        frame = outputContext().frame();
-    else
-        frame = fb.get_frame();
-    return fb.get_renderbuffer(frame);
-}
-
-void Aton::set_output(std::vector<FrameBuffer>& fbs)
+void Aton::set_output()
 {
     // Setup dynamic knob
     WriteGuard lock(m_node->m_mutex);
+    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     Table_KnobI* outputKnob = m_node->m_outputKnob->tableKnob();
     int& knob_changed = m_node->m_output_changed;
     
@@ -492,11 +495,14 @@ void Aton::set_output(std::vector<FrameBuffer>& fbs)
         
         outputKnob->deleteAllItems();
         
-        std::vector<FrameBuffer>::reverse_iterator it;
-        for(it = fbs.rbegin(); it != fbs.rend(); ++it)
+        if (!fbs.empty())
         {
-            int row = outputKnob->addRow();
-            outputKnob->setCellString(row, 0, it->get_output_name());
+            std::vector<FrameBuffer>::reverse_iterator it;
+            for(it = fbs.rbegin(); it != fbs.rend(); ++it)
+            {
+                int row = outputKnob->addRow();
+                outputKnob->setCellString(row, 0, it->get_output_name());
+            }
         }
         
         outputKnob->reset();
@@ -505,11 +511,9 @@ void Aton::set_output(std::vector<FrameBuffer>& fbs)
     }
 }
 
-void Aton::set_camera(RenderBuffer& rb)
+void Aton::set_camera(const float& fov,
+                      const Matrix4& matrix)
 {
-    const float& fov = rb.get_camera_fov();
-    const Matrix4& matrix = rb.get_camera_matrix();
-    
     std::string knob_value = (boost::format("%s")%fov).str();
     knob("cam_fov_knob")->set_text(knob_value.c_str());
     
@@ -527,13 +531,11 @@ void Aton::set_camera(RenderBuffer& rb)
     }
 }
 
-void Aton::set_format(RenderBuffer& rb)
+void Aton::set_format(const int& width,
+                      const int& height,
+                      const float& pixel_aspect)
 {
     // Set the format
-    const int& width = rb.get_width();
-    const int& height = rb.get_height();
-    const float& pixel_aspect = rb.get_pixel_aspect();
-    
     if (m_node->m_fmt.width() != width ||
         m_node->m_fmt.height() != height ||
         m_node->m_fmt.pixel_aspect() != pixel_aspect)
@@ -564,24 +566,22 @@ void Aton::set_format(RenderBuffer& rb)
     }
 }
 
-void Aton::set_channels(RenderBuffer& rb)
+void Aton::set_channels(std::vector<std::string>& aovs,
+                        const bool& ready)
 {
     // Set the channels
     ChannelSet& channels = m_node->m_channels;
     
-    if (m_enable_aovs && rb.ready())
+    if (m_enable_aovs && !aovs.empty() && ready)
     {
-        const int fb_size = static_cast<int>(rb.size());
-        
-        if (channels.size() != fb_size)
+        if (channels.size() != aovs.size())
             channels.clear();
         
-        for(int i = 0; i < fb_size; ++i)
+        std::vector<std::string>::iterator it;
+        for(it = aovs.begin(); it != aovs.end(); ++it)
         {
-            std::string bfName = rb.get_aov_name(i);
-            
             using namespace chStr;
-            if (bfName == RGBA && !channels.contains(Chan_Red))
+            if (*it == RGBA && !channels.contains(Chan_Red))
             {
                 channels.insert(Chan_Red);
                 channels.insert(Chan_Green);
@@ -589,32 +589,32 @@ void Aton::set_channels(RenderBuffer& rb)
                 channels.insert(Chan_Alpha);
                 continue;
             }
-            else if (bfName == Z && !channels.contains(Chan_Z))
+            else if (*it == Z && !channels.contains(Chan_Z))
             {
                 channels.insert(Chan_Z);
                 continue;
             }
-            else if (bfName == N || bfName == P)
+            else if (*it == N || *it == P)
             {
-                if (!channels.contains(channel((bfName + _X).c_str())))
+                if (!channels.contains(channel((*it + _X).c_str())))
                 {
-                    channels.insert(channel((bfName + _X).c_str()));
-                    channels.insert(channel((bfName + _Y).c_str()));
-                    channels.insert(channel((bfName + _Z).c_str()));
+                    channels.insert(channel((*it + _X).c_str()));
+                    channels.insert(channel((*it + _Y).c_str()));
+                    channels.insert(channel((*it + _Z).c_str()));
                 }
                 continue;
             }
-            else if (bfName == ID)
+            else if (*it == ID)
             {
-                if (!channels.contains(channel((bfName + _red).c_str())))
-                    channels.insert(channel((bfName + _red).c_str()));
+                if (!channels.contains(channel((*it + _red).c_str())))
+                    channels.insert(channel((*it + _red).c_str()));
                 continue;
             }
-            else if (!channels.contains(channel((bfName + _red).c_str())))
+            else if (!channels.contains(channel((*it + _red).c_str())))
             {
-                channels.insert(channel((bfName + _red).c_str()));
-                channels.insert(channel((bfName + _green).c_str()));
-                channels.insert(channel((bfName + _blue).c_str()));
+                channels.insert(channel((*it + _red).c_str()));
+                channels.insert(channel((*it + _green).c_str()));
+                channels.insert(channel((*it + _blue).c_str()));
             }
         }
     }
@@ -639,6 +639,7 @@ void Aton::set_status(const long long& progress,
                       const long long& p_ram,
                       const int& time,
                       const double& frame,
+                      const char* name,
                       const char* version,
                       const char* samples)
 {
@@ -646,18 +647,19 @@ void Aton::set_status(const long long& progress,
     const int minute = (time % 3600000) / 60000;
     const int second = ((time % 3600000) % 60000) / 1000;
     
-    FrameBuffer& fb = current_framebuffer();
+    FrameBuffer* fb = current_framebuffer();
     size_t f_size = 0;
     if (!m_node->m_framebuffers.empty())
-        f_size = fb.size();
+        f_size = fb->size();
     
     std::string status_str = (boost::format("Arnold %s | "
                                             "Memory: %sMB / %sMB | "
                                             "Time: %02ih:%02im:%02is | "
+                                            "Name: %s | "
                                             "Frame: %s(%s) | "
                                             "Samples: %s | "
                                             "Progress: %s%%")%version%ram%p_ram
-                                                             %hour%minute%second
+                                                             %hour%minute%second%name
                                                              %frame%f_size%samples%progress).str();
     Knob* statusKnob = m_node->knob("status_knob");
     if (m_node->m_running)
@@ -683,8 +685,8 @@ void Aton::multiframe_cmd()
     
     if (!fbs.empty())
     {
-        FrameBuffer& fb = current_framebuffer();
-        fb.set_frame(uiContext().frame());
+        FrameBuffer* fb = current_framebuffer();
+        fb->set_frame(uiContext().frame());
     }
     if (m_multiframes)
         Thread::spawn(::fb_updater, 1, m_node);
@@ -697,7 +699,7 @@ void Aton::select_output_cmd(Table_KnobI* outputKnob)
     
     if (!fbs.empty())
     {
-        FrameBuffer& fb = current_framebuffer();
+        FrameBuffer* fb = current_framebuffer();
         
         // Check if item has renamed from UI
         int idx = outputKnob->getSelectedRow();
@@ -705,13 +707,13 @@ void Aton::select_output_cmd(Table_KnobI* outputKnob)
         {
             std::string row_name = outputKnob->getCellString(idx, 0);
             
-            if (row_name != fb.get_output_name())
+            if (row_name != fb->get_output_name())
             {
-                fb.set_output_name(row_name);
+                fb->set_output_name(row_name);
             }
         }
 
-        double frame = fb.get_frame();
+        double frame = fb->get_frame();
         m_node->m_mutex.unlock();
         
         if (frame != outputContext().frame())
@@ -729,7 +731,7 @@ void Aton::snapshot_cmd()
     {
         int fb_index = current_fb_index(false);
         fb_index = fb_index > 0 ? fb_index-- : 0;
-        fbs.insert(fbs.begin() + fb_index, current_framebuffer());
+        fbs.insert(fbs.begin() + fb_index, *current_framebuffer());
         m_node->m_output_changed = Aton::item_copied;
         flag_update();
     }
@@ -847,9 +849,9 @@ void Aton::capture_cmd()
         double startFrame;
         double endFrame;
         
-        FrameBuffer& fb = current_framebuffer();
+        FrameBuffer* fb = current_framebuffer();
 
-        std::vector<double> sortedFrames = fb.frames();
+        std::vector<double> sortedFrames = fb->frames();
         std::stable_sort(sortedFrames.begin(), sortedFrames.end());
 
         if (m_multiframes && m_write_frames)

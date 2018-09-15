@@ -136,18 +136,22 @@ class Aton: public Iop
         void change_port(int port);
         void flag_update(const Box& box = Box(0,0,0,0));
 
-        FrameBuffer& add_framebuffer();
-        FrameBuffer& current_framebuffer();
-        RenderBuffer& current_renderbuffer();
-    
+        FrameBuffer* add_framebuffer();
+        FrameBuffer* current_framebuffer();
+        FrameBuffer* get_framebuffer(const long long& session);
+        RenderBuffer* current_renderbuffer();
+
         int current_fb_index(bool direction = true);
-        int get_session_index(const long long& session);
     
-        void set_output(std::vector<FrameBuffer>& fbs);
-        void set_format(RenderBuffer& rb);
-        void set_channels(RenderBuffer& rb);
+        void set_output();
+        void set_format(const int& width,
+                        const int& height,
+                        const float& pixel_aspect);
+        void set_channels(std::vector<std::string>& aovs,
+                          const bool& ready);
         void reset_channels(ChannelSet& channels);
-        void set_camera(RenderBuffer& rb);
+        void set_camera(const float& fov,
+                        const Matrix4& matrix);
         void set_current_frame(const double& frame);
         void set_status(const long long& progress = 0,
                         const long long& ram = 0,
@@ -155,7 +159,8 @@ class Aton: public Iop
                         const int& time = 0,
                         const double& frame = 0,
                         const char* version = "",
-                        const char* samples = "");
+                        const char* samples = "",
+                        const char* output = "");
     
         void live_camera_toogle();
         bool path_valid(std::string path);
