@@ -117,37 +117,37 @@ void Aton::_validate(bool for_real)
     if (m_inError)
         error(m_connection_error.c_str());
    
+    // Update Output
     set_output();
-    ReadGuard lock(m_node->m_mutex);
-    if (!m_node->m_framebuffers.empty())
-    {
-        RenderBuffer* rb = current_renderbuffer();
-        
-        if (!rb->empty())
-        {
-            set_format(rb->get_width(),
-                       rb->get_height(),
-                       rb->get_pixel_aspect());
-            
-            set_channels(rb->get_aovs(),
-                         rb->ready());
-            
-            set_status(rb->get_progress(),
-                       rb->get_memory(),
-                       rb->get_peak_memory(),
-                       rb->get_time(),
-                       rb->get_frame(),
-                       rb->get_name(),
-                       rb->get_version_str(),
-                       rb->get_samples());
-            
-            // Update Camera knobs
-            if (m_node->m_live_camera)
-                m_node->set_camera(rb->get_camera_fov(),
-                                   rb->get_camera_matrix());
-        }
-    }
     
+    ReadGuard lock(m_node->m_mutex);
+    RenderBuffer* rb = current_renderbuffer();
+
+    if (rb != NULL && !rb->empty())
+    {
+        set_format(rb->get_width(),
+                   rb->get_height(),
+                   rb->get_pixel_aspect());
+        
+        set_channels(rb->get_aovs(),
+                     rb->ready());
+        
+        // Udpate Status Bar
+        set_status(rb->get_progress(),
+                   rb->get_memory(),
+                   rb->get_peak_memory(),
+                   rb->get_time(),
+                   rb->get_frame(),
+                   rb->get_name(),
+                   rb->get_version_str(),
+                   rb->get_samples());
+        
+        // Update Camera
+        if (m_node->m_live_camera)
+            m_node->set_camera(rb->get_camera_fov(),
+                               rb->get_camera_matrix());
+    }
+
     // Setup format etc
     info_.format(*m_node->m_fmtp.format());
     info_.full_size_format(*m_node->m_fmtp.fullSizeFormat());
@@ -680,9 +680,9 @@ void Aton::multiframe_cmd()
     if (!fbs.empty())
     {
         FrameBuffer* fb = current_framebuffer();
-        fb->set_frame(uiContext().frame());
+        fb->set_frame(outputContext().frame());
     }
-    if (m_multiframes)
+    if (m_node->m_multiframes)
         Thread::spawn(::fb_updater, 1, m_node);
 }
 

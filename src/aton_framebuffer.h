@@ -103,6 +103,8 @@ public:
     // Check if Frame has been changed
     bool frame_changed(const double& frame) { return frame != _frame; }
     
+    bool name_changed(const char* name) { return strcmp(name, _name.c_str()); }
+    
     // Check if Aovs have been changed
     bool aovs_changed(const std::vector<std::string>& aovs);
     

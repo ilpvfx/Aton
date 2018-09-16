@@ -21,8 +21,8 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
         node->m_server.accept();
 
         // Data pointers
-        FrameBuffer* fb;
-        RenderBuffer* rb;
+        FrameBuffer* fb = NULL;
+        RenderBuffer* rb = NULL;
         
         // Our incoming data object
         int data_type = 0;
@@ -91,7 +91,10 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                                 fb = &fbs.back();
                             
                             if (!fb->renderbuffer_exists(_frame))
+                            {
                                 rb = fb->add_renderbuffer(&dh);
+                                node->m_output_changed = Aton::item_added;
+                            }
                             else
                                 fb->update_renderbuffer(&dh);
                         }
@@ -115,41 +118,45 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     }
                     
                     // Get current RenderBuffer
-                    rb = fb->get_renderbuffer(_frame);
+                    if (rb == NULL)
+                        rb = fb->get_renderbuffer(_frame);
                     
-                    // Reset Frame and Buffers if changed
-                    if (!rb->empty() && !active_aovs.empty())
+                    // Update Frame
+                    if (rb->frame_changed(_frame))
+                        rb->set_frame(_frame);
+                    
+                    // Update Name
+                    const char* _name = dh.output_name();
+                    if (rb->name_changed(_name))
+                        rb->set_name(_name);
+                    
+                    // Update Camera
+                    const float& _fov = dh.camera_fov();
+                    const Matrix4& _matrix = Matrix4(&dh.camera_matrix()[0]);
+                    if (rb->camera_changed(_fov, _matrix))
+                        rb->set_camera(_fov, _matrix);
+                    
+                    // Update Version
+                    const int& _version = dh.version();
+                    if (rb->get_version_int() != _version)
+                        rb->set_version(_version);
+                    
+                    // Update Samples
+                    const std::vector<int> _samples = dh.samples();
+                    if (rb->get_samples_int() != _samples)
+                        rb->set_samples(_samples);
+                    
+                    // Update AOVs
+                    if (!active_aovs.empty())
                     {
-                        if (rb->frame_changed(_frame))
-                            rb->set_frame(_frame);
-
                         if(rb->aovs_changed(active_aovs))
                         {
                             rb->resize(1);
                             rb->set_ready(false);
                             node->reset_channels(node->m_channels);
                         }
-                    }
-                    
-                    // Set Camera
-                    const float& _fov = dh.camera_fov();
-                    const Matrix4& _matrix = Matrix4(&dh.camera_matrix()[0]);
-                    if (rb->camera_changed(_fov, _matrix))
-                        rb->set_camera(_fov, _matrix);
-                    
-                    // Set Version
-                    const int& _version = dh.version();
-                    if (rb->get_version_int() != _version)
-                        rb->set_version(_version);
-                    
-                    // Set Samples
-                    const std::vector<int> _samples = dh.samples();
-                    if (rb->get_samples_int() != _samples)
-                        rb->set_samples(_samples);
-                    
-                    // Reset active AOVs
-                    if(!active_aovs.empty())
                         active_aovs.clear();
+                    }
                     
                     // Get delta time per IPR iteration
                     delta_time = active_time;
@@ -167,13 +174,6 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
 
                     // Get Render Buffer
                     WriteGuard lock(node->m_mutex);
-                    fb = node->get_framebuffer(session);
-                    
-                    if (fb == NULL)
-                        fb = &node->m_framebuffers.back();
-                    
-                    rb = fb->current_renderbuffer();
-
                     if(rb->resolution_changed(_xres, _yres))
                         rb->set_resolution(_xres, _yres);
 

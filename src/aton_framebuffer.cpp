@@ -360,9 +360,7 @@ RenderBuffer* FrameBuffer::add_renderbuffer(DataHeader* dh)
     
         if (!_frames.empty())
             rb = _renderbuffers.back();
-    
-        rb.set_name(dh->output_name());
-    
+
         _frame  = dh->frame();
         _session = dh->session();
         _frames.push_back(dh->frame());
@@ -377,7 +375,6 @@ void FrameBuffer::update_renderbuffer(DataHeader* dh)
     _output_name = (boost::format("%s_%d_%s")%dh->output_name()
                                              %dh->frame()%get_date()).str();
     _frame  = dh->frame();
-    current_renderbuffer()->set_name(dh->output_name());
 }
 
 // Clear All Data
