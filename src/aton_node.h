@@ -56,7 +56,6 @@ class Aton: public Iop
         FormatPair                m_fmtp;               // Buffer format (knob)
         ChannelSet                m_channels;           // Channels aka AOVs object
         int                       m_port;               // Port we're listening on (knob)
-        int                       m_slimit;             // The limit size
         int                       m_output_changed;     // If Snapshots needs to be updated
         float                     m_cam_fov;            // Default Camera fov
         float                     m_cam_matrix;         // Default Camera matrix value
@@ -74,7 +73,6 @@ class Aton: public Iop
         double                    m_region[4];          // Render Region Data
         std::string               m_node_name;          // Node name
         std::string               m_status;             // Status bar text
-        std::string               m_details;            // Render layer details
         std::string               m_connection_error;   // Connection error report
         Knob*                     m_outputKnob;         // Shapshots Knob
         std::vector<FrameBuffer>  m_framebuffers;       // Framebuffers List
@@ -84,7 +82,6 @@ class Aton: public Iop
                           m_fmt(Format(0, 0, 1.0)),
                           m_channels(Mask_RGBA),
                           m_port(get_port()),
-                          m_slimit(20),
                           m_cam_fov(0),
                           m_cam_matrix(0),
                           m_output_changed(0),
