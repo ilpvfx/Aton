@@ -180,7 +180,6 @@ private:
         mBucket_yo,
         mBucket_size_x,
         mBucket_size_y;
-;
     
     // Sample Per Pixel
     int mSpp;

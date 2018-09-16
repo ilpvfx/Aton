@@ -134,7 +134,6 @@ Client::Client(std::string hostname, int port): mHost(hostname),
                                                 mSocket(mIoService),
                                                 mIsConnected(false) {}
 
-
 Client::~Client()
 {
     disconnect();

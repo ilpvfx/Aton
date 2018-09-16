@@ -413,7 +413,6 @@ FrameBuffer* Aton::get_framebuffer(const long long& session)
 FrameBuffer* Aton::add_framebuffer()
 {
     FrameBuffer fb;
-    WriteGuard lock(m_node->m_mutex);
     m_node->m_framebuffers.push_back(fb);
     m_node->m_output_changed = Aton::item_added;
     return &m_node->m_framebuffers.back();
@@ -421,9 +420,8 @@ FrameBuffer* Aton::add_framebuffer()
 
 FrameBuffer* Aton::current_framebuffer()
 {
-    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     int idx = m_node->current_fb_index(false);
-    return &fbs[idx];
+    return &m_node->m_framebuffers[idx];
 }
 
 RenderBuffer* Aton::current_renderbuffer()
