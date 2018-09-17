@@ -123,7 +123,7 @@ void Aton::_validate(bool for_real)
     ReadGuard lock(m_node->m_mutex);
     RenderBuffer* rb = current_renderbuffer();
 
-    if (rb != NULL && !rb->empty())
+    if (rb != NULL && !rb->empty() && rb->ready())
     {
         set_format(rb->get_width(),
                    rb->get_height(),
@@ -413,15 +413,26 @@ FrameBuffer* Aton::get_framebuffer(const long long& session)
 FrameBuffer* Aton::add_framebuffer()
 {
     FrameBuffer fb;
-    m_node->m_framebuffers.push_back(fb);
+    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
+    
+    fbs.push_back(fb);
+    int index = static_cast<int>(fbs.size() - 1);
+   
+    m_node->m_fb_idx.push_back(index);
     m_node->m_output_changed = Aton::item_added;
-    return &m_node->m_framebuffers.back();
+    return &fbs.back();
 }
 
 FrameBuffer* Aton::current_framebuffer()
 {
-    int idx = m_node->current_fb_index(false);
-    return &m_node->m_framebuffers[idx];
+    std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
+    
+    if (!fbs.empty())
+    {
+        int idx = m_node->current_fb_index(false);
+        return &fbs[idx];
+    }
+    return NULL;
 }
 
 RenderBuffer* Aton::current_renderbuffer()
@@ -489,6 +500,7 @@ void Aton::set_output()
         
         if (!fbs.empty())
         {
+            std::vector<int>& idx = m_node->m_fb_idx;
             std::vector<FrameBuffer>::reverse_iterator it;
             for(it = fbs.rbegin(); it != fbs.rend(); ++it)
             {
@@ -649,7 +661,7 @@ void Aton::set_status(const long long& progress,
                                             "Time: %02ih:%02im:%02is | "
                                             "Name: %s | "
                                             "Frame: %s(%s) | "
-                                            "Samples: %s | "
+                                            "Sampling: %s | "
                                             "Progress: %s%%")%version%ram%p_ram
                                                              %hour%minute%second%name
                                                              %frame%f_size%samples%progress).str();

@@ -96,7 +96,10 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                                 node->m_output_changed = Aton::item_added;
                             }
                             else
+                            {
                                 fb->update_renderbuffer(&dh);
+                                node->m_output_changed = Aton::item_added;
+                            }
                         }
                     }
                     else
