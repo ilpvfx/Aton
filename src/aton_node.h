@@ -75,7 +75,6 @@ class Aton: public Iop
         std::string               m_status;             // Status bar text
         std::string               m_connection_error;   // Connection error report
         Knob*                     m_outputKnob;         // Shapshots Knob
-        std::vector<int>          m_fb_idx;
         std::vector<FrameBuffer>  m_framebuffers;       // Framebuffers List
 
         Aton(Node* node): Iop(node),

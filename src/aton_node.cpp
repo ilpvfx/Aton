@@ -416,9 +416,7 @@ FrameBuffer* Aton::add_framebuffer()
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     
     fbs.push_back(fb);
-    int index = static_cast<int>(fbs.size() - 1);
    
-    m_node->m_fb_idx.push_back(index);
     m_node->m_output_changed = Aton::item_added;
     return &fbs.back();
 }
@@ -500,7 +498,6 @@ void Aton::set_output()
         
         if (!fbs.empty())
         {
-            std::vector<int>& idx = m_node->m_fb_idx;
             std::vector<FrameBuffer>::reverse_iterator it;
             for(it = fbs.rbegin(); it != fbs.rend(); ++it)
             {
