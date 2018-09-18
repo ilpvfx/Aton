@@ -34,7 +34,7 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
         int active_time = 0, delta_time = 0;
         
         // For progress percentage
-        long long progress = 0, region_area = 0;
+        long long progress = 0, region_area = 0, rendered_area = 0;
         
         // Active Aovs names holder
         std::vector<std::string> active_aovs;
@@ -70,6 +70,7 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     
                     // Get image area to calculate the progress
                     region_area = dh.region_area();
+                    rendered_area = dh.region_area();
                     
                     // Set Frame on Timeline
                     const double& _frame = static_cast<double>(dh.frame());
@@ -241,7 +242,7 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                         {
                             // Calculate the progress percentage
                             region_area -= _width * _height;
-                            progress = 100 - (region_area * 100) / (w * h);
+                            progress = 100 - (rendered_area * 100) / region_area;
                             
                             // Set status parameters
                             rb->set_progress(progress);
