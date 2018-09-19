@@ -10,7 +10,6 @@ All rights reserved. See COPYING.txt for more details.
 #include <DDImage/Iop.h>
 #include "aton_client.h"
 
-
 using namespace DD::Image;
 
 std::string get_date();
@@ -18,7 +17,7 @@ std::string get_date();
 namespace chStr
 {
     extern const std::string RGBA, rgb, depth, Z, N, P, ID,
-    _red, _green, _blue, _X, _Y, _Z;
+                             _red, _green, _blue, _X, _Y, _Z;
 }
 
 // Unpack 1 int to 4

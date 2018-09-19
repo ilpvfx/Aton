@@ -74,8 +74,7 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     
                     // Set Frame on Timeline
                     const double& _frame = static_cast<double>(dh.frame());
-                    if (_frame != node->outputContext().frame())
-                        node->set_current_frame(_frame);
+                    node->set_current_frame(_frame);
 
                     bool& multiframe = node->m_multiframes;
                     std::vector<FrameBuffer>& fbs = node->m_framebuffers;
@@ -241,7 +240,7 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                         if(!node->m_capturing && rb->first_aov_name(_aov_name))
                         {
                             // Calculate the progress percentage
-                            region_area -= _width * _height;
+                            rendered_area -= _width * _height;
                             progress = 100 - (rendered_area * 100) / region_area;
                             
                             // Set status parameters

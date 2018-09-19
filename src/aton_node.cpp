@@ -14,51 +14,24 @@ All rights reserved. See COPYING.txt for more details.
 #include <boost/filesystem.hpp>
 #include <boost/algorithm/string.hpp>
 
-int Aton::get_port()
-{
-    const char* def_port = getenv("ATON_PORT");
-    int aton_port;
-    
-    if (def_port == NULL)
-        aton_port = 9201;
-    else
-        aton_port = atoi(def_port);
-    
-    return aton_port;
-}
-
-std::string Aton::get_path()
-{
-    char* aton_path = getenv("ATON_CAPTURE_PATH");
-    
-    // Get OS specific tmp directory path
-    using namespace boost::filesystem;
-    std::string def_path = temp_directory_path().string();
-    
-    if (aton_path != NULL)
-        def_path = aton_path;
-    
-    boost::replace_all(def_path, "\\", "/");
-    
-    return def_path;
-}
-
 void Aton::attach()
 {
     m_legit = true;
 
-    // Reset Snapshots
-    Table_KnobI* outputKnob = m_node->m_outputKnob->tableKnob();
-    outputKnob->deleteAllItems();
-    outputKnob->reset();
-
     // Default status bar
     set_status();
-
+    
     // We don't need to see these knobs
     knob("formats_knob")->hide();
     knob("capturing_knob")->hide();
     knob("cam_fov_knob")->hide();
+    
+    // Reset Region
+    knob("region_knob")->set_value(0);
+    
+    // Reset Snapshots
+    m_node->m_outputKnob->tableKnob()->deleteAllItems();
+    m_node->m_outputKnob->tableKnob()->reset();
 
     for (int i=0; i<16; i++)
     {
@@ -66,22 +39,17 @@ void Aton::attach()
         knob(knob_name.c_str())->hide();
     }
 
-    // Reset Region
-    knob("region_knob")->set_value(0);
-
     // Construct full path for capturing
-    m_node_name = node_name();
     using namespace boost::filesystem;
+    m_node_name = node_name();
     path dir = get_path();
-    path file = m_node_name + std::string(".exr");
-    path fullPath = dir / file;
-    std::string str_path = fullPath.string();
+    path file = m_node_name + ".exr";
+    std::string str_path = (dir / file).string();
     boost::replace_all(str_path, "\\", "/");
     knob("path_knob")->set_text(str_path.c_str());
 
-    // Check if the format is already exist
-    unsigned int i;
-    for (i = 0; i < Format::size(); ++i)
+    // Check if the format already exist
+    for (int i = 0; i < Format::size(); ++i)
     {
         const char* f_name = Format::index(i)->name();
         if (f_name != NULL && m_node_name == f_name)
@@ -98,6 +66,7 @@ void Aton::detach()
     // undo stack) we should close the port and reopen if attach() gets called.
     m_legit = false;
     disconnect();
+    WriteGuard lock(m_node->m_mutex);
     m_node->m_framebuffers = std::vector<FrameBuffer>();
 }
 
@@ -117,18 +86,20 @@ void Aton::_validate(bool for_real)
     if (m_inError)
         error(m_connection_error.c_str());
    
-    // Update Output
-    set_output();
+    // Update Outputs
+    set_outputs();
     
     ReadGuard lock(m_node->m_mutex);
     RenderBuffer* rb = current_renderbuffer();
 
     if (rb != NULL && !rb->empty() && rb->ready())
     {
+        // Update Format
         set_format(rb->get_width(),
                    rb->get_height(),
                    rb->get_pixel_aspect());
         
+        // Update Channels
         set_channels(rb->get_aovs(),
                      rb->ready());
         
@@ -143,9 +114,11 @@ void Aton::_validate(bool for_real)
                    rb->get_samples());
         
         // Update Camera
-        if (m_node->m_live_camera)
-            m_node->set_camera(rb->get_camera_fov(),
-                               rb->get_camera_matrix());
+        set_camera(rb->get_camera_fov(),
+                   rb->get_camera_matrix());
+        
+        // Update UI Frame
+        set_current_frame(rb->get_frame());
     }
 
     // Setup format etc
@@ -337,9 +310,8 @@ int Aton::knob_changed(Knob* _knob)
 // We can use this to change our tcp port
 void Aton::change_port(int port)
 {
-    m_inError = false;
     m_legit = false;
-    m_connection_error = "";
+    m_inError = false;
 
     // Try to reconnect
     disconnect();
@@ -374,6 +346,35 @@ void Aton::change_port(int port)
             knob("port_knob")->set_text(port.c_str());
         }
     }
+}
+
+int Aton::get_port()
+{
+    const char* def_port = getenv("ATON_PORT");
+    int aton_port;
+    
+    if (def_port == NULL)
+        aton_port = 9201;
+    else
+        aton_port = atoi(def_port);
+    
+    return aton_port;
+}
+
+std::string Aton::get_path()
+{
+    char* aton_path = getenv("ATON_CAPTURE_PATH");
+    
+    // Get OS specific tmp directory path
+    using namespace boost::filesystem;
+    std::string def_path = temp_directory_path().string();
+    
+    if (aton_path != NULL)
+        def_path = aton_path;
+    
+    boost::replace_all(def_path, "\\", "/");
+    
+    return def_path;
 }
 
 // Disconnect the server for it's port
@@ -412,11 +413,8 @@ FrameBuffer* Aton::get_framebuffer(const long long& session)
 
 FrameBuffer* Aton::add_framebuffer()
 {
-    FrameBuffer fb;
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
-    
-    fbs.push_back(fb);
-   
+    fbs.push_back(FrameBuffer());
     m_node->m_output_changed = Aton::item_added;
     return &fbs.back();
 }
@@ -466,7 +464,7 @@ int Aton::current_fb_index(bool direction)
     return idx;
 }
 
-void Aton::set_output()
+void Aton::set_outputs()
 {
     // Setup dynamic knob
     WriteGuard lock(m_node->m_mutex);
@@ -509,26 +507,6 @@ void Aton::set_output()
         outputKnob->reset();
         outputKnob->selectRow(idx);
         knob_changed = Aton::item_not_changed;
-    }
-}
-
-void Aton::set_camera(const float& fov,
-                      const Matrix4& matrix)
-{
-    std::string knob_value = (boost::format("%s")%fov).str();
-    knob("cam_fov_knob")->set_text(knob_value.c_str());
-    
-    int k_index = 0;
-    for (int i=0; i<4; i++)
-    {
-        for (int j=0; j<4; j++)
-        {
-            const float value_m = *(matrix[i]+j);
-            knob_value = (boost::format("%s")%value_m).str();
-            std::string knob_name = (boost::format("cM%s")%k_index).str();
-            knob(knob_name.c_str())->set_text(knob_value.c_str());
-            k_index++;
-        }
     }
 }
 
@@ -635,6 +613,32 @@ void Aton::reset_channels(ChannelSet& channels)
     }
 }
 
+void Aton::set_camera(const float& fov,
+                      const Matrix4& matrix)
+{
+    const char* knob_name;
+    for (int i=0, k=0; i<4; i++)
+    {
+        for (int j=0; j<4; j++)
+        {
+            knob_name = (boost::format("cM%s")%k++).str().c_str();
+            knob(knob_name)->set_value(*(matrix[i]+j));
+        }
+    }
+    knob("cam_fov_knob")->set_value(fov);
+}
+
+void Aton::set_current_frame(const double& frame)
+{
+    // Set Current Frame and update the UI
+    OutputContext ctxt = outputContext();
+    if (frame != ctxt.frame())
+    {
+        ctxt.setFrame(frame);
+        gotoContext(ctxt, true);
+    }
+}
+
 void Aton::set_status(const long long& progress,
                       const long long& ram,
                       const long long& p_ram,
@@ -671,14 +675,6 @@ void Aton::set_status(const long long& progress,
     statusKnob->set_text(status_str.c_str());
 }
 
-void Aton::set_current_frame(const double& frame)
-{
-    // Set Current Frame and update the UI
-    OutputContext ctxt = outputContext();
-    ctxt.setFrame(frame);
-    gotoContext(ctxt, true);
-}
-
 void Aton::multiframe_cmd()
 {
     WriteGuard lock(m_node->m_mutex);
@@ -695,7 +691,7 @@ void Aton::multiframe_cmd()
 
 void Aton::select_output_cmd(Table_KnobI* outputKnob)
 {
-    m_node->m_mutex.writeLock();
+    WriteGuard lock(m_node->m_mutex);
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     
     if (!fbs.empty())
@@ -704,22 +700,13 @@ void Aton::select_output_cmd(Table_KnobI* outputKnob)
         
         // Check if item has renamed from UI
         int idx = outputKnob->getSelectedRow();
+        
         if (idx >= 0 && m_node->m_output_changed == Aton::item_not_changed)
         {
             std::string row_name = outputKnob->getCellString(idx, 0);
-            
             if (row_name != fb->get_output_name())
-            {
                 fb->set_output_name(row_name);
-            }
         }
-
-        double frame = fb->get_frame();
-        m_node->m_mutex.unlock();
-        
-        if (frame != outputContext().frame())
-            set_current_frame(frame);
-        
         flag_update();
     }
 }
@@ -858,7 +845,7 @@ void Aton::capture_cmd()
 
         if (m_multiframes && m_write_frames)
         {
-            timeFrameSuffix += "_" + std::string("####");
+            timeFrameSuffix = "_" + std::string("####");
             startFrame = sortedFrames.front();
             endFrame = sortedFrames.back();
 
@@ -870,7 +857,7 @@ void Aton::capture_cmd()
         }
         else
         {
-            timeFrameSuffix += "_" + get_date();
+            timeFrameSuffix = "_" + fb->get_output_name();
             startFrame = endFrame = uiContext().frame();
             frames = (boost::format("%s")%uiContext().frame()).str();
         }
@@ -926,8 +913,7 @@ void Aton::import_cmd(bool all)
     if (!captures.empty())
     {
         using namespace boost::filesystem;
-        path filepath(m_path);
-        path dir = filepath.parent_path();
+        path dir = path(m_path).parent_path();
 
         // Reverse iterating through vector
         std::vector<std::string>::reverse_iterator it;
@@ -936,9 +922,7 @@ void Aton::import_cmd(bool all)
             if (all == false && it != captures.rbegin())
                 continue;
 
-            path file = *it;
-            path path = dir / file;
-            std::string str_path = path.string();
+            std::string str_path = (dir / *it).string();
             boost::replace_all(str_path, "\\", "/");
 
             std::string cmd; // Our python command buffer

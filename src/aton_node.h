@@ -140,7 +140,7 @@ class Aton: public Iop
 
         int current_fb_index(bool direction = true);
     
-        void set_output();
+        void set_outputs();
         void set_format(const int& width,
                         const int& height,
                         const float& pixel_aspect);
