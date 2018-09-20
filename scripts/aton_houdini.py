@@ -1,6 +1,3 @@
-__copyright__ = "2018 All rights reserved. See Copyright.txt for more details."
-__version__ = "1.3.0"
-
 import os
 from functools import partial
 
@@ -11,6 +8,10 @@ from htoa.node.parms import HaNodeSetStr
 from htoa.node.node import nodeSetArrayString
 
 from arnold import *
+
+__copyright__ = "2018 All rights reserved. See Copyright.txt for more details."
+__version__ = "1.3.0"
+
 
 def warn(msg, *params):
     header = '[%s] ' % __name__
@@ -23,6 +24,7 @@ def atonPatch():
     # generate method once.
     if htoa.object.rop.HaRop.generate.__name__ == 'generate':
         htoa.session.HaRop.generate = generateDecorated(htoa.session.HaRop.generate)
+
 
 def atonUpdate(self):
     
@@ -64,6 +66,7 @@ def atonUpdate(self):
                 warn("Aton is not Enabled.")
         else:
             warn("Aton Enabling User Option was not found.")
+
 
 def generateDecorated(func):
     def generateDecorator(self, *args, **kwargs):
@@ -396,7 +399,7 @@ class Aton(QtWidgets.QWidget):
     
     def __init__(self):
         QtWidgets.QWidget.__init__(self)
-        
+
         # Properties
         self._output = None
         
@@ -408,6 +411,7 @@ class Aton(QtWidgets.QWidget):
         # Init UI
         self.objName = self.__class__.__name__.lower()
         self.setObjectName(self.objName)
+        self.deleteInstances()
         self.setWindowTitle(self.__class__.__name__)
         self.setProperty("saveWindowPref", True)
         self.setProperty("houdiniStyle", True)
@@ -415,7 +419,6 @@ class Aton(QtWidgets.QWidget):
         self.setWindowIcon(QtGui.QIcon(self.icon_path))
 
         # Setup UI
-        self.deleteInstances()
         self.setupUI()
         
     @property
@@ -685,6 +688,12 @@ class Aton(QtWidgets.QWidget):
     def deleteInstances(self):
         for w in QtWidgets.QApplication.instance().topLevelWidgets():
             if w.objectName() == self.objName:
+                try:
+                    if w.ipr.isActive():
+                        w.ipr.killRender()
+                    w.removeAtonOverrides()
+                except hou.ObjectWasDeleted:
+                    pass
                 w.destroy()
     
     def closeEvent(self, event):
@@ -692,7 +701,7 @@ class Aton(QtWidgets.QWidget):
 
         if self.ipr.isActive():
             self.ipr.killRender()
-        
+
         self.removeAtonOverrides()
 
     def getNukeCropNode(self, *args):
