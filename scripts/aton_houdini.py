@@ -1,3 +1,6 @@
+__copyright__ = "2018 All rights reserved. See Copyright.txt for more details."
+__version__ = "1.3.0"
+
 import os
 from functools import partial
 
@@ -8,9 +11,6 @@ from htoa.node.parms import HaNodeSetStr
 from htoa.node.node import nodeSetArrayString
 
 from arnold import *
-
-__copyright__ = "2018 All rights reserved. See Copyright.txt for more details."
-__version__ = "1.3.0"
 
 
 def warn(msg, *params):
