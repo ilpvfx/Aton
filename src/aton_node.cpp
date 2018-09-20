@@ -269,7 +269,7 @@ int Aton::knob_changed(Knob* _knob)
         remove_selected_cmd();
         return 1;
     }
-    if (_knob->is("tak_snapshot_knob"))
+    if (_knob->is("take_snapshot_knob"))
     {
         snapshot_cmd();
         return 1;
