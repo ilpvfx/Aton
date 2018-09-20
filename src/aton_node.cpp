@@ -157,8 +157,8 @@ void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
                 *cOut = 0.0f;
             else
                 *cOut = rb->get_aov_pix(b, xx, y, c);
-            ++cOut;
-            ++xx;
+            cOut++;
+            xx++;
         }
     }
 }
@@ -780,33 +780,30 @@ void Aton::copy_region_cmd()
     script_unlock();
 }
 
-bool Aton::path_valid(std::string path)
+bool Aton::path_valid(std::string f_path)
 {
-    boost::filesystem::path filepath(path);
-    boost::filesystem::path dir = filepath.parent_path();
-    return boost::filesystem::exists(dir);
+    using namespace boost::filesystem;
+    return exists(path(f_path).parent_path());
 }
 
 std::vector<std::string> Aton::get_captures()
 {
     // Our captured filenames list
+    using namespace boost::filesystem;
     std::vector<std::string> results;
-    
+
     // If the directory exist
     if (path_valid(m_path))
-    {
-        using namespace boost::filesystem;
+    {    
         path filepath(m_path);
-        directory_iterator it(filepath.parent_path());
-        directory_iterator end;
-        
         // Regex expression to find captured files
-        std::string exp = ( boost::format("%s.+.%s")%filepath.stem().string()
+        std::string exp = (boost::format("%s.+.%s")%filepath.stem().string()
                            %filepath.extension().string() ).str();
         const boost::regex filter(exp);
         
         // Iterating through directory to find matching files
-        BOOST_FOREACH(path const& p, std::make_pair(it, end))
+        directory_iterator it(filepath.parent_path());
+        BOOST_FOREACH(path const& p, std::make_pair(it, directory_iterator()))
         {
             if(is_regular_file(p))
             {
