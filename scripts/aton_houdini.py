@@ -421,8 +421,13 @@ class Aton(QtWidgets.QWidget):
     @property
     def icon_path(self):
         path = os.path.split(__file__)
+
         if path:
-            return os.path.join(path[0], 'aton_icon.png')
+            path = os.path.abspath(os.path.join(path[0], os.pardir))
+            path = os.path.abspath(os.path.join(path, os.pardir))
+            path = os.path.abspath(os.path.join(path, os.pardir))
+            path = os.path.join(path, 'config/Icons/aton_icon.png')
+            return path
         
     @property
     def ipr(self):
