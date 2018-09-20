@@ -33,7 +33,7 @@ void Aton::attach()
     m_node->m_outputKnob->tableKnob()->deleteAllItems();
     m_node->m_outputKnob->tableKnob()->reset();
 
-    for (int i=0; i<16; i++)
+    for (int i=0; i<16; ++i)
     {
         std::string knob_name = (boost::format("cM%s")%i).str();
         knob(knob_name.c_str())->hide();
@@ -157,8 +157,8 @@ void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
                 *cOut = 0.0f;
             else
                 *cOut = rb->get_aov_pix(b, xx, y, c);
-            cOut++;
-            xx++;
+            ++cOut;
+            ++xx;
         }
     }
 }
@@ -214,7 +214,7 @@ void Aton::knobs(Knob_Callback f)
     Bool_knob(f, &m_capturing, "capturing_knob");
     Float_knob(f, &m_cam_fov, "cam_fov_knob", " cFov");
     
-    for (int i=0; i<16; i++)
+    for (int i=0; i<16; ++i)
     {
         std::string knob_name = (boost::format("cM%s")%i).str();
         Float_knob(f, &m_cam_matrix, knob_name.c_str(), knob_name.c_str());
@@ -392,7 +392,7 @@ void Aton::flag_update(const Box& box)
     if (m_node->m_hash_count == UINT_MAX)
         m_node->m_hash_count = 0;
     else
-        m_node->m_hash_count++;
+        ++m_node->m_hash_count;
 
     // Update the image with current bucket if given
     asapUpdate(box);
@@ -480,9 +480,9 @@ void Aton::set_outputs()
         {
             case Aton::item_added: idx = 0;
                 break;
-            case Aton::item_moved_up: idx--;
+            case Aton::item_moved_up: --idx;
                 break;
-            case Aton::item_moved_down: idx++;
+            case Aton::item_moved_down: ++idx;
                 break;
             case Aton::item_removed:
             {
@@ -617,9 +617,9 @@ void Aton::set_camera(const float& fov,
                       const Matrix4& matrix)
 {
     const char* knob_name;
-    for (int i=0, k=0; i<4; i++)
+    for (int i=0, k=0; i<4; ++i)
     {
-        for (int j=0; j<4; j++)
+        for (int j=0; j<4; ++j)
         {
             knob_name = (boost::format("cM%s")%k++).str().c_str();
             knob(knob_name)->set_value(*(matrix[i]+j));
