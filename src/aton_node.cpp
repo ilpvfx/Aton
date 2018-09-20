@@ -823,10 +823,9 @@ std::vector<std::string> Aton::get_captures()
 void Aton::capture_cmd()
 {
     ReadGuard lock(m_node->m_mutex);
-    std::string path = std::string(m_path);
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
 
-    if (!fbs.empty() && path_valid(path))
+    if (!fbs.empty() && path_valid(m_path))
     {
         // Add date or frame suffix to the path
         std::string key (".");
@@ -860,6 +859,7 @@ void Aton::capture_cmd()
         }
 
         timeFrameSuffix += ".";
+        std::string path = std::string(m_path);
         std::size_t found = path.rfind(key);
         if (found != std::string::npos)
             path.replace(found, key.length(), timeFrameSuffix);

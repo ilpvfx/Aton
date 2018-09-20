@@ -206,15 +206,14 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                         // Set active time
                         active_time = _time;
 
-                        // Get framebuffer width and height
-                        const int& w = rb->get_width();
-                        const int& h = rb->get_height();
-
                         // Adding buffer
                         if(!rb->aov_exists(_aov_name) && (node->m_enable_aovs || rb->empty()))
                             rb->add_aov(_aov_name, _spp);
                         else
                             rb->set_ready(true);
+
+                        // Get RenderBuffer height
+                        const int& h = rb->get_height();
 
                         // Get buffer index
                         const int b = rb->get_aov_index(_aov_name);
