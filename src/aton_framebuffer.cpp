@@ -37,6 +37,7 @@ const std::vector<int> unpack_4_int(const int& i)
     return out;
 }
 
+
 // Lightweight color pixel class
 RenderColor::RenderColor() { _val[0] = _val[1] = _val[2] = 0.0f; }
 
@@ -45,7 +46,6 @@ float& RenderColor::operator[](int i) { return _val[i]; }
 const float& RenderColor::operator[](int i) const { return _val[i]; }
 
 void RenderColor::reset() { _val[0] = _val[1] = _val[2] = 0.0f; }
-
 
 
 // AOVBuffer class
@@ -392,5 +392,3 @@ bool FrameBuffer::renderbuffer_exists(double frame)
     else
         return 0;
 }
-
-
