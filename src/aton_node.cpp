@@ -185,7 +185,7 @@ void Aton::knobs(Knob_Callback f)
         outputKnob->addStringColumn("snapshots", "", true, 512);
     }
     Newline(f);
-    Knob* snapshot = Button(f, "snapshot_knob", "<img src=\":qrc/images/ScriptEditor/load.png\">");
+    Knob* snapshot = Button(f, "tak_snapshot_knob", "<img src=\":qrc/images/ScriptEditor/load.png\">");
     Knob* move_up = Button(f, "move_up_knob", "<img src=\":qrc/images/ScriptEditor/inputOff.png\">");
     Knob* move_down = Button(f, "move_down_knob", "<img src=\":qrc/images/ScriptEditor/outputOff.png\">");
     Knob* remove_selectd = Button(f, "remove_selected_knob", "<img src=\":qrc/images/ScriptEditor/clearOutput.png\">");
@@ -269,7 +269,7 @@ int Aton::knob_changed(Knob* _knob)
         remove_selected_cmd();
         return 1;
     }
-    if (_knob->is("snapshot_knob"))
+    if (_knob->is("tak_snapshot_knob"))
     {
         snapshot_cmd();
         return 1;
