@@ -400,6 +400,9 @@ class Aton(QtWidgets.QWidget):
     
     def __init__(self):
         QtWidgets.QWidget.__init__(self)
+        
+        self.objName = self.__class__.__name__.lower()
+        self.deleteInstances()
 
         # Properties
         self._output = None
@@ -410,9 +413,7 @@ class Aton(QtWidgets.QWidget):
         self.outputsList = [Output(rop) for rop in getOutputDrivers()]
 
         # Init UI
-        self.objName = self.__class__.__name__.lower()
         self.setObjectName(self.objName)
-        self.deleteInstances()
         self.setWindowTitle(self.__class__.__name__)
         self.setProperty("saveWindowPref", True)
         self.setProperty("houdiniStyle", True)
@@ -504,7 +505,7 @@ class Aton(QtWidgets.QWidget):
             # IPR Update Layout
             IPRUpdateLayout = QtWidgets.QHBoxLayout()
             self.IPRUpdateCheckBox = CheckBox('IPR', " Auto Update")
-            self.IPRUpdateCheckBox.setChecked(True)
+            self.IPRUpdateCheckBox.setChecked(self.ipr.isAutoUpdateOn())
             self.IPRUpdateCheckBox.stateChanged.connect(lambda: self.ipr.setAutoUpdate(
                                                                 self.IPRUpdateCheckBox.isChecked()))
             IPRUpdateLayout.addWidget(self.IPRUpdateCheckBox)
@@ -692,7 +693,7 @@ class Aton(QtWidgets.QWidget):
                 try:
                     if w.ipr.isActive():
                         w.ipr.killRender()
-                    w.removeAtonOverrides()
+                        w.removeAtonOverrides()
                 except hou.ObjectWasDeleted:
                     pass
                 w.destroy()
@@ -702,7 +703,6 @@ class Aton(QtWidgets.QWidget):
 
         if self.ipr.isActive():
             self.ipr.killRender()
-
         self.removeAtonOverrides()
 
     def getNukeCropNode(self, *args):
