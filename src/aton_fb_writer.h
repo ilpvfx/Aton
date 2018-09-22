@@ -111,6 +111,11 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                                 fb = node->add_framebuffer();
                                 rb = fb->add_renderbuffer(&dh);
                             }
+                            else
+                            {
+                                fb->update_renderbuffer(&dh);
+                                node->m_output_changed = Aton::item_added;
+                            }
                         }
                     }
                     
@@ -127,11 +132,6 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     // Update Frame
                     if (rb->frame_changed(_frame))
                         rb->set_frame(_frame);
-                    
-                    // Update Name
-                    const char* _name = dh.output_name();
-                    if (rb->name_changed(_name))
-                        rb->set_name(_name);
                     
                     // Update Camera
                     const float& _fov = dh.camera_fov();

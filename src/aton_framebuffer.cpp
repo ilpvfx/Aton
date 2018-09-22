@@ -203,7 +203,7 @@ std::string RenderBuffer::get_aov_name(const int& aov_index)
 // Get last buffer/aov name
 bool RenderBuffer::first_aov_name(const char* aovName)
 {
-    return strcmp(_aovs.front().c_str(), aovName) == 0;;
+    return strcmp(_aovs.front().c_str(), aovName) == 0;
 }
 
 // Check if Aovs has been changed
