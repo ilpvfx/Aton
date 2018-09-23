@@ -129,6 +129,11 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     if (rb == NULL)
                         rb = fb->get_renderbuffer(_frame);
                     
+                    // Update Name
+                    const char* _name = dh.output_name();
+                    if (rb->name_changed(_name))
+                        rb->set_name(_name);
+                    
                     // Update Frame
                     if (rb->frame_changed(_frame))
                         rb->set_frame(_frame);
