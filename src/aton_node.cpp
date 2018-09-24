@@ -423,7 +423,10 @@ FrameBuffer* Aton::current_framebuffer()
     if (!fbs.empty())
     {
         int idx = m_node->current_fb_index(false);
-        return &fbs[idx];
+        if (idx < 0)
+            return &fbs[0];
+        else
+            return &fbs[idx];
     }
     return NULL;
 }
@@ -449,14 +452,9 @@ int Aton::current_fb_index(bool direction)
 {
     Table_KnobI* outputKnob = m_node->m_outputKnob->tableKnob();
     int idx = outputKnob->getSelectedRow();
-    if (idx < 0)
-        return 0;
-    
-    if (!direction)
-    {
-        int count = outputKnob->getRowCount();
-        idx = count - idx - 1;
-    }
+
+    if (idx >= 0 && !direction)
+        return outputKnob->getRowCount() - idx - 1;
     
     return idx;
 }
@@ -473,21 +471,26 @@ void Aton::set_outputs()
     {
         int idx = current_fb_index();
         
-        switch (knob_changed)
+        if (idx >= 0)
         {
-            case Aton::item_added: idx = 0;
-                break;
-            case Aton::item_moved_up: --idx;
-                break;
-            case Aton::item_moved_down: ++idx;
-                break;
-            case Aton::item_removed:
+            switch (knob_changed)
             {
-                if (idx >= fbs.size())
-                    idx = static_cast<int>(fbs.size() - 1);
-                break;
+                case Aton::item_added: idx = 0;
+                    break;
+                case Aton::item_moved_up: --idx;
+                    break;
+                case Aton::item_moved_down: ++idx;
+                    break;
+                case Aton::item_removed:
+                {
+                    if (idx >= fbs.size())
+                        idx = static_cast<int>(fbs.size() - 1);
+                    break;
+                }
             }
         }
+        else
+            idx = 0;
         
         outputKnob->deleteAllItems();
         
@@ -719,12 +722,15 @@ void Aton::snapshot_cmd()
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     if (!fbs.empty())
     {
-        int fb_index = current_fb_index(false);
-        fb_index = fb_index > 0 ? fb_index-- : 0;
-        fbs.insert(fbs.begin() + fb_index, *current_framebuffer());
-        fbs[fb_index].set_session(0);
-        m_node->m_output_changed = Aton::item_copied;
-        flag_update();
+        int idx = current_fb_index(false);
+        if (idx >= 0)
+        {
+            idx = idx > 0 ? idx-- : 0;
+            fbs.insert(fbs.begin() + idx, *current_framebuffer());
+            fbs[idx].set_session(0);
+            m_node->m_output_changed = Aton::item_copied;
+            flag_update();
+        }
     }
 }
 
@@ -735,17 +741,20 @@ void Aton::move_cmd(bool direction)
     if (!fbs.empty())
     {
         int idx = m_node->current_fb_index(false);
-        if (direction && idx < (fbs.size()-1))
+        if (idx >= 0)
         {
-            std::swap(fbs[idx], fbs[idx + 1]);
-            m_node->m_output_changed = Aton::item_moved_up;;
-        }
-        else if (!direction && idx != 0)
-        {
-            std::swap(fbs[idx], fbs[idx - 1]);
-            m_node->m_output_changed = Aton::item_moved_down;
-        }
-        flag_update();
+            if (direction && idx < (fbs.size()-1))
+            {
+                std::swap(fbs[idx], fbs[idx + 1]);
+                m_node->m_output_changed = Aton::item_moved_up;;
+            }
+            else if (!direction && idx != 0)
+            {
+                std::swap(fbs[idx], fbs[idx - 1]);
+                m_node->m_output_changed = Aton::item_moved_down;
+            }
+            flag_update();
+       }
     }
 }
 
@@ -756,14 +765,17 @@ void Aton::remove_selected_cmd()
     if (!fbs.empty() && !m_node->m_running)
     {
         int idx = m_node->current_fb_index(false);
-        current_renderbuffer()->set_ready(false);
-        m_node->m_output_changed = Aton::item_removed;
+        if (idx >= 0)
+        {
+            current_renderbuffer()->set_ready(false);
+            m_node->m_output_changed = Aton::item_removed;
 
-        fbs.erase(fbs.begin() + idx);
-        if (fbs.empty())
-            set_status();
+            fbs.erase(fbs.begin() + idx);
+            if (fbs.empty())
+                set_status();
 
-        flag_update();
+            flag_update();
+        }
     }
 }
 
