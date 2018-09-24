@@ -704,11 +704,12 @@ void Aton::select_output_cmd(Table_KnobI* outputKnob)
             if (row_name != fb->get_output_name())
                 fb->set_output_name(row_name);
         }
+        double frame = fb->get_frame();
         m_node->m_mutex.unlock();
-        flag_update();
 
         // Update UI Frame
-        set_current_frame(fb->get_frame());
+        set_current_frame(frame);
+        flag_update();
     }
 }
 
