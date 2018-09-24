@@ -116,9 +116,6 @@ void Aton::_validate(bool for_real)
         // Update Camera
         set_camera(rb->get_camera_fov(),
                    rb->get_camera_matrix());
-        
-        // Update UI Frame
-        set_current_frame(rb->get_frame());
     }
 
     // Setup format etc
@@ -691,7 +688,7 @@ void Aton::multiframe_cmd()
 
 void Aton::select_output_cmd(Table_KnobI* outputKnob)
 {
-    WriteGuard lock(m_node->m_mutex);
+    m_node->m_mutex.writeLock();
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     
     if (!fbs.empty())
@@ -707,7 +704,11 @@ void Aton::select_output_cmd(Table_KnobI* outputKnob)
             if (row_name != fb->get_output_name())
                 fb->set_output_name(row_name);
         }
+        m_node->m_mutex.unlock();
         flag_update();
+
+        // Update UI Frame
+        set_current_frame(fb->get_frame());
     }
 }
 
