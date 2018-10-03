@@ -120,14 +120,25 @@ def getHost():
     else:
         return aton_host
     
-def getPort(id = 1):
+def getPort():
     ''' Returns a port number from Aton driver '''
     aton_port = os.getenv("ATON_PORT")
     
     if aton_port is None:
-        return 9200 + id;
+        return 9201;
     else:
         return int(aton_port)
+   
+def getInstance(name):
+    widgets = QtWidgets.QApplication.instance().topLevelWidgets()
+    instances = [w.instance for w in widgets if w.objectName() == name]
+    
+    res = 0
+    while True:
+        if res in instances:
+            res += 1
+        else:
+            return res
 
 def getOutputDrivers(path = False):
     ''' Returns a list of all output driver names '''
@@ -427,8 +438,9 @@ class Aton(QtWidgets.QWidget):
         self._output = None
         
         # Default Settings
-        self.defaultPort = getPort(self.getInstanceCount())
+        self.defaultPort = getPort()
         self.defaultHost = getHost()
+        self.instance = getInstance(self.objName)
         self.outputsList = [Output(rop) for rop in getOutputDrivers()]
 
         # Init UI
@@ -465,6 +477,13 @@ class Aton(QtWidgets.QWidget):
         else:
             self._output = Output()
         return self._output
+    
+    @property
+    def port(self):
+        if self.instance > 0:
+            return self.defaultPort + self.instance
+        else:
+            return self.defaultPort
 
     def closeEvent(self, event):
 
@@ -473,6 +492,7 @@ class Aton(QtWidgets.QWidget):
         self.removeAtonOverrides()
         
         self.setParent(None)
+        self.deleteLater()
         self.destroy()
 
     def setupUI(self):
@@ -503,7 +523,7 @@ class Aton(QtWidgets.QWidget):
             self.portSlider = SliderBox("Port")
             self.portSlider.setMinimum(0, 0)
             self.portSlider.setMaximum(9999, 15)
-            self.portSlider.setValue(self.defaultPort)
+            self.portSlider.setValue(self.port, self.port - self.defaultPort)
             self.portSlider.connect(portUpdateUI)
             self.portCheckBox = QtWidgets.QCheckBox()
             self.portCheckBox.setChecked(True)
@@ -738,13 +758,6 @@ class Aton(QtWidgets.QWidget):
         
         self.portCheckBox.setEnabled(value)
         self.outputComboBox.setEnabled(value)
-
-    def getInstanceCount(self):
-        count = 1
-        for w in QtWidgets.QApplication.instance().topLevelWidgets():
-            if w.objectName() == self.objName:
-                count += 1
-        return count
 
     def getNukeCropNode(self, *args):
         ''' Get crop node data from Nuke '''
