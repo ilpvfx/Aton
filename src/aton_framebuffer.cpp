@@ -70,7 +70,6 @@ AOVBuffer::AOVBuffer(const unsigned int& width,
     }
 }
 
-
 // RenderBuffer class
 RenderBuffer::RenderBuffer(const double& currentFrame,
                            const int& w,
