@@ -164,10 +164,11 @@ class Aton: public Iop
         std::vector<std::string> get_captures();
     
         void multiframe_cmd();
-        void select_output_cmd(Table_KnobI* outputKnob);
+        void select_output_cmd();
         void snapshot_cmd();
         void move_cmd(bool direction);
         void remove_selected_cmd();
+        void reset_region_cmd();
         void copy_region_cmd();
         void capture_cmd();
         void import_cmd(bool all);
