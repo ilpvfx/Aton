@@ -231,7 +231,7 @@ public:
     void set_frame(double frame) { _frame = frame; }
     
     long long& get_session() { return _session; }
-    void set_session(long long index) { _session = index; }
+    void set_session(long long session) { _session = session; }
     
     std::string get_output_name() { return _output_name; }
     void set_output_name(std::string name) { _output_name = name; }
