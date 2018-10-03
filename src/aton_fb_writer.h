@@ -27,6 +27,9 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
         // Our incoming data object
         int data_type = 0;
         
+        // Frame    
+        double frame = 0;
+
         // Session Index
         long long session = 0;
         
@@ -67,14 +70,14 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
 
                     // Get Current Session Index
                     session = dh.session();
-                    
+
                     // Get image area to calculate the progress
                     region_area = dh.region_area();
                     rendered_area = dh.region_area();
                     
                     // Set Frame on Timeline
-                    const double& _frame = static_cast<double>(dh.frame());
-                    node->set_current_frame(_frame);
+                    frame = static_cast<double>(dh.frame());
+                    node->set_current_frame(frame);
 
                     bool& multiframe = node->m_multiframes;
                     std::vector<FrameBuffer>& fbs = node->m_framebuffers;
@@ -90,7 +93,7 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                             if (fb == NULL)
                                 fb = &fbs.back();
                             
-                            if (!fb->renderbuffer_exists(_frame))
+                            if (!fb->renderbuffer_exists(frame))
                             {
                                 rb = fb->add_renderbuffer(&dh);
                                 node->m_output_changed = Aton::item_added;
@@ -127,7 +130,7 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     
                     // Get current RenderBuffer
                     if (rb == NULL)
-                        rb = fb->get_renderbuffer(_frame);
+                        rb = fb->get_renderbuffer(frame);
                     
                     // Update Name
                     const char* _name = dh.output_name();
@@ -135,8 +138,8 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                         rb->set_name(_name);
                     
                     // Update Frame
-                    if (rb->frame_changed(_frame))
-                        rb->set_frame(_frame);
+                    if (rb->frame_changed(frame))
+                        rb->set_frame(frame);
                     
                     // Update Camera
                     const float& _fov = dh.camera_fov();
@@ -168,7 +171,6 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     
                     // Get delta time per IPR iteration
                     delta_time = active_time;
-
                     break;
                 }
                 case 1: // Write image data
@@ -182,6 +184,9 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
 
                     // Get Render Buffer
                     WriteGuard lock(node->m_mutex);
+                    fb = node->get_framebuffer(session);
+                    rb = fb->get_renderbuffer(frame);
+
                     if(rb->resolution_changed(_xres, _yres))
                         rb->set_resolution(_xres, _yres);
 
@@ -241,20 +246,23 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                         }
 
                         // Update only on first aov
-                        if(!node->m_capturing && rb->first_aov_name(_aov_name))
+                        if(rb->first_aov_name(_aov_name) && !node->m_capturing)
                         {
-                            // Calculate the progress percentage
-                            rendered_area -= _width * _height;
-                            progress = 100 - (rendered_area * 100) / region_area;
-                            
-                            // Set status parameters
-                            rb->set_progress(progress);
-                            rb->set_memory(_ram);
-                            rb->set_time(_time, delta_time);
+                           if (rb == node->current_renderbuffer())
+                            {
+                                // Calculate the progress percentage
+                                rendered_area -= _width * _height;
+                                progress = 100 - (rendered_area * 100) / region_area;
+                                
+                                // Set status parameters
+                                rb->set_progress(progress);
+                                rb->set_memory(_ram);
+                                rb->set_time(_time, delta_time);
 
-                            // Update the image
-                            const Box box = Box(_x, h - _y - _width, _x + _height, h - _y);
-                            node->flag_update(box);
+                                // Update the image
+                                const Box box = Box(_x, h - _y - _width, _x + _height, h - _y);
+                                node->flag_update(box);
+                            }
                         }
                     }
                     dp.free();
