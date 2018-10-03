@@ -120,7 +120,7 @@ def getHost():
     else:
         return aton_host
     
-def getPort(id):
+def getPort(id = 1):
     ''' Returns a port number from Aton driver '''
     aton_port = os.getenv("ATON_PORT")
     
@@ -575,12 +575,15 @@ class Aton(QtWidgets.QWidget):
             self.renderRegionTSpinBox = SpinBox("T", 0, False)
             self.renderRegionRSpinBox.setValue(self.output.resolution[0])
             self.renderRegionTSpinBox.setValue(self.output.resolution[1])
+            renderRegionResetButton = QtWidgets.QPushButton("Reset")
             renderRegionGetNukeButton = QtWidgets.QPushButton("Get")
+            renderRegionResetButton.clicked.connect(resetRegionUI)
             renderRegionGetNukeButton.clicked.connect(self.getNukeCropNode)
             renderRegionLayout.addWidget(self.renderRegionXSpinBox)
             renderRegionLayout.addWidget(self.renderRegionYSpinBox)
             renderRegionLayout.addWidget(self.renderRegionRSpinBox)
             renderRegionLayout.addWidget(self.renderRegionTSpinBox)
+            renderRegionLayout.addWidget(renderRegionResetButton)
             renderRegionLayout.addWidget(renderRegionGetNukeButton)
 
             # Overscan Layout
@@ -669,6 +672,8 @@ class Aton(QtWidgets.QWidget):
             # Update Defualt Settings
             self.outputsList = [Output(rop) for rop in getOutputDrivers()]
 
+            currentOutputName = self.outputComboBox.currentName()
+
             self.hostCheckBox.setChecked(True)
             self.portCheckBox.setChecked(True)
             self.hostLineEdit.setText(self.defaultHost)
@@ -678,6 +683,7 @@ class Aton(QtWidgets.QWidget):
             self.bucketComboBox.newItems(getBucketModes())
             self.cameraComboBox.newItems(getAllCameras(path=True))     
             self.outputComboBox.newItems(getOutputDrivers(path=True))
+            self.outputComboBox.setCurrentName(currentOutputName)
 
             self.resolutionSlider.setValue(100, 20)
             self.renderRegionXSpinBox.setValue(0)
@@ -691,6 +697,13 @@ class Aton(QtWidgets.QWidget):
 
             outputUpdateUI(self.outputComboBox.currentIndex())
   
+        def resetRegionUI(*args):
+            self.renderRegionXSpinBox.setValue(0)
+            self.renderRegionYSpinBox.setValue(0)
+            self.renderRegionRSpinBox.setValue(self.output.resolution[0])
+            self.renderRegionTSpinBox.setValue(self.output.resolution[1])
+            self.overscanSlider.setValue(0, 0)
+
         def addUICallbacks():
             self.cameraComboBox.currentIndexChanged.connect(self.addAtonOverrides)
             self.bucketComboBox.currentIndexChanged.connect(self.addAtonOverrides)
@@ -710,9 +723,19 @@ class Aton(QtWidgets.QWidget):
         self.setLayout(buildUI())
 
     def generalUISetEnabled(self, value):
-        self.hostLineEdit.setEnabled(value)
+        if value:
+            if self.hostCheckBox.isChecked():
+                self.hostLineEdit.setEnabled(value)
+        else:
+            self.hostLineEdit.setEnabled(value)
         self.hostCheckBox.setEnabled(value)
-        self.portSlider.setEnabled(value)
+        
+        if value:
+            if self.portCheckBox.isChecked():
+                self.portSlider.setEnabled(value)
+        else:
+            self.portSlider.setEnabled(value)
+        
         self.portCheckBox.setEnabled(value)
         self.outputComboBox.setEnabled(value)
 
@@ -850,11 +873,14 @@ class Aton(QtWidgets.QWidget):
                 # Enable User Options Overrides
                 self.output.rop.parm('ar_user_options_enable').set(True)
 
+                host = self.hostLineEdit.text() if self.hostCheckBox.isChecked() else getHost()
+                port = self.portSlider.value() if self.portCheckBox.isChecked() else getPort()
+
                 # Aton Attributes
                 userOptions += ' ' if userOptions else ''
                 userOptions += 'declare aton_enable constant BOOL aton_enable on '
-                userOptions += 'declare aton_host constant STRING aton_host \"%s\" '%self.hostLineEdit.text()
-                userOptions += 'declare aton_port constant INT aton_port %d '%self.portSlider.value()
+                userOptions += 'declare aton_host constant STRING aton_host \"%s\" '%host
+                userOptions += 'declare aton_port constant INT aton_port %d '%port
                 userOptions += 'declare aton_output constant STRING aton_output \"%s\" '%self.output.name
 
                 # Camera
