@@ -732,7 +732,7 @@ void Aton::snapshot_cmd()
         
         if (fb != NULL && idx >= 0)
         {
-            idx = idx > 0 ? --idx : 0;
+            idx = idx > 0 ? idx++ : 0;
             fbs.insert(fbs.begin() + idx, *fb);
             fbs[idx].set_session(0);
             m_node->m_output_changed = Aton::item_copied;
