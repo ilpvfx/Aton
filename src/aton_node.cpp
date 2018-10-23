@@ -395,7 +395,7 @@ void Aton::flag_update(const Box& box)
     if (m_node->m_hash_count == UINT_MAX)
         m_node->m_hash_count = 0;
     else
-        ++m_node->m_hash_count;
+        m_node->m_hash_count++;
 
     // Update the image with current bucket if given
     asapUpdate(box);
@@ -736,7 +736,7 @@ void Aton::snapshot_cmd()
         
         if (fb != NULL && idx >= 0)
         {
-            idx = idx > 0 ? idx++ : 0;
+            idx = idx > 0 ? idx-- : 0;
             fbs.insert(fbs.begin() + idx, *fb);
             fbs[idx].set_session(0);
             m_node->m_output_changed = Aton::item_copied;
@@ -798,18 +798,30 @@ void Aton::reset_region_cmd()
 
 void Aton::copy_region_cmd()
 {
-    std::string cmd; // Our python command buffer
-    cmd = (boost::format("exec('''try:\n\t"
-                                     "from PySide import QtGui as QtWidgets\n"
-                                 "except ImportError:\n\t"
-                                     "from PySide2 import QtWidgets\n"
-                                 "clipboard = QtWidgets.QApplication.clipboard()\n"
-                                 "clipboard.setText('%s,%s,%s,%s')''')" )%m_region[0]
-                                                                         %m_region[1]
-                                                                         %m_region[2]
-                                                                         %m_region[3]).str();
-    script_command(cmd.c_str(), true, false);
-    script_unlock();
+    m_node->m_mutex.readLock();
+    RenderBuffer* rb = current_renderbuffer();
+    
+    if (rb != NULL)
+    {
+        int res_width = rb->get_width();
+        m_node->m_mutex.unlock();
+        
+        std::string cmd; // Our python command buffer
+        cmd = (boost::format("exec('''try:\n\t"
+                                         "from PySide import QtGui as QtWidgets\n"
+                                     "except ImportError:\n\t"
+                                         "from PySide2 import QtWidgets\n"
+                                     "clipboard = QtWidgets.QApplication.clipboard()\n"
+                                     "clipboard.setText('%s,%s,%s,%s,%s')''')" )%m_region[0]
+                                                                                %m_region[1]
+                                                                                %m_region[2]
+                                                                                %m_region[3]
+                                                                                %res_width).str();
+        script_command(cmd.c_str(), true, false);
+        script_unlock();
+    }
+    else
+        m_node->m_mutex.unlock();
 }
 
 bool Aton::path_valid(std::string f_path)
