@@ -3,6 +3,7 @@ __copyright__ = "2018 All rights reserved. See Copyright.txt for more details."
 __version__ = "1.3.0"
 
 import os
+import re
 import hou
 
 from hutil.Qt import QtCore, QtWidgets, QtGui
@@ -163,6 +164,7 @@ def getBucketModes():
 def getAllCameras(path = False):
     ''' Returns a list of all camera names '''
     cameras = hou.nodeType(hou.nodeTypeCategories()['Object'], 'cam').instances()
+    cameras += hou.nodeType(hou.nodeTypeCategories()['Object'], 'stereocam').instances()
     
     if path:
         return [i.path() for i in cameras]
@@ -203,10 +205,12 @@ class Output(object):
         self.path = rop.path()
         self.camera = self._get_camera()
         self._cameraResolution = self.camera.parmTuple('res').eval() if self.camera else (0,0)
+        self._cameraPixelAspect = self.camera.parm('aspect').eval() if self.camera else 1.0
         self.overrideCameraRes = rop.parm('override_camerares').eval()
         self.resFraction = rop.parm('res_fraction').eval()
         self.resOverride = rop.parmTuple('res_override').eval()
         self.resolution = self._get_resolution()
+        self.pixelAspect = self._get_pixelAspect()
         self.AASamples = rop.parm('ar_AA_samples').eval()
         self.bucketScanning = rop.parm('ar_bucket_scanning').eval()
         self.userOptionsEnable = rop.parm('ar_user_options_enable').eval()
@@ -224,6 +228,7 @@ class Output(object):
         self.resolution = (0,0)
         self.AASamples = 0
         self.bucketScanning = None
+        self.pixelAspect = 0
         self.userOptionsEnable = None
         self.userOptionsParm = None
         self.userOptions = None
@@ -248,12 +253,26 @@ class Output(object):
 
         return self._cameraResolution
 
-    def rollback(self):
+    def _get_pixelAspect(self):
+        if self.rop.parm('override_camerares').eval():
+            return self.rop.parm('aspect_override').eval()
+        else:
+            return self._cameraPixelAspect
+
+    def rollback_camera(self):
         self.rop.parm('camera').set(self.cameraPath)
+    
+    def rooback_resolution(self):
         self.rop.parm('override_camerares').set(self.overrideCameraRes)
         self.rop.parm('res_fraction').set(self.resFraction)
         self.rop.parmTuple('res_override').set(self.resOverride)
+        self.rop.parm('aspect_override').set(self.pixelAspect)
+    
+    def rollback_AASamples(self):
         self.rop.parm('ar_AA_samples').set(self.AASamples)
+    
+    def rollback_userOptions(self):
+        self.userOptions = re.sub('declare aton_enable.*', '', self.userOptions)   
         self.rop.parm('ar_user_options_enable').set(self.userOptionsEnable)
         self.rop.parm('ar_user_options').set(self.userOptions)
 
@@ -431,7 +450,7 @@ class CheckBox(BoxWidget):
 
 class Aton(QtWidgets.QWidget):
     
-    def __init__(self):
+    def __init__(self, icon_path=None):
         QtWidgets.QWidget.__init__(self)
         
         self.objName = self.__class__.__name__.lower()
@@ -450,21 +469,10 @@ class Aton(QtWidgets.QWidget):
         self.setProperty("saveWindowPref", True)
         self.setProperty("houdiniStyle", True)
         self.setStyleSheet(hou.qt.styleSheet())
-        self.setWindowIcon(QtGui.QIcon(self.icon_path))
+        self.setWindowIcon(QtGui.QIcon(icon_path))
 
         # Setup UI
         self.setupUI()
-        
-    @property
-    def icon_path(self):
-        path = os.path.split(__file__)
-
-        if path:
-            path = os.path.abspath(os.path.join(path[0], os.pardir))
-            path = os.path.abspath(os.path.join(path, os.pardir))
-            path = os.path.abspath(os.path.join(path, os.pardir))
-            path = os.path.join(path, 'config/Icons/aton_icon.png')
-            return path
         
     @property
     def ipr(self):
@@ -496,6 +504,10 @@ class Aton(QtWidgets.QWidget):
         self.setParent(None)
         self.deleteLater()
         self.destroy()
+
+    def getResList(self):
+        xres, yres = self.output.resolution[0], self.output.resolution[1]
+        return ['%d%% (%dx%d)' % (i, xres/100.0*i, yres/100.0*i) for i in [100.0, 75.0, 50.0, 25.0, 10.0, 5.0]]
 
     def setupUI(self):
 
@@ -569,17 +581,10 @@ class Aton(QtWidgets.QWidget):
 
             # Resolution Layout
             resolutionLayout = QtWidgets.QHBoxLayout()
-            self.resolutionSlider = SliderBox("Resolution %")
-            self.resolutionSlider.setMinimum(1, 1)
-            self.resolutionSlider.setMaximum(100, 20)
-            self.resolutionSlider.setValue(100, 20)
-            self.resolutionSlider.connect(resUpdateUI)
-            xres, yres = self.output.resolution[0], self.output.resolution[1]
-            self.resolutionInfoLabel = QtWidgets.QLabel(str(xres)+'x'+str(yres))
-            self.resolutionInfoLabel.setMaximumSize(100, 20)
-            self.resolutionInfoLabel.setEnabled(False)
-            resolutionLayout.addWidget(self.resolutionSlider)
-            resolutionLayout.addWidget(self.resolutionInfoLabel)
+            self.resolutionComboBox = ComboBox("Resolution")
+            self.resolutionComboBox.addItems(self.getResList())
+            resolutionLayout.addWidget(self.resolutionComboBox)
+
 
             # Camera AA Layout
             cameraAaLayout = QtWidgets.QHBoxLayout()
@@ -680,13 +685,11 @@ class Aton(QtWidgets.QWidget):
                 self.cameraAaSlider.setValue(self.output.AASamples, self.output.AASamples)
                 self.renderRegionRSpinBox.setValue(self.output.resolution[0])
                 self.renderRegionTSpinBox.setValue(self.output.resolution[1])
-        
+
         def resUpdateUI():
-            value = self.resolutionSlider.slider.value()
-            self.resolutionSlider.setValue(value * 5)
-            xres = self.output.resolution[0] * value * 5 / 100
-            yres = self.output.resolution[1] * value * 5 / 100
-            self.resolutionInfoLabel.setText("%dx%d"%(xres, yres))
+            index = self.resolutionComboBox.currentIndex()
+            self.resolutionComboBox.newItems(self.getResList())
+            self.resolutionComboBox.setCurrentIndex(index)
 
         def resetUI(*args):
             if self.ipr.isActive():
@@ -704,11 +707,11 @@ class Aton(QtWidgets.QWidget):
             self.IPRUpdateCheckBox.setChecked(True)
 
             self.bucketComboBox.newItems(getBucketModes())
-            self.cameraComboBox.newItems(getAllCameras(path=True))     
+            self.cameraComboBox.newItems(getAllCameras(path=True))
+            self.resolutionComboBox.newItems(self.getResList())  
             self.outputComboBox.newItems(getOutputDrivers(path=True))
             self.outputComboBox.setCurrentName(currentOutputName)
 
-            self.resolutionSlider.setValue(100, 20)
             self.renderRegionXSpinBox.setValue(0)
             self.renderRegionYSpinBox.setValue(0)
             self.overscanSlider.setValue(0, 0)
@@ -730,8 +733,8 @@ class Aton(QtWidgets.QWidget):
         def addUICallbacks():
             self.cameraComboBox.currentIndexChanged.connect(self.addAtonOverrides)
             self.bucketComboBox.currentIndexChanged.connect(self.addAtonOverrides)
+            self.resolutionComboBox.currentIndexChanged.connect(self.addAtonOverrides)
             self.cameraAaSlider.valueChanged.connect(self.addAtonOverrides)
-            self.resolutionSlider.valueChanged.connect(self.addAtonOverrides)
             self.renderRegionXSpinBox.valueChanged.connect(self.addAtonOverrides)
             self.renderRegionYSpinBox.valueChanged.connect(self.addAtonOverrides)
             self.renderRegionRSpinBox.valueChanged.connect(self.addAtonOverrides)
@@ -801,10 +804,21 @@ class Aton(QtWidgets.QWidget):
             self.renderRegionTSpinBox.setValue(int(nkT * region_mult))
 
     def getRegion(self, attr, resScale = True):
+        resValue = 100
+
         if resScale:
-            resValue = self.resolutionSlider.value()
-        else:
-            resValue = 100
+            index = self.resolutionComboBox.currentIndex()
+            
+            if index == 1:
+                resValue = 75
+            elif index == 2:
+                resValue = 50
+            elif index == 3:
+                resValue = 25
+            elif index == 4:
+                resValue = 10
+            elif index == 5:
+                resValue = 5
 
         ovrScnValue = self.overscanSlider.value() * resValue / 100
 
@@ -850,7 +864,8 @@ class Aton(QtWidgets.QWidget):
         return self.cameraAaSlider.value() != self.output.AASamples
 
     def cameraChanged(self):
-        return self.cameraComboBox.currentName() != self.output.camera.path()
+        if self.output.camera is not None:
+            return self.cameraComboBox.currentName() != self.output.camera.path()
 
     def resolutionChanged(self):
         xRes, yRes = self.getRegion(0), self.getRegion(1)
@@ -911,7 +926,8 @@ class Aton(QtWidgets.QWidget):
                 if self.cameraChanged():
                     self.output.rop.parm('camera').set(self.cameraComboBox.currentName())
                 else:
-                     self.output.rop.parm('camera').set(self.output.camera.path())
+                    if self.output.camera is not None:
+                        self.output.rop.parm('camera').set(self.output.camera.path())
 
                 # AA Samples
                 if self.AASamplesChanged():
@@ -925,7 +941,8 @@ class Aton(QtWidgets.QWidget):
                     self.output.rop.parm('res_fraction').set('specific')
                     self.output.rop.parm('res_overridex').set(self.getRegion(0))
                     self.output.rop.parm('res_overridey').set(self.getRegion(1))
-                    
+                    self.output.rop.parm('aspect_override').set(self.output.pixelAspect)
+
                     # Render Region
                     userOptions += 'declare aton_region_min_x constant INT aton_region_min_x %d '%self.getRegion(2)
                     userOptions += 'declare aton_region_min_y constant INT aton_region_min_y %d '%self.getRegion(3)
@@ -936,6 +953,8 @@ class Aton(QtWidgets.QWidget):
                     self.output.rop.parm('res_fraction').set(self.output.resFraction)
                     self.output.rop.parm('res_overridex').set(self.output.resOverride[0])
                     self.output.rop.parm('res_overridey').set(self.output.resOverride[1])
+
+                    self.output.rop.parm('aspect_override').set(self.output.pixelAspect)
 
                 # Bucket Scanning
                 if self.bucketScanningChanged():
@@ -959,4 +978,14 @@ class Aton(QtWidgets.QWidget):
 
     def removeAtonOverrides(self):
         for output in self.outputsList:
-            output.rollback()
+            
+            if self.cameraChanged():
+                output.rollback_camera()
+            
+            if self.resolutionChanged():
+                output.rooback_resolution()
+            
+            if self.AASamplesChanged():
+                output.rollback_AASamples()
+            
+            output.rollback_userOptions()
