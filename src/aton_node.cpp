@@ -457,13 +457,34 @@ RenderBuffer* Aton::current_renderbuffer()
 int Aton::current_fb_index(bool direction)
 {
     Table_KnobI* outputKnob = m_node->m_outputKnob->tableKnob();
-    int idx = outputKnob->getSelectedRow();
+
     int size = outputKnob->getRowCount();
+    int idx = outputKnob->getSelectedRow();
 
     if (size > 0 && idx >= 0 && !direction)
         return size - idx - 1;
     
     return idx;
+}
+
+std::vector<int> Aton::selected_fb_indexes()
+{
+    Table_KnobI* outputKnob = m_node->m_outputKnob->tableKnob();
+    
+    std::vector<int> indexes;
+    int size = outputKnob->getRowCount();
+    std::vector<int> rows = outputKnob->getSelectedRows();
+
+    std::vector<int>::iterator it;
+    for(it = rows.begin(); it != rows.end(); ++it)
+    {
+        if (size > 0 && *it >= 0)
+            indexes.push_back(size - *it - 1);
+        else
+            indexes.push_back(0);
+    }
+    
+    return indexes;
 }
 
 void Aton::set_outputs()
@@ -773,20 +794,22 @@ void Aton::remove_selected_cmd()
 {
     WriteGuard lock(m_node->m_mutex);
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
+    
     if (!fbs.empty() && !m_node->m_running)
     {
-        int idx = m_node->current_fb_index(false);
-        if (idx >= 0)
-        {
-            current_renderbuffer()->set_ready(false);
-            m_node->m_output_changed = Aton::item_removed;
+        std::vector<int> indexes = selected_fb_indexes();
+        
+        std::vector<int>::iterator it;
+        for(it = indexes.begin(); it != indexes.end(); ++it)
+            if (*it >= 0)
+                fbs.erase(fbs.begin() + *it);
 
-            fbs.erase(fbs.begin() + idx);
-            if (fbs.empty())
-                set_status();
+        m_node->m_output_changed = Aton::item_removed;
 
-            flag_update();
-        }
+        if (fbs.empty())
+            set_status();
+
+        flag_update();
     }
 }
 

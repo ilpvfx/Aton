@@ -139,6 +139,7 @@ class Aton: public Iop
         RenderBuffer* current_renderbuffer();
 
         int current_fb_index(bool direction = true);
+        std::vector<int> selected_fb_indexes();
     
         void set_outputs();
         void set_format(const int& width,
