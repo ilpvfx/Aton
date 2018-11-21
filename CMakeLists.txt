@@ -57,15 +57,17 @@ find_package( Arnold )
 
 if( ARNOLD_FOUND )
     include_directories( ${Arnold_INCLUDE_DIR} )
+   
+    # To compile against Arnold 5
+    add_definitions(-DARNOLD_5)
+    
+    # Aton Driver
     add_library( arnold_plugin
       SHARED
       ${CMAKE_SOURCE_DIR}/src/aton_driver_arnold.cpp
       ${CMAKE_SOURCE_DIR}/src/aton_client.cpp
       )
     
-    # To compile against Arnold 5
-    add_definitions(-DARNOLD_5)
-
     set_target_properties( arnold_plugin
       PROPERTIES
       PREFIX ""
@@ -77,4 +79,21 @@ if( ARNOLD_FOUND )
       ${Boost_LIBRARIES}
       ${Arnold_ai_LIBRARY}
       )
+
+    # # Aton Operator
+    # add_library( arnold_operator
+    #   SHARED
+    #   ${CMAKE_SOURCE_DIR}/src/aton_operator_arnold.cpp
+    #   )
+
+    # set_target_properties( arnold_operator
+    #   PROPERTIES
+    #   PREFIX ""
+    #   OUTPUT_NAME "operator_aton"
+    #   COMPILE_FLAGS "${Arnold_COMPILE_FLAGS}"
+    # )
+
+    # target_link_libraries( arnold_operator
+    #   ${Arnold_ai_LIBRARY}
+    #   )
 endif( ARNOLD_FOUND )
