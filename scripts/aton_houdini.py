@@ -9,8 +9,8 @@ from htoa.node.node import nodeSetArrayString
 from arnold import *
 
 __author__ = "Ryan Heniser, Vahan Sosoyan"
-__copyright__ = "2018 All rights reserved. See Copyright.txt for more details."
-__version__ = "1.3.0"
+__copyright__ = "2019 All rights reserved. See Copyright.txt for more details."
+__version__ = "1.3.1"
 
 
 def warn(msg, *params):

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2018,
+Copyright (c) 2019,
 Dan Bethell, Johannes Saam, Vahan Sosoyan.
 All rights reserved. See COPYING.txt for more details.
 */
