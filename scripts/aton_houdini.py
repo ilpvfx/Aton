@@ -1,5 +1,7 @@
 import os
 import re
+import psutil
+
 import hou
 
 from hutil.Qt import QtCore, QtWidgets, QtGui
@@ -215,6 +217,31 @@ def get_all_cameras(path=False):
         return [i.path() for i in cameras]
     
     return cameras
+
+
+class HickStatus(QtCore.QThread):
+    """ Checks whether hick process is running
+        and emits signal when it's finished
+    """
+    finished = QtCore.Signal(bool)
+
+    def __init__(self, ipr):
+        super(HickStatus, self).__init__()
+
+        self._ipr = ipr
+
+    def run(self):
+        while self._ipr.isActive():
+            if self.is_finished():
+                self.finished.emit(True)
+
+    def is_finished(self):
+        for p in psutil.Process(os.getpid()).children(recursive=True):
+            if p.name().startswith('hick'):
+                try:
+                    return (p.cpu_percent(interval=1) == 0.0)
+                except psutil.NoSuchProcess:
+                    return
 
 
 class Output(object):
@@ -445,9 +472,9 @@ class SpinBox(BoxWidget):
         super(SpinBox, self).__init__(label, first)
         self.spin_box = QtWidgets.QSpinBox()
         self.spin_box.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
-        self.spin_box.setValue(value)
-        self.spin_box.setMaximumSize(50, 20)
         self.spin_box.setRange(-99999, 99999)
+        self.spin_box.setMaximumSize(50, 20)
+        self.spin_box.setValue(value)
 
         self.layout.addWidget(self.spin_box)
 
@@ -551,6 +578,7 @@ class Aton(QtWidgets.QWidget):
 
         # Properties
         self._output = None
+        self._hick_status = None
         
         # Default Settings
         self.default_port = get_port()
@@ -581,6 +609,11 @@ class Aton(QtWidgets.QWidget):
         self.render_region_r_spin_box = None
         self.render_region_t_spin_box = None
         self.overscan_slider = None
+        self.sequence_checkbox = None
+        self.seq_start_spin_box = None
+        self.seq_end_spin_box = None
+        self.seq_step_spin_box = None
+        self.seq_rebuild_checkbox = None
         self.motion_blur_check_box = None
         self.subdivs_check_box = None
         self.displace_check_box = None
@@ -610,7 +643,17 @@ class Aton(QtWidgets.QWidget):
         else:
             self._output = Output()
         return self._output
-    
+
+    @property
+    def hick_status(self):
+        """ Returns HickStatus object
+        """
+        if self._hick_status is None:
+            self._hick_status = HickStatus(self.ipr)
+            self._hick_status.finished.connect(self.change_time)
+
+        return self._hick_status
+
     @property
     def port(self):
         """ Returns Port number based on AtonU UI instance count
@@ -647,7 +690,8 @@ class Aton(QtWidgets.QWidget):
         return ["%d%% (%dx%d)" % (i, xres/100.0*i, yres/100.0*i) for i in [100.0, 75.0, 50.0, 25.0, 10.0, 5.0]]
 
     def build_ui(self):
-        """ Build Aton UI """
+        """ Build Aton UI
+        """
 
         # Set UI Flags
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
@@ -775,6 +819,28 @@ class Aton(QtWidgets.QWidget):
         ignore_layout.addWidget(self.bump_check_box)
         ignore_layout.addWidget(self.sss_check_box)
 
+        # Sequence layout
+        sequence_group_box = QtWidgets.QGroupBox("Sequence")
+        sequence_layout = QtWidgets.QHBoxLayout(sequence_group_box)
+        self.sequence_checkbox = CheckBox("Enable")
+        self.seq_start_spin_box = SpinBox("Start:", hou.playbar.frameRange()[0], False)
+        self.seq_end_spin_box = SpinBox("End:", hou.playbar.frameRange()[1], False)
+        self.seq_step_spin_box = SpinBox("Step:", 1, False)
+        self.seq_rebuild_checkbox = CheckBox("", "Rebuild", False)
+        self.seq_rebuild_checkbox.setEnabled(False)
+        self.seq_start_spin_box.setEnabled(False)
+        self.seq_end_spin_box.setEnabled(False)
+        self.seq_step_spin_box.setEnabled(False)
+        self.sequence_checkbox.toggled.connect(self.seq_start_spin_box.setEnabled)
+        self.sequence_checkbox.toggled.connect(self.seq_end_spin_box.setEnabled)
+        self.sequence_checkbox.toggled.connect(self.seq_step_spin_box.setEnabled)
+        self.sequence_checkbox.toggled.connect(self.seq_rebuild_checkbox.setEnabled)
+        sequence_layout.addWidget(self.sequence_checkbox)
+        sequence_layout.addWidget(self.seq_start_spin_box)
+        sequence_layout.addWidget(self.seq_end_spin_box)
+        sequence_layout.addWidget(self.seq_step_spin_box)
+        sequence_layout.addWidget(self.seq_rebuild_checkbox)
+
         # Main Buttons Layout
         main_buttons_layout = QtWidgets.QHBoxLayout()
         start_button = QtWidgets.QPushButton("Start / Refresh")
@@ -802,6 +868,7 @@ class Aton(QtWidgets.QWidget):
 
         main_layout.addWidget(general_group_box)
         main_layout.addWidget(overrides_group_box)
+        main_layout.addWidget(sequence_group_box)
         main_layout.addWidget(ignores_group_box)
         main_layout.addLayout(main_buttons_layout)
 
@@ -828,6 +895,8 @@ class Aton(QtWidgets.QWidget):
         self.port_slider.spinBox.setValue(value + self.default_port)
 
     def output_update_ui(self, index):
+        """ Update the UI when changing the output rop
+        """
         if index >= 0:
             self.res_update_ui()
             self.camera_combo_box.set_current_name(self.output.camera_path)
@@ -908,7 +977,8 @@ class Aton(QtWidgets.QWidget):
         self.output_combo_box.set_enabled(value)
 
     def get_nuke_crop_node(self):
-        """ Get crop node data from Nuke """
+        """ Get crop node data from Nuke
+        """
         def find_between(s, first, last):
             try:
                 start = s.index(first) + len(first)
@@ -979,8 +1049,9 @@ class Aton(QtWidgets.QWidget):
 
         return result
 
-    def start_render(self):
-        """ Start Button Command """
+    def start_render(self, caller=None):
+        """ Start Button Command
+        """
         if self.output.rop is not None:
             
             # Set IPR Options
@@ -990,18 +1061,55 @@ class Aton(QtWidgets.QWidget):
                 return
 
             self.ipr.killRender()
-            self.ipr.setPreview(True)
+
+            # Sequence rendering mode
+            if self.sequence_checkbox.is_checked():
+                self.ipr.setPreview(False)
+                if caller is None:
+                    hou.setFrame(self.seq_start_spin_box.value())
+            else:
+                self.ipr.setPreview(True)
+
             self.ipr.startRender()
             self.ipr.pauseRender()
             
             if self.add_aton_overrides():
                 self.ipr.resumeRender()
                 self.general_ui_set_enabled(False)
+
+                if self.sequence_checkbox.is_checked():
+                    self.hick_status.start()
             else:
                 self.stop_render()
 
+    def change_time(self):
+        """ Change time for sequence rendering
+        """
+        current_frame = int(hou.frame())
+        end_frame = self.seq_end_spin_box.value()
+        step = self.seq_step_spin_box.value()
+        rebuild = self.seq_rebuild_checkbox.is_checked()
+
+        if step > 1 and current_frame < end_frame - step + 1:
+            next_frame = current_frame + step
+        elif step > 1 and current_frame == end_frame - step + 1:
+            next_frame = end_frame
+        else:
+            next_frame = current_frame + step
+
+        if next_frame <= end_frame:
+            hou.setFrame(next_frame)
+        else:
+            self.stop_render()
+            return
+
+        if rebuild:
+            self.stop_render()
+            self.start_render(self.change_time)
+
     def stop_render(self):
-        """ Stop Button command """
+        """ Stop Button command
+        """
         self.ipr.killRender()
         self.remove_aton_overrides()
         self.general_ui_set_enabled(True)
