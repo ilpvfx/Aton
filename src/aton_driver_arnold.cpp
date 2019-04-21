@@ -179,7 +179,7 @@ driver_open
     
     try
     {
-        data->client->open_image(dh);
+        data->client->send_header(dh);
     }
     catch(const std::exception &e)
     {

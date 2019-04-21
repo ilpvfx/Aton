@@ -126,7 +126,6 @@ void DataPixels::free()
 }
 
 
-
 // Client Class
 Client::Client(std::string hostname, int port): mHost(hostname),
                                                 mPort(port),
@@ -161,7 +160,7 @@ void Client::disconnect()
     mSocket.close();
 }
 
-void Client::open_image(DataHeader& header)
+void Client::send_header(DataHeader& header)
 {
     // Connect to port!
     connect();
@@ -169,9 +168,6 @@ void Client::open_image(DataHeader& header)
     // Send image header message with image desc information
     int key = 0;
     write(mSocket, buffer(reinterpret_cast<char*>(&key), sizeof(int)));
-    
-    // Read our imageid
-    read(mSocket, buffer(reinterpret_cast<char*>(&mImageId), sizeof(int)));
     
     // Send our width & height
     write(mSocket, buffer(reinterpret_cast<char*>(&header.mSession), sizeof(long long)));
@@ -198,16 +194,9 @@ void Client::open_image(DataHeader& header)
 
 void Client::send_pixels(DataPixels& pixels)
 {
-    if (mImageId < 0)
-    {
-        throw std::runtime_error("Could not send data - image id is not valid!");
-    }
-
     // Send data for image_id
     int key = 1;
-    
     write(mSocket, buffer(reinterpret_cast<char*>(&key), sizeof(int)));
-    write(mSocket, buffer(reinterpret_cast<char*>(&mImageId), sizeof(int)));
 
     // Get size of aov name
     size_t aov_size = strlen(pixels.mAovName) + 1;
@@ -235,9 +224,6 @@ void Client::close_image()
     // Send image complete message for image_id
     int key = 2;
     write(mSocket, buffer(reinterpret_cast<char*>(&key), sizeof(int)));
-
-    // Tell the server which image we're closing
-    write(mSocket, buffer(reinterpret_cast<char*>(&mImageId), sizeof(int)));
 
     // Disconnect from port!
     disconnect();

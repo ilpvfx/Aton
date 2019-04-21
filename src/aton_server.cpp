@@ -113,10 +113,6 @@ int Server::listen_type()
 DataHeader Server::listenHeader()
 {
     DataHeader dh;
-
-    // Send back an image id
-    int image_id = 1;
-    write(mSocket, buffer(reinterpret_cast<char*>(&image_id), sizeof(int)));
     
     // Read data from the buffer
     read(mSocket, buffer(reinterpret_cast<char*>(&dh.mSession), sizeof(long long)));
@@ -151,10 +147,6 @@ DataHeader Server::listenHeader()
 DataPixels Server::listenPixels()
 {
     DataPixels dp;
-    
-    // Receive image id
-    int image_id;
-    read(mSocket, buffer(reinterpret_cast<char*>(&image_id), sizeof(int)) );
 
     // Read data from the buffer
     read(mSocket, buffer(reinterpret_cast<char*>(&dp.mXres), sizeof(int)));

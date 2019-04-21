@@ -219,7 +219,7 @@ public:
     // Sends a message to the Server to open a new image
     // The header parameter is used to tell the Server the size of image
     // buffer to allocate.
-    void open_image(DataHeader& header);
+    void send_header(DataHeader& header);
     
     // Sends a section of image data to the Server
     // Once an image is open a Client can use this to send a series of
