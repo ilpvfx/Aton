@@ -248,7 +248,7 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                         // Update only on first aov
                         if(rb->first_aov_name(_aov_name) && !node->m_capturing)
                         {
-                           if (rb == node->current_renderbuffer())
+                            if (node->current_fb_index() == 0 || fb == node->current_framebuffer())
                             {
                                 // Calculate the progress percentage
                                 rendered_area -= _width * _height;
