@@ -91,7 +91,8 @@ void DataHeader::free()
     mOutputName = NULL;
 }
 
-DataPixels::DataPixels(const int& xres,
+DataPixels::DataPixels(const long long& session,
+                       const int& xres,
                        const int& yres,
                        const int& bucket_xo,
                        const int& bucket_yo,
@@ -101,7 +102,8 @@ DataPixels::DataPixels(const int& xres,
                        const long long& ram,
                        const int& time,
                        const char* aovName,
-                       const float* data) : mXres(xres),
+                       const float* data) : mSession(session),
+                                            mXres(xres),
                                             mYres(yres),
                                             mBucket_xo(bucket_xo),
                                             mBucket_yo(bucket_yo),
@@ -192,8 +194,12 @@ void Client::send_header(DataHeader& header)
     mIsConnected = true;
 }
 
-void Client::send_pixels(DataPixels& pixels)
+void Client::send_pixels(DataPixels& pixels, bool reconnect)
 {
+    // Reconnect to port!
+    if (reconnect)
+        connect();
+    
     // Send data for image_id
     int key = 1;
     write(mSocket, buffer(reinterpret_cast<char*>(&key), sizeof(int)));
@@ -205,6 +211,7 @@ void Client::send_pixels(DataPixels& pixels)
     const int num_samples = pixels.mBucket_size_x * pixels.mBucket_size_y * pixels.mSpp;
     
     // Sending data to buffer
+    write(mSocket, buffer(reinterpret_cast<char*>(&pixels.mSession), sizeof(long long)));
     write(mSocket, buffer(reinterpret_cast<char*>(&pixels.mXres), sizeof(int)));
     write(mSocket, buffer(reinterpret_cast<char*>(&pixels.mYres), sizeof(int)));
     write(mSocket, buffer(reinterpret_cast<char*>(&pixels.mBucket_xo), sizeof(int)));

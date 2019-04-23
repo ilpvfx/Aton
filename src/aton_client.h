@@ -44,7 +44,7 @@ public:
     
     ~DataHeader();
     
-    // Get Session Index
+    // Get Session index
     const long long& session() const { return mSession; }
     
     // Get x resolution
@@ -79,7 +79,7 @@ public:
     void free();
 
 private:
-    // Session ID
+    // Session index
     long long mSession;
     
     // Resolution, X & Y
@@ -118,7 +118,8 @@ class DataPixels
     friend class Server;
     
 public:
-    DataPixels(const int& xres = 0,
+    DataPixels(const long long& session = 0,
+               const int& xres = 0,
                const int& yres = 0,
                const int& bucket_xo = 0,
                const int& bucket_yo = 0,
@@ -131,6 +132,9 @@ public:
                const float* data = NULL);
     
     ~DataPixels();
+    
+    // Get Session index
+    const long long& session() const { return mSession; }
     
     // Get x resolution
     const int& xres() const { return mXres; }
@@ -172,6 +176,9 @@ public:
     void free();
     
 private:
+    // Session index
+    long long mSession;
+    
     // Resolution, X & Y
     int mXres, mYres;
     
@@ -226,7 +233,7 @@ public:
     // pixel blocks to the Server. The Data object passed must correctly
     // specify the block position and dimensions as well as provide a
     // pointer to pixel data.
-    void send_pixels(DataPixels& data);
+    void send_pixels(DataPixels& data, bool reconnect = false);
     
     // Sends a message to the Server that the Clients has finished
     // This tells the Server that a Client has finished sending pixel

@@ -683,7 +683,7 @@ void Aton::set_status(const long long& progress,
     
     FrameBuffer* fb = current_framebuffer();
     
-    int fb_size = fb == NULL ? 0 : fb->size();
+    size_t fb_size = fb == NULL ? 0 : fb->size();
     std::string status_str = (boost::format("Arnold %s | "
                                             "Memory: %sMB / %sMB | "
                                             "Time: %02ih:%02im:%02is | "
@@ -693,12 +693,9 @@ void Aton::set_status(const long long& progress,
                                             "Progress: %s%%")%version%ram%p_ram
                                                              %hour%minute%second%name
                                                              %frame%fb_size%samples%progress).str();
-    Knob* statusKnob = m_node->knob("status_knob");
-    if (m_node->m_running)
-        status_str += "...";
     
-    bool disabled = (progress == 100) || !m_node->m_running;
-    statusKnob->set_flag(Knob::DISABLED, disabled);
+    Knob* statusKnob = m_node->knob("status_knob");
+    statusKnob->set_flag(Knob::DISABLED, (progress == 100) || !m_node->m_running);
     statusKnob->set_text(status_str.c_str());
 }
 

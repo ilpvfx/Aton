@@ -7,6 +7,8 @@ All rights reserved. See COPYING.txt for more details.
 #ifndef FBWriter_h
 #define FBWriter_h
 
+#define PRINT(var) std::cout << var << std::endl;
+
 #include "aton_node.h"
 
 // Our RenderBuffer writer thread
@@ -27,18 +29,6 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
         // Our incoming data object
         int data_type = 0;
         
-        // Frame    
-        double frame = 0;
-
-        // Session Index
-        long long session = 0;
-        
-        // Time to reset per every IPR iteration
-        int active_time = 0, delta_time = 0;
-        
-        // For progress percentage
-        long long progress = 0, region_area = 0, rendered_area = 0;
-        
         // Active Aovs names holder
         std::vector<std::string> active_aovs;
         
@@ -56,7 +46,6 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
             {
                 WriteGuard lock(node->m_mutex);
                 node->m_running = false;
-                node->flag_update();
                 break;
             }
             
@@ -65,26 +54,26 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
             {
                 case 0: // Open a new image
                 {
+                    
                     // Get Data Header
                     DataHeader dh = node->m_server.listenHeader();
 
                     // Get Current Session Index
-                    session = dh.session();
+                    const int& _version = dh.version();
+                    const float& _fov = dh.camera_fov();
+                    const char* _name = dh.output_name();
+                    const long long& _session = dh.session();
+                    const std::vector<int> _samples = dh.samples();
+                    const long long& _region_area = dh.region_area();
+                    const double& _frame = static_cast<double>(dh.frame());
+                    const Matrix4& _matrix = Matrix4(&dh.camera_matrix()[0]);
 
-                    // Get image area to calculate the progress
-                    region_area = dh.region_area();
-                    rendered_area = dh.region_area();
-                    
-                    // Set Frame on Timeline
-                    frame = static_cast<double>(dh.frame());
-                    node->set_current_frame(frame);
-
-                    bool& multiframe = node->m_multiframes;
-                    std::vector<FrameBuffer>& fbs = node->m_framebuffers;
-                
                     // Get FrameBuffer
+                    std::vector<FrameBuffer>& fbs = node->m_framebuffers;
+                    
                     WriteGuard lock(node->m_mutex);
-                    fb = node->get_framebuffer(session);
+                    fb = node->get_framebuffer(_session);
+                    bool& multiframe = node->m_multiframes;
                     
                     if (multiframe)
                     {
@@ -93,7 +82,7 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                             if (fb == NULL)
                                 fb = &fbs.back();
                             
-                            if (!fb->renderbuffer_exists(frame))
+                            if (!fb->renderbuffer_exists(_frame))
                             {
                                 rb = fb->add_renderbuffer(&dh);
                                 node->m_output_changed = Aton::item_added;
@@ -115,10 +104,7 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                                 rb = fb->add_renderbuffer(&dh);
                             }
                             else
-                            {
                                 fb->update_renderbuffer(&dh);
-                                node->m_output_changed = Aton::item_added;
-                            }
                         }
                     }
                     
@@ -128,34 +114,37 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                         rb = fb->add_renderbuffer(&dh);
                     }
                     
+                    // Set FrameBuffer frame
+                    node->set_current_frame(_frame);
+                    if (fb->frame_changed(_frame))
+                        fb->set_frame(_frame);
+                    
                     // Get current RenderBuffer
                     if (rb == NULL)
-                        rb = fb->get_renderbuffer(frame);
+                        rb = fb->get_renderbuffer(_frame);
                     
                     // Update Name
-                    const char* _name = dh.output_name();
                     if (rb->name_changed(_name))
                         rb->set_name(_name);
                     
                     // Update Frame
-                    if (rb->frame_changed(frame))
-                        rb->set_frame(frame);
+                    if (rb->frame_changed(_frame))
+                        rb->set_frame(_frame);
                     
                     // Update Camera
-                    const float& _fov = dh.camera_fov();
-                    const Matrix4& _matrix = Matrix4(&dh.camera_matrix()[0]);
                     if (rb->camera_changed(_fov, _matrix))
                         rb->set_camera(_fov, _matrix);
                     
                     // Update Version
-                    const int& _version = dh.version();
                     if (rb->get_version_int() != _version)
                         rb->set_version(_version);
                     
                     // Update Samples
-                    const std::vector<int> _samples = dh.samples();
                     if (rb->get_samples_int() != _samples)
                         rb->set_samples(_samples);
+                    
+                    // Update Region Area
+                    rb->set_region_area(_region_area);
                     
                     // Update AOVs
                     if (!active_aovs.empty())
@@ -168,9 +157,6 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                         }
                         active_aovs.clear();
                     }
-                    
-                    // Get delta time per IPR iteration
-                    delta_time = active_time;
                     break;
                 }
                 case 1: // Write image data
@@ -181,11 +167,12 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     const int& _xres = dp.xres();
                     const int& _yres = dp.yres();
                     const char* _aov_name = dp.aov_name();
+                    const long long& _session = dp.session();
 
                     // Get Render Buffer
                     WriteGuard lock(node->m_mutex);
-                    fb = node->get_framebuffer(session);
-                    rb = fb->get_renderbuffer(frame);
+                    fb = node->get_framebuffer(_session);
+                    rb = fb->get_renderbuffer(fb->get_frame());
 
                     if(rb->resolution_changed(_xres, _yres))
                         rb->set_resolution(_xres, _yres);
@@ -205,16 +192,13 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     if (node->m_enable_aovs || active_aovs[0] == _aov_name)
                     {
                         // Get Data Pixels
+                        const int& _spp = dp.spp();
+                        const int& _time = dp.time();
                         const int& _x = dp.bucket_xo();
                         const int& _y = dp.bucket_yo();
+                        const long long& _ram = dp.ram();
                         const int& _width = dp.bucket_size_x();
                         const int& _height = dp.bucket_size_y();
-                        const int& _spp = dp.spp();
-                        const long long& _ram = dp.ram();
-                        const int& _time = dp.time();
-
-                        // Set active time
-                        active_time = _time;
 
                         // Adding buffer
                         if(!rb->aov_exists(_aov_name) && (node->m_enable_aovs || rb->empty()))
@@ -248,16 +232,14 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                         // Update only on first aov
                         if(rb->first_aov_name(_aov_name) && !node->m_capturing)
                         {
-                            if (node->current_fb_index() == 0 || fb == node->current_framebuffer())
+                            if (node->current_fb_index() == 0 ||
+                                node->current_framebuffer() == fb ||
+                                node->m_output_changed == Aton::item_added)
                             {
-                                // Calculate the progress percentage
-                                rendered_area -= _width * _height;
-                                progress = 100 - (rendered_area * 100) / region_area;
-                                
                                 // Set status parameters
-                                rb->set_progress(progress);
+                                rb->set_time(_time);
                                 rb->set_memory(_ram);
-                                rb->set_time(_time, delta_time);
+                                rb->set_progress(_width * _height);
 
                                 // Update the image
                                 const Box box = Box(_x, h - _y - _width, _x + _height, h - _y);

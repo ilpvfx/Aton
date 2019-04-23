@@ -33,7 +33,7 @@ inline const long long calc_rarea(int minx,
 struct ShaderData
 {
     Client* client;
-    long long index;
+    long long session;
     int xres, yres, min_x, min_y, max_x, max_y;
 };
 
@@ -60,7 +60,7 @@ node_initialize
 {
     ShaderData* data = (ShaderData*)AiMalloc(sizeof(ShaderData));
     data->client = NULL;
-    data->index = get_unique_id();
+    data->session = get_unique_id();
 
 #ifdef ARNOLD_5
     AiDriverInitialize(node, true);
@@ -158,7 +158,7 @@ driver_open
     const char* output = AiNodeGetStr(node, AtString("output"));
     
     // Make image header & send to server
-    DataHeader dh(data->index,
+    DataHeader dh(data->session,
                   data->xres,
                   data->yres,
                   pixel_aspect,
@@ -186,7 +186,6 @@ driver_open
         const char* err = e.what();
         AiMsgError("ATON | Host %s with Port %i was not found! %s", host, port, err);
     }
-
 }
 
 driver_needs_bucket { return true; }
@@ -235,7 +234,8 @@ driver_write_bucket
         }
         
         // Create our DataPixels object
-        DataPixels dp(data->xres,
+        DataPixels dp(data->session,
+                      data->xres,
                       data->yres,
                       bucket_xo,
                       bucket_yo,
@@ -248,7 +248,10 @@ driver_write_bucket
                       ptr);
 
         // Send it to the server
-        data->client->send_pixels(dp);
+        if (strncmp(aov_name, "RGBA", 4) == 0)
+            data->client->send_pixels(dp, true);
+        else
+            data->client->send_pixels(dp);
     }
 }
 

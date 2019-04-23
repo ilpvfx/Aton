@@ -149,6 +149,7 @@ DataPixels Server::listenPixels()
     DataPixels dp;
 
     // Read data from the buffer
+    read(mSocket, buffer(reinterpret_cast<char*>(&dp.mSession), sizeof(long long)));
     read(mSocket, buffer(reinterpret_cast<char*>(&dp.mXres), sizeof(int)));
     read(mSocket, buffer(reinterpret_cast<char*>(&dp.mYres), sizeof(int)));
     read(mSocket, buffer(reinterpret_cast<char*>(&dp.mBucket_xo), sizeof(int)));

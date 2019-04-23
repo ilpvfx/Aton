@@ -271,9 +271,12 @@ void RenderBuffer::resize(const size_t& s)
 }
 
 // Set status parameters
-void RenderBuffer::set_progress(const long long& progress)
+void RenderBuffer::set_progress(const int& area)
 {
-    _progress = progress > 100 ? 100 : progress;
+    // Calculate the progress percentage
+    _rendered_area -= area;
+    float progress = 100.0f - (_rendered_area * 100.0f) / _region_area;
+    _progress = progress > 100 ? 100 : static_cast<int>(progress);
 }
 
 void RenderBuffer::set_memory(const long long& ram)
@@ -373,7 +376,7 @@ void FrameBuffer::update_renderbuffer(DataHeader* dh)
     _session = dh->session();
     _output_name = (boost::format("%s_%d_%s")%dh->output_name()
                                              %dh->frame()%get_date()).str();
-    _frame  = dh->frame();
+    _frame = dh->frame();
 }
 
 // Clear All Data

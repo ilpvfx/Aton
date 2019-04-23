@@ -130,6 +130,10 @@ public:
     // Get height of the buffer
     const int& get_height() const { return _height; }
     
+    long long& get_region_area() { return _region_area; }
+    void set_region_area(long long region_area) { _region_area = _rendered_area = region_area;
+    }
+    
     // Get pixel aspect of the buffer
     const float& get_pixel_aspect() const { return _pix_aspect; }
     
@@ -137,14 +141,14 @@ public:
     bool empty() { return _aovs.empty(); }
     
     // Get size of the buffers aka AOVs count
-    size_t size() { return _aovs.size(); }
+    size_t size() { return _aovs.size();  }
     
     // Resize the buffers
     void resize(const size_t& s);
     
     // Status parameters
-    const long long& get_progress() { return _progress; }
-    void set_progress(const long long& progress = 0);
+    const int& get_progress() { return _progress; }
+    void set_progress(const int& area);
     
     const long long& get_memory() { return _ram; }
     const long long& get_peak_memory() { return _pram; }
@@ -183,12 +187,14 @@ public:
     
 private:
     double _frame;
-    long long _progress;
+    int _progress;
     int _time;
     long long _ram;
     long long _pram;
     int _width;
     int _height;
+    long long _region_area;
+    long long _rendered_area;
     float _pix_aspect;
     bool _ready;
     float _fov;
@@ -229,6 +235,9 @@ public:
     
     double get_frame() { return _frame; }
     void set_frame(double frame) { _frame = frame; }
+    
+    // Check if Frame has been changed
+    bool frame_changed(const double& frame) { return frame != _frame; }
     
     long long& get_session() { return _session; }
     void set_session(long long session) { _session = session; }
