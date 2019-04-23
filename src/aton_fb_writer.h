@@ -54,7 +54,6 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
             {
                 case 0: // Open a new image
                 {
-                    
                     // Get Data Header
                     DataHeader dh = node->m_server.listenHeader();
 
@@ -172,6 +171,10 @@ static void fb_writer(unsigned index, unsigned nthreads, void* data)
                     // Get Render Buffer
                     WriteGuard lock(node->m_mutex);
                     fb = node->get_framebuffer(_session);
+                    
+                    if (fb == NULL)
+                        fb = &node->m_framebuffers.back();
+                    
                     rb = fb->get_renderbuffer(fb->get_frame());
 
                     if(rb->resolution_changed(_xres, _yres))

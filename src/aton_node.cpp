@@ -712,9 +712,7 @@ void Aton::multiframe_cmd()
 }
 
 void Aton::select_output_cmd()
-{
-    m_node->m_mutex.writeLock();
-   
+{   
     FrameBuffer* fb = current_framebuffer(); 
     Table_KnobI* outputKnob = m_outputKnob->tableKnob();
     
@@ -724,6 +722,7 @@ void Aton::select_output_cmd()
     if (fb != NULL && sel_rows.size() == 1 && idx >= 0)
     {
         // Check if item has renamed from UI
+        WriteGuard lock(m_node->m_mutex);
         if (m_node->m_output_changed == Aton::item_not_changed)
         {
             std::string row_name = outputKnob->getCellString(idx, 0);
@@ -732,14 +731,11 @@ void Aton::select_output_cmd()
         }
 
         double frame = fb->get_frame();
-        m_node->m_mutex.unlock();
 
         // Update UI Frame
         set_current_frame(frame);
         flag_update();
     }
-    else
-        m_node->m_mutex.unlock();
 }
 
 void Aton::snapshot_cmd()
