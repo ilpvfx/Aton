@@ -11,6 +11,8 @@ All rights reserved. See COPYING.txt for more details.
 #include <ai.h>
 #include <stdio.h>
 
+using namespace std;
+
 AI_OPERATOR_NODE_EXPORT_METHODS(AtonOperatorMtd);
 
 const int get_port()
@@ -23,24 +25,24 @@ const int get_port()
     return atoi(def_port);
 }
 
-const std::string get_host()
+const string get_host()
 {
     const char* def_host = getenv("ATON_HOST");
     
     if (def_host == NULL)
-        return std::string("127.0.0.1");
+        return string("127.0.0.1");
 
-    return std::string(def_host);
+    return string(def_host);
 }
 
-std::vector<std::string> split(std::string str, std::string token)
+vector<string> split_str(string str, string token)
 {
-    std::vector<std::string>result;
+    vector<string>result;
     while(str.size())
     {
         int index = static_cast<int>(str.find(token));
         
-        if(index != std::string::npos)
+        if(index != string::npos)
         {
             result.push_back(str.substr(0, index));
             str = str.substr(index+token.size());
@@ -105,9 +107,9 @@ operator_cook
 
     for (int i=0; i<elements; ++i)
     {
-        std::string output_string = AiArrayGetStr(outputs, i).c_str();
-        std::string name = split(output_string, std::string(" ")).back();
-        output_string.replace(output_string.find(name), name.length(), std::string(data->driver_name));
+        string output_string = AiArrayGetStr(outputs, i).c_str();
+        string name = split_str(output_string, string(" ")).back();
+        output_string.replace(output_string.find(name), name.length(), data->driver_name);
         AiArraySetStr(outputs, i, AtString(output_string.c_str()));
     }
     
