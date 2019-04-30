@@ -224,6 +224,9 @@ public:
     
     size_t size() { return _frames.size(); }
     
+    const double& get_first_frame() { return *std::min_element(_frames.begin(), _frames.end()); }
+    const double& get_last_frame() { return *std::max_element(_frames.begin(), _frames.end()); }
+
     // Add New RenderBuffer
     RenderBuffer* add_renderbuffer(DataHeader* dh);
     

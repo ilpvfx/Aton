@@ -116,6 +116,10 @@ void Aton::_validate(bool for_real)
         // Update Camera
         set_camera(rb->get_camera_fov(),
                    rb->get_camera_matrix());
+
+        FrameBuffer* fb = current_framebuffer();
+        info_.setFirstFrame(fb->get_first_frame());
+        info_.setLastFrame(fb->get_last_frame());
     }
 
     // Setup format etc
