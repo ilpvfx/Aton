@@ -239,7 +239,7 @@ class HickStatus(QtCore.QThread):
         for p in psutil.Process(os.getpid()).children(recursive=True):
             if p.name().startswith('hick'):
                 try:
-                    return (p.cpu_percent(interval=1) < 1.0)
+                    return (p.cpu_percent(interval=1) < 0.5)
                 except psutil.NoSuchProcess:
                     return
 
