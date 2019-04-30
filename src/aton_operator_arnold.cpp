@@ -69,15 +69,6 @@ node_parameters
     AiParameterStr("host", get_host().c_str());
     AiParameterInt("port", get_port());
     AiParameterStr("output", "");
-    AiParameterBool("overrides", false);
-    AiParameterInt("AA_samples", 0);
-    AiParameterInt("xres", 0);
-    AiParameterInt("yres", 0);
-    AiParameterBool("ignore_motion_blur", false);
-    AiParameterBool("ignore_subdivision", false);
-    AiParameterBool("ignore_displacement", false);
-    AiParameterBool("ignore_bump", false);
-    AiParameterBool("ignore_sss", false);
 }
 
 operator_init
@@ -111,19 +102,6 @@ operator_cook
         string name = split_str(output_string, string(" ")).back();
         output_string.replace(output_string.find(name), name.length(), data->driver_name);
         AiArraySetStr(outputs, i, AtString(output_string.c_str()));
-    }
-    
-    // One day this will start to work!
-    if (AiNodeGetBool(op, "overrides"))
-    {
-        AiNodeSetInt(options, "AA_samples", AiNodeGetInt(op, "AA_samples"));
-        AiNodeSetInt(options, "xres", AiNodeGetInt(op, "xres"));
-        AiNodeSetInt(options, "yres", AiNodeGetInt(op, "yres"));
-        AiNodeSetBool(options, "ignore_motion_blur", AiNodeGetBool(op, "ignore_motion_blur"));
-        AiNodeSetBool(options, "ignore_subdivision", AiNodeGetBool(op, "ignore_motion_blur"));
-        AiNodeSetBool(options, "ignore_displacement", AiNodeGetBool(op, "ignore_motion_blur"));
-        AiNodeSetBool(options, "ignore_bump", AiNodeGetBool(op, "ignore_motion_blur"));
-        AiNodeSetBool(options, "ignore_sss", AiNodeGetBool(op, "ignore_motion_blur"));
     }
     
     return true;
