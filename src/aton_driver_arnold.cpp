@@ -42,6 +42,7 @@ node_parameters
     AiParameterStr("host", get_host().c_str());
     AiParameterInt("port", get_port());
     AiParameterStr("output", "");
+    AiParameterInt("session", 0);
     
 #ifdef ARNOLD_5
     AiMetaDataSetStr(nentry, NULL, AtString("maya.translator"), AtString("aton"));
@@ -60,7 +61,10 @@ node_initialize
 {
     ShaderData* data = (ShaderData*)AiMalloc(sizeof(ShaderData));
     data->client = NULL;
-    data->session = get_unique_id();
+    
+    data->session = AiNodeGetInt(node, AtString("session"));
+    if (data->session == 0)
+        data->session = get_unique_id();
 
 #ifdef ARNOLD_5
     AiDriverInitialize(node, true);
@@ -265,8 +269,7 @@ node_finish
 #else
     ShaderData* data = (ShaderData*)AiDriverGetLocalData(node);
 #endif
-    if (data->client->connected())
-        data->client->close_image();
+    
     delete data->client;
     AiFree(data);
 
