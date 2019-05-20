@@ -14,7 +14,7 @@ from arnold import *
 
 __author__ = "Ryan Heniser, Vahan Sosoyan"
 __copyright__ = "2019 All rights reserved. See Copyright.txt for more details."
-__version__ = "1.3.1"
+__version__ = "1.3.5"
 
 
 def warn(msg, *params):
