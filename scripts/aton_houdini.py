@@ -1315,6 +1315,7 @@ class Aton(QtWidgets.QWidget):
         self.__resolution_combo_box.current_index_changed.connect(self.__add_aton_overrides)
         self.__camera_aa_combo_box.current_index_changed.connect(self.__camera_aa_update_ui)
         self.__camera_aa_slider.value_changed.connect(self.__add_aton_overrides)
+        self.__render_region_combo_box.current_index_changed.connect(self.__add_aton_overrides)
         self.__render_region_combo_box.current_index_changed.connect(self.__render_region_x_spin_box.set_enabled)
         self.__render_region_combo_box.current_index_changed.connect(self.__render_region_y_spin_box.set_enabled)
         self.__render_region_combo_box.current_index_changed.connect(self.__render_region_r_spin_box.set_enabled)
@@ -1865,7 +1866,8 @@ class Aton(QtWidgets.QWidget):
             self.output.remove_callbacks()
 
             # Aton Attributes
-            self.output.user_options += " " if self.output.origin_user_options else ""
+            self.output.user_options = self.output.origin_user_options
+            self.output.user_options += " " if self.output.user_options else ""
             self.output.user_options += "declare aton_enable constant BOOL aton_enable on "
             self.output.user_options += "declare aton_host constant STRING aton_host \"%s\" " % self.__default_host
             self.output.user_options += "declare aton_port constant INT aton_port %d " % self.__port_slider.value()
@@ -1944,6 +1946,8 @@ class Aton(QtWidgets.QWidget):
         """
         for output in self.__output_list:
 
+            output.remove_callbacks()
+
             if self.__camera_changed():
                 output.rollback_camera()
 
@@ -1952,8 +1956,11 @@ class Aton(QtWidgets.QWidget):
 
             if self.__aa_samples_changed():
                 output.rollback_aa_samples()
-
+            
             output.rollback_user_options()
+            
+            output.add_callbacks()
+
 
     def farm_cpu_menu(self):
         """ Farm CPU list menu to be implemented in sub-classes
