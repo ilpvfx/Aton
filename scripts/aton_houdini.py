@@ -1,6 +1,8 @@
 import os
 import re
+import time
 import psutil
+import socket
 
 import hou
 
@@ -17,6 +19,8 @@ __version__ = "1.3.1"
 
 def warn(msg, *params):
     """ Warn message in Arnold Rendering process
+    :param msg: str
+    :param params: __repr__
     """
     header = "[%s] " % __name__
     AiMsgWarning(header + msg, *params)
@@ -36,25 +40,26 @@ def atonPatch():
 
 def aton_update(self):
     """ Runing this function for Aton overrides
+    :param self: htoa.session.HaRop.generate
     """
     if self.session.isInteractiveRender():
 
         options_node = AiUniverseGetOptions()
 
         if AiNodeLookUpUserParameter(options_node, "aton_enable"):
-            
+
             if AiNodeGetBool(options_node, "aton_enable"):
-                
+
                 driver = "driver_aton"
-                
+
                 if not (AiNodeEntryLookUp(driver) is None):
-                    
+
                     aton_node = get_aton_driver(self, driver, "aton")
 
                     AiNodeSetStr(aton_node, "host", AiNodeGetStr(options_node, "aton_host"))
                     AiNodeSetInt(aton_node, "port", AiNodeGetInt(options_node, "aton_port"))
                     AiNodeSetStr(aton_node, "output", AiNodeGetStr(options_node, "aton_output"))
-                    
+
                     if AiNodeLookUpUserParameter(options_node, "aton_bucket"):
                         AiNodeSetStr(options_node, "bucket_scanning",
                                      AiNodeGetStr(options_node, "aton_bucket"))
@@ -74,7 +79,7 @@ def aton_update(self):
                     if AiNodeLookUpUserParameter(options_node, "aton_region_max_y"):
                         AiNodeSetInt(options_node, "region_max_y",
                                      AiNodeGetInt(options_node, "aton_region_max_y"))
-                    
+
                     if AiNodeLookUpUserParameter(options_node, "aton_ignore_mbl"):
                         AiNodeSetBool(options_node, "ignore_motion_blur",
                                       AiNodeGetBool(options_node, "aton_ignore_mbl"))
@@ -108,7 +113,7 @@ def aton_update(self):
                     aton_outputs = \
                         [i.replace(name, AiNodeGetName(aton_node)) for i in outputs if "variance_filter" not in i]
                     nodeSetArrayString(options_node, "outputs", aton_outputs)
-                
+
                 else:
                     warn("Aton Driver was not found.")
             else:
@@ -119,17 +124,28 @@ def aton_update(self):
 
 def generate_decorated(func):
     """ Decorating a generate method
+    :param func: htoa.session.HaRop.generate
+    :rtype: function
     """
+
     def generate_decorator(self, *args, **kwargs):
+        """ Extends generate method
+        :param self: htoa.session.HaRop.generate
+        :rtype: function
+        """
         result = func(self, *args, **kwargs)
         aton_update(self)
         return result
-    
+
     return generate_decorator
 
 
 def get_aton_driver(self, node_entry_name, new_sub_str):
-    """ Get Aton Driver Arnold Node
+    """  Get Aton Driver Arnold Node
+    :param self: htoa.session.HaRop.generate
+    :param node_entry_name: str
+    :param new_sub_str: str
+    :rtype: driver_aton
     """
     from htoa.object.camera import cameraTag
 
@@ -148,11 +164,39 @@ def get_aton_driver(self, node_entry_name, new_sub_str):
     return driver_aton_node
 
 
+def generate_tiles(w, h, f):
+    """ Generates 2**f tiles for the given rectangle
+    :param w: int
+    :param h: int
+    :param f: int
+    :rtype: list
+    """
+    x_step, y_step = w, h
+    for i in range(0, f):
+        if i % 2:
+            y_step /= 2
+        else:
+            x_step /= 2
+
+    y_min, y_max = 0, y_step
+    for i in range(0, h / y_step):
+
+        x_min, x_max = 0, x_step
+        for j in range(0, w / x_step):
+            yield [x_min, y_min, x_max, y_max]
+
+            x_min += x_step if x_min < w else x_min
+            x_max += x_step if x_max <= w else x_max
+
+        y_min += y_step if y_min < h else y_min
+        y_max += y_step if y_max <= h else y_max
+
+
 def get_host():
     """ Returns a host name from Aton driver
     """
     aton_host = os.getenv("ATON_HOST")
-    
+
     if aton_host is None:
         return "127.0.0.1"
     else:
@@ -163,7 +207,7 @@ def get_port():
     """ Returns a port number from Aton driver
     """
     aton_port = os.getenv("ATON_PORT")
-    
+
     if aton_port is None:
         return 9201
     else:
@@ -172,10 +216,12 @@ def get_port():
 
 def get_ui_instance_count(name):
     """ Get UI instance count for setting a Port number
+    :param name: str
+    :rtype: int
     """
     widgets = QtWidgets.QApplication.instance().topLevelWidgets()
     instances = [w.instance for w in widgets if w.objectName() == name]
-    
+
     res = 0
     while True:
         if res in instances:
@@ -184,38 +230,40 @@ def get_ui_instance_count(name):
             return res
 
 
-def get_output_drivers(path=False):
+def get_rop_list():
     """ Returns a list of all output driver names
+    :rtype: list
     """
-    rops = hou.nodeType(hou.nodeTypeCategories()["Driver"], "arnold").instances()
-    
-    if path:
-        return [i.path() for i in rops]
-    
-    return rops
+    return list(hou.nodeType(hou.ropNodeTypeCategory(), 'arnold').instances())
 
 
 def get_bucket_modes():
     """ Get the list of Bucket Scanning modes
     """
-    rops = get_output_drivers()
-    if rops:
-        parm_template_group = rops[0].parmTemplateGroup()
+    result = list()
+    rop_list = get_rop_list()
+
+    if rop_list:
+        parm_template_group = rop_list[0].parmTemplateGroup()
         parm_tamplate_name = "ar_bucket_scanning"
         parm_template_exist = parm_template_group.find(parm_tamplate_name)
         if parm_template_exist:
-            return rops[0].parm(parm_tamplate_name).parmTemplate().menuItems()
+            result = list(rop_list[0].parm(parm_tamplate_name).parmTemplate().menuItems())
+
+    return result
 
 
 def get_all_cameras(path=False):
     """ Returns a list of all camera names
+    :param path: str
+    :rtype: list
     """
     cameras = hou.nodeType(hou.nodeTypeCategories()["Object"], "cam").instances()
     cameras += hou.nodeType(hou.nodeTypeCategories()["Object"], "stereocam").instances()
-    
+
     if path:
         return [i.path() for i in cameras]
-    
+
     return cameras
 
 
@@ -226,196 +274,105 @@ class HickStatus(QtCore.QThread):
     finished = QtCore.Signal(bool)
 
     def __init__(self, ipr):
+        """ Gets IPRViewer
+        :param ipr: hou.IPRViewer
+        """
         super(HickStatus, self).__init__()
 
         self._ipr = ipr
 
     def run(self):
+        """ Executes the thread
+        """
         while self._ipr.isActive():
             if self.is_finished():
                 self.finished.emit(True)
 
-    def is_finished(self):
+    @staticmethod
+    def is_finished():
+        """ Checks whether the hick process has finished
+        :rtype: bool
+        """
         for p in psutil.Process(os.getpid()).children(recursive=True):
             if p.name().startswith('hick'):
                 try:
-                    return (p.cpu_percent(interval=1) < 0.5)
+                    return p.cpu_percent(interval=1) == 0.0
                 except psutil.NoSuchProcess:
                     return
-
-
-class Output(object):
-    """ Output object holds ROP attributes
-    """
-    def __init__(self, rop=None):
-
-        self.rop = None
-        self.name = None
-        self.path = None
-        self.camera = None
-        self.override_camera_res = None
-        self.res_fraction = None
-        self.resolution = (0, 0)
-        self.aa_samples = 0
-        self.bucket_scanning = None
-        self.pixel_aspect = 0
-        self.user_options_enable = None
-        self.user_options_parm = None
-        self.user_options = None
-
-        if rop:
-            user_options_parm_name = "ar_user_options"
-            parm_template_group = rop.parmTemplateGroup()
-            parm_template = parm_template_group.find(user_options_parm_name)
-
-            if parm_template:
-                self._init_attributes(rop)
-    
-    @property
-    def camera_path(self):
-        """ Returns camera path from current camera objcet
-        """
-        if self.camera:
-            return self.camera.path()
-
-    def _init_attributes(self, rop):
-        """ Inilialize ROP Attributes
-        """
-        self.rop = rop
-        self.name = rop.name()
-        self.path = rop.path()
-
-        self.camera = self._get_camera()
-        self._camera_resolution = self.camera.parmTuple("res").eval() if self.camera else (0, 0)
-        self._camera_pixel_aspect = self.camera.parm("aspect").eval() if self.camera else 1.0
-
-        self.override_camera_res = rop.parm("override_camerares").eval()
-        self.res_fraction = rop.parm("res_fraction").eval()
-        self.res_override = rop.parmTuple("res_override").eval()
-        self.resolution = self._get_resolution()
-        self.pixel_aspect = self._get_pixel_aspect()
-        self.aa_samples = rop.parm("ar_AA_samples").eval()
-        self.bucket_scanning = rop.parm("ar_bucket_scanning").eval()
-        self.user_options_enable = rop.parm("ar_user_options_enable").eval()
-        self.user_options_parm = rop.parm("ar_user_options")
-        self.user_options = self.user_options_parm.eval()
-   
-    def _get_camera(self):
-        """ Get Camera object
-        """
-        camera = hou.node(self.rop.parm("camera").eval())
-        if camera is None:
-            scene_cameras = get_all_cameras()
-            if scene_cameras:
-                camera = scene_cameras[0]
-        return camera
-
-    def _get_resolution(self):
-        """ Get Resolution touple
-        """
-        if self.rop.parm("override_camerares").eval():
-            res_scale = self.rop.parm("res_fraction").eval()
-            
-            if res_scale == "specific":
-                return self.rop.parmTuple("res_override").eval()
-            else:
-                return (int(self._camera_resolution[0] * float(res_scale)),
-                        int(self._camera_resolution[1] * float(res_scale)))
-
-        return self._camera_resolution
-
-    def _get_pixel_aspect(self):
-        """ Get Camera Pixel Aspect Ration
-        """
-        if self.rop.parm("override_camerares").eval():
-            return self.rop.parm("aspect_override").eval()
-        else:
-            return self._camera_pixel_aspect
-
-    def rollback_camera(self):
-        """ Rollback ROP camera to default
-        """
-        try:
-            self.rop.parm("camera").set(self.camera_path)
-        except hou.ObjectWasDeleted:
-            pass
-    
-    def rollback_resolution(self):
-        """ Rollback Resolution to default
-        """
-        try:
-            self.rop.parm("override_camerares").set(self.override_camera_res)
-            self.rop.parm("res_fraction").set(self.res_fraction)
-            self.rop.parmTuple("res_override").set(self.res_override)
-            self.rop.parm("aspect_override").set(self.pixel_aspect)
-        except hou.ObjectWasDeleted:
-            pass
-    
-    def rollback_aa_samples(self):
-        """ Rollback AA Samples to default
-        """
-        try:
-            self.rop.parm("ar_AA_samples").set(self.aa_samples)
-        except hou.ObjectWasDeleted:
-            pass
-    
-    def rollback_user_options(self):
-        """ Rollback User Options to default
-        """
-        self.user_options = re.sub("declare aton_enable.*", "", self.user_options)
-        try:
-            self.rop.parm("ar_user_options_enable").set(self.user_options_enable)
-            self.rop.parm("ar_user_options").set(self.user_options)
-        except hou.ObjectWasDeleted:
-            pass
 
 
 class BoxWidget(QtWidgets.QFrame):
     """ Abstract Class for UI Widgets
     """
+
     def __init__(self, label, first=True):
+        """
+        :param label: str
+        :param first: bool
+        """
         super(BoxWidget, self).__init__()
 
-        self.layout = QtWidgets.QHBoxLayout(self)
-        self.layout.setSizeConstraint(QtWidgets.QLayout.SetMaximumSize)
-        self.layout.setContentsMargins(0, 0, 0, 0)
+        self._layout = QtWidgets.QHBoxLayout(self)
+        self._layout.setSizeConstraint(QtWidgets.QLayout.SetMaximumSize)
+        self._layout.setContentsMargins(0, 0, 0, 0)
 
-        self.label = QtWidgets.QLabel(label)
+        self._label = QtWidgets.QLabel(label)
 
         if first:
-            self.label.setText(label + ":")
-            self.label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignCenter)
-            self.label.setMinimumSize(75, 20)
-            self.label.setMaximumSize(75, 20)
+            self._label.setText(label + ":")
+            self._label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignCenter)
+            self._label.setMinimumSize(75, 20)
+            self._label.setMaximumSize(75, 20)
 
-        self.layout.addWidget(self.label)
+        self._layout.addWidget(self._label)
 
 
 class LineEditBox(BoxWidget):
     """ QLineEdit Implementation
     """
+
     def __init__(self, label, text="", first=True):
+        """
+        :param label: str
+        :param text: str
+        :param first: bool
+        """
         super(LineEditBox, self).__init__(label, first)
 
         self.lineEditBox = QtWidgets.QLineEdit()
         self.lineEditBox.setText(text)
-        self.layout.addWidget(self.lineEditBox)
+        self._layout.addWidget(self.lineEditBox)
 
     def set_enabled(self, value):
-        self.label.setEnabled(value)
+        """
+        :param value: bool
+        """
+        self._label.setEnabled(value)
         self.lineEditBox.setEnabled(value)
 
     def text(self):
+        """
+        :rtype: str
+        """
         return self.lineEditBox.text()
 
     def set_text(self, text):
+        """
+        :param text: str
+        """
         self.lineEditBox.setText(text)
 
 
 class SliderBox(BoxWidget):
     """ SliderBox Widget based on QSpinbox and QSlider
     """
+
     def __init__(self, label, value=0, first=True):
+        """
+        :param label: str
+        :param value: int
+        :param first: bool
+        """
         super(SliderBox, self).__init__(label, first)
 
         self.spinBox = QtWidgets.QSpinBox()
@@ -428,47 +385,77 @@ class SliderBox(BoxWidget):
 
         self.slider.valueChanged.connect(self.spinBox.setValue)
 
-        self.layout.addWidget(self.spinBox)
-        self.layout.addWidget(self.slider)
+        self._layout.addWidget(self.spinBox)
+        self._layout.addWidget(self.slider)
 
     def set_minimum(self, spin_value=None, slider_value=None):
+        """
+        :param spin_value: int
+        :param slider_value: int
+        """
         if spin_value is not None:
             self.spinBox.setMinimum(spin_value)
         if slider_value is not None:
             self.slider.setMinimum(slider_value)
 
     def set_maximum(self, spin_value=None, slider_value=None):
+        """
+        :param spin_value: int
+        :param slider_value: int
+        """
         if spin_value is not None:
             self.spinBox.setMaximum(spin_value)
         if slider_value is not None:
             self.slider.setMaximum(slider_value)
 
     def set_value(self, spin_value=None, slider_value=None):
+        """
+        :param spin_value: int
+        :param slider_value: int
+        """
         if slider_value is not None:
             self.slider.setValue(slider_value)
         if spin_value is not None:
             self.spinBox.setValue(spin_value)
 
     def value(self):
+        """
+        :rtype: int
+        """
         return self.spinBox.value()
 
     def connect(self, func):
+        """
+        :param func: function
+        """
         self.slider.valueChanged.connect(func)
 
     def set_enabled(self, value):
-        self.label.setEnabled(value)
+        """
+        :param value: bool
+        """
+        self._label.setEnabled(value)
         self.spinBox.setEnabled(value)
         self.slider.setEnabled(value)
 
     @property
     def value_changed(self):
+        """
+        :rtype: QtCore.Signal
+        """
         return self.spinBox.valueChanged
 
 
 class SpinBox(BoxWidget):
     """ QSpinBox  implementation
     """
+
     def __init__(self, label, value=0, first=True):
+        """
+        :param label: str
+        :param value: int
+        :param first: bool
+        """
         super(SpinBox, self).__init__(label, first)
         self.spin_box = QtWidgets.QSpinBox()
         self.spin_box.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
@@ -476,23 +463,42 @@ class SpinBox(BoxWidget):
         self.spin_box.setMaximumSize(50, 20)
         self.spin_box.setValue(value)
 
-        self.layout.addWidget(self.spin_box)
+        self._layout.addWidget(self.spin_box)
 
     def value(self):
+        """
+        :rtype: int
+        """
         return self.spin_box.value()
 
     def set_value(self, value):
+        """
+        :param value: int
+        """
         self.spin_box.setValue(value)
+
+    def set_enabled(self, value):
+        """
+        :param value: bool
+        """
+        self.spin_box.setEnabled(value)
 
     @property
     def value_changed(self):
+        """
+        :rtype: QtCore.Signal
+        """
         return self.spin_box.valueChanged
 
 
 class ComboBox(BoxWidget):
-    """ QComboBox implemenation
+    """ QComboBox implementation
     """
     def __init__(self, label, first=True):
+        """
+        :param label:str
+        :param first: bool
+        """
         super(ComboBox, self).__init__(label, first)
         self.items = list()
 
@@ -501,35 +507,59 @@ class ComboBox(BoxWidget):
                                      QtWidgets.QSizePolicy.Fixed)
         self.current_index_changed = self.combo_box.currentIndexChanged
 
-        self.layout.addWidget(self.combo_box)
+        self._layout.addWidget(self.combo_box)
 
     def set_enabled(self, value):
-        self.label.setEnabled(value)
+        """
+        :param value: bool
+        """
+        self._label.setEnabled(value)
         self.combo_box.setEnabled(value)
 
     def set_current_index(self, value):
+        """
+        :param value:int
+        """
         self.combo_box.setCurrentIndex(value)
 
     def set_current_name(self, value):
+        """
+        :param value: str
+        """
         for idx, item in enumerate(self.items):
             if item == value:
                 self.combo_box.setCurrentIndex(idx)
 
+    def set_default_name(self, text):
+        self.combo_box.setItemText(0, self.items[0] + " (%s) " % text)
+
     def current_index(self):
+        """
+        :rtype: int
+        """
         return self.combo_box.currentIndex()
 
     def current_name(self):
+        """
+        :rtype: str
+        """
         index = self.combo_box.currentIndex()
         if self.items:
             return self.items[index]
 
     def add_items(self, items):
+        """
+        :param items: list
+        """
         if items:
             for i in items:
                 self.combo_box.addItem(i)
             self.items += items
 
     def new_items(self, items):
+        """
+        :param items: list
+        """
         self.clear()
         if items:
             for i in items:
@@ -542,30 +572,457 @@ class ComboBox(BoxWidget):
 
 
 class CheckBox(BoxWidget):
-    """ QCheckBox implemenation
+    """ QCheckBox implementation
     """
+
     def __init__(self, label, title="", first=True):
         super(CheckBox, self).__init__(label, first)
-        self.check_box = QtWidgets.QCheckBox(title)
+        self.widget = QtWidgets.QCheckBox(title)
 
-        self.layout.addWidget(self.check_box)
+        self._layout.addWidget(self.widget)
 
     @property
     def state_changed(self):
-        return self.check_box.stateChanged
+        """
+        :rtype: QSignal
+        """
+        return self.widget.stateChanged
 
     @property
     def toggled(self):
-        return self.check_box.toggled
+        """
+        :rtype: QSignal
+        """
+        return self.widget.toggled
 
     def is_checked(self):
-        return self.check_box.isChecked()
+        """
+        :rtype: bool
+        """
+        return self.widget.isChecked()
 
     def set_checked(self, value):
-        self.check_box.setChecked(value)
+        """
+        :param value: bool
+        """
+        self.widget.setChecked(value)
 
     def set_enabled(self, value):
-        self.check_box.setEnabled(value)
+        """
+        :param value:
+        """
+        self.widget.setEnabled(value)
+
+
+class OutputListBox(BoxWidget):
+    """ QListWidget implementation
+    """
+    def __init__(self, label, first=True):
+        """
+        :param label: str
+        :param first: bool
+        """
+        BoxWidget.__init__(self, label, first)
+
+        self._items = list()
+        self._widget = QtWidgets.QListWidget()
+        self._widget.setStyleSheet("background-color:#000000;")
+
+        self._layout.addWidget(self._widget)
+
+    def current_item(self):
+        return self._widget.currentItem()
+
+    def current_name(self):
+        if self._widget.currentItem() is not None:
+            return self._widget.currentItem().text()
+
+    def set_current_item(self, item):
+        """
+        :param item: QtWidgets.QListWidgetItem
+        """
+        self._widget.setCurrentItem(item)
+
+    def set_first_item(self):
+        if self._widget.count():
+            self._widget.setCurrentItem(self._widget.itemAt(0, 0))
+
+    def set_enabled(self, value):
+        """
+        :param value: bool
+        """
+        self._widget.setEnabled(value)
+
+    def set_multi_selection(self, value):
+        """
+        :param value: bool
+        """
+        if value:
+            self._widget.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        else:
+            self._widget.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
+
+    def selected_items(self):
+        return self._widget.selectedItems()
+
+    def clear(self):
+        self._widget.clear()
+
+    def find_items(self, name):
+        return self._widget.findItems(name, QtCore.Qt.MatchExactly)
+
+    def remove_item_widget(self, item):
+        self._widget.removeItemWidget(item)
+
+    @property
+    def current_item_changed(self):
+        return self._widget.currentItemChanged
+
+    @property
+    def widget(self):
+        return self._widget
+
+
+class Signal(QtCore.QObject):
+
+    rop_name_changed = QtCore.Signal(str)
+    being_deleted = QtCore.Signal(str)
+    camera_changed = QtCore.Signal(str)
+    resolution_changed = QtCore.Signal(tuple)
+    aa_samples_changed = QtCore.Signal(int)
+    bucket_scanning_changed = QtCore.Signal(str)
+
+
+class OutputItem(QtWidgets.QListWidgetItem):
+    """ Output object holds ROP attributes
+    """
+
+    def __init__(self, rop=None, parent=None):
+        """
+        :param rop: hou.RopNode
+        :param parent: QtWidgets.QListWidget
+        """
+        QtWidgets.QListWidgetItem.__init__(self, parent)
+
+        self.signal = Signal()
+
+        if type(rop) == hou.RopNode:
+            ar_user_options = rop.parmTemplateGroup().find("ar_user_options")
+
+            if ar_user_options:
+                self.__rop = rop
+                self.__cam = self.__get_camera()
+                self.__override_camera_res = self.__rop.parm("override_camerares").eval()
+                self.__res_fraction = self.__rop.parm("res_fraction").eval()
+                self.__res_override = self.__rop.parmTuple("res_override").eval()
+                self.__aa_samples = self.__rop.parm("ar_AA_samples").eval()
+                self.__user_options_enable = self.__rop.parm("ar_user_options_enable").eval()
+                self.__user_options_string = self.__rop.parm("ar_user_options").eval()
+                self.__empty = False
+
+                self.setText(self.__rop.path())
+
+                self.add_callbacks()
+        else:
+            self.__rop = None
+            self.__cam = None
+            self.__override_camera_res = False
+            self.__res_fraction = str()
+            self.__res_override = (0, 0)
+            self.__aa_samples = 0
+            self.__user_options_enable = False
+            self.__user_options_string = str()
+            self.__empty = True
+
+    def __get_camera(self):
+        """ Get Camera object
+        """
+        camera = hou.node(self.__rop.parm("camera").eval())
+        if camera is None:
+            scene_cameras = get_all_cameras()
+            if scene_cameras:
+                camera = scene_cameras[0]
+        return camera
+
+    def __get_resolution(self):
+        """ Get Resolution tuple
+        """
+        if self.__rop.parm("override_camerares").eval():
+            res_scale = self.__rop.parm("res_fraction").eval()
+
+            if res_scale == "specific":
+                return self.__rop.parmTuple("res_override").eval()
+            else:
+                return (int(self.__cam.parmTuple("res").eval()[0] * float(res_scale)),
+                        int(self.__cam.parmTuple("res").eval()[1] * float(res_scale)))
+
+        return self.__cam.parmTuple("res").eval()
+
+    def __get_origin_resolution(self):
+        """ Get Original Resolution tuple
+        """
+        if self.__override_camera_res:
+            res_scale = self.__res_fraction
+
+            if res_scale == "specific":
+                return self.__res_override
+            else:
+                return (int(self.__cam.parmTuple("res").eval()[0] * float(res_scale)),
+                        int(self.__cam.parmTuple("res").eval()[1] * float(res_scale)))
+
+        return self.__cam.parmTuple("res").eval()
+
+    def __get_pixel_aspect(self):
+        """ Get Camera Pixel Aspect Ration
+        """
+        if self.__rop.parm("override_camerares").eval():
+            return self.__rop.parm("aspect_override").eval()
+        else:
+            if self.__cam is not None:
+                return self.__cam.parm("aspect").eval()
+            else:
+                return 1.0
+
+    def __name_changed(self, **kwargs):
+        node = kwargs['node']
+        node_name = node.name()
+
+        if type(node) == hou.RopNode:
+            self.setText(self.__rop.path())
+            self.signal.rop_name_changed.emit(node_name)
+
+    def __parm_changed(self, **kwargs):
+        parm_tuple = kwargs['parm_tuple']
+        parm_name = parm_tuple.name()
+
+        if parm_name == "camera":
+            self.__cam = self.__get_camera()
+
+            self.signal.camera_changed.emit(self.__cam.path())
+            self.signal.resolution_changed.emit(self.__get_resolution())
+
+        elif parm_name == "res":
+            self.__camera_resolution = self.__cam.parmTuple("res").eval()
+            self.__resolution = self.__get_resolution()
+
+            self.signal.resolution_changed.emit(self.__resolution)
+
+        elif parm_name == "aspect":
+            self.__camera_pixel_aspect = self.__cam.parm("aspect").eval()
+
+        elif parm_name == "override_camerares":
+            self.__override_camera_res = self.__rop.parm("override_camerares").eval()
+            self.__resolution = self.__get_resolution()
+
+            self.signal.resolution_changed.emit(self.__resolution)
+
+        elif parm_name == "res_fraction":
+            self.__res_fraction = self.__rop.parm("res_fraction").eval()
+            self.__resolution = self.__get_resolution()
+
+            self.signal.resolution_changed.emit(self.__resolution)
+
+        elif parm_name == "res_override":
+            self.__res_override = self.__rop.parmTuple("res_override").eval()
+            self.__resolution = self.__get_resolution()
+
+            self.signal.resolution_changed.emit(self.__resolution)
+
+        elif parm_name == "aspect_override":
+            self.__pixel_aspect = self.__get_pixel_aspect()
+
+        elif parm_name == "ar_AA_samples":
+            self.__aa_samples = self.__rop.parm("ar_AA_samples").eval()
+
+            self.signal.aa_samples_changed.emit(self.__aa_samples)
+
+        elif parm_name == "ar_bucket_scanning":
+            self.__bucket_scanning = self.__rop.parm("ar_bucket_scanning").eval()
+
+            self.signal.bucket_scanning_changed.emit(self.__bucket_scanning)
+
+        elif parm_name == "ar_user_options_enable":
+            self.__user_options_enable = self.__rop.parm("ar_user_options_enable").eval()
+
+        elif parm_name == "ar_user_options":
+            self.__user_options_parm = self.__rop.parm("ar_user_options")
+            self.__user_options_str = self.__user_options_parm.eval()
+
+    def rollback_camera(self):
+        """ Rollback ROP camera to default
+        """
+        if self.__rop is not None:
+            if self.__cam is not None:
+                self.__rop.parm("camera").set(self.__cam.path())
+
+    def rollback_resolution(self):
+        """ Rollback Resolution to default
+        """
+        if self.__rop is not None:
+            self.__rop.parm("override_camerares").set(self.__override_camera_res)
+            self.__rop.parm("res_fraction").set(self.__res_fraction)
+            self.__rop.parmTuple("res_override").set(self.__res_override)
+
+    def rollback_aa_samples(self):
+        """ Rollback AA Samples to default
+        """
+        if self.__rop is not None:
+            self.__rop.parm("ar_AA_samples").set(self.__aa_samples)
+
+    def rollback_user_options(self):
+        """ Rollback User Options to default
+        """
+        if self.__rop is not None:
+            self.__rop.parm("ar_user_options_enable").set(self.__user_options_enable)
+            self.__rop.parm("ar_user_options").set(re.sub("declare aton_enable.*", "", self.__user_options_string))
+
+    def set_status(self, status=""):
+        if status:
+            self.setText(self.rop_path + " ( %s )" % status)
+        else:
+            self.setText(self.rop_path)
+
+    def add_callbacks(self):
+        if self.__rop is not None:
+            self.__rop.addEventCallback((hou.nodeEventType.NameChanged,), self.__name_changed)
+            self.__rop.addEventCallback((hou.nodeEventType.ParmTupleChanged,), self.__parm_changed)
+
+    def remove_callbacks(self):
+        try:
+            if self.__rop is not None:
+                self.__rop.removeEventCallback((hou.nodeEventType.NameChanged,), self.__name_changed)
+                self.__rop.removeEventCallback((hou.nodeEventType.ParmTupleChanged,), self.__parm_changed)
+        except hou.OperationFailed:
+            return
+
+    @property
+    def rop(self):
+        """ Returns rop object
+        """
+        return self.__rop
+
+    @property
+    def rop_path(self):
+        """ Returns rop path
+        """
+        if self.__rop is not None:
+            return self.__rop.path()
+
+    @property
+    def rop_name(self):
+        """ Returns rop name
+        """
+        if self.__rop is not None:
+            return self.__rop.name()
+
+    @property
+    def cam_path(self):
+        """ Returns camera path
+        """
+        if self.__cam is not None:
+            return self.__cam.path()
+
+    @property
+    def cam_name(self):
+        """ Returns camera name
+        """
+        if self.__cam is not None:
+            return self.__cam.name()
+
+    @property
+    def aa_samples(self):
+        """ Returns AA samples
+        """
+        if self.__rop is not None:
+            return self.__rop.parm("ar_AA_samples").eval()
+
+    @property
+    def res_x(self):
+        """ Returns Resolution X
+        """
+        if self.__rop is not None:
+            return self.__get_resolution()[0]
+        else:
+            return 0
+
+    @property
+    def res_y(self):
+        """ Returns Resolution Y
+        """
+        if self.__rop is not None:
+            return self.__get_resolution()[1]
+        else:
+            return 0
+
+    @property
+    def origin_res_x(self):
+        """ Returns Resolution X
+        """
+        if self.__cam is not None:
+            return self.__get_origin_resolution()[0]
+        else:
+            return 0
+
+    @property
+    def origin_res_y(self):
+        """ Returns Resolution Y
+        """
+        if self.__cam is not None:
+            return self.__get_origin_resolution()[1]
+        else:
+            return 0
+
+    @property
+    def res_fraction(self):
+        """ Returns Resolution fraction
+        """
+        if self.__rop is not None:
+            return self.__rop.parm("res_fraction").eval()
+
+    @property
+    def bucket_scanning(self):
+        """ Returns Bucket scanning
+        """
+        if self.__rop is not None:
+            return self.__rop.parm("ar_bucket_scanning").eval()
+
+    @property
+    def origin_user_options(self):
+        """ Returns original User options string
+        """
+        return self.__user_options_string
+
+    @property
+    def user_options(self):
+        """ Returns User options string
+        """
+        if self.__rop is not None:
+            return self.__rop.parm("ar_user_options").eval()
+
+    @user_options.setter
+    def user_options(self, string):
+        if self.__rop is not None:
+            self.__rop.parm("ar_user_options").set(string)
+
+    @property
+    def pixel_aspect(self):
+        """ Returns Pixel aspect
+        """
+        if self.__rop is not None:
+            return self.__get_pixel_aspect()
+
+    @property
+    def override_camera_res(self):
+        """ Return True if Override camera resolution checkbox is enabled
+        """
+        if self.__rop is not None:
+            return self.__rop.parm("override_camerares").eval()
+
+    @property
+    def empty(self):
+        """ Returns True if empty
+        """
+        return self.__empty
 
 
 class Aton(QtWidgets.QWidget):
@@ -573,58 +1030,988 @@ class Aton(QtWidgets.QWidget):
     """
     def __init__(self, icon_path=None):
         QtWidgets.QWidget.__init__(self)
-        
-        self.obj_name = self.__class__.__name__.lower()
+
+        self.__obj_name = self.__class__.__name__.lower()
 
         # Properties
-        self._output = None
-        self._hick_status = None
-        
-        # Default Settings
-        self.default_port = get_port()
-        self.default_host = get_host()
-        self.instance = get_ui_instance_count(self.obj_name)
-        self.outputs_list = [Output(rop) for rop in get_output_drivers()]
+        self.__output = None
+        self.__hick_status = None
+        self.__instance = get_ui_instance_count(self.__obj_name)
+        self.__default_port = get_port()
+        self.__default_host = get_host()
 
         # Init UI
-        self.setObjectName(self.obj_name)
+        self.setObjectName(self.__obj_name)
         self.setProperty("saveWindowPref", True)
         self.setProperty("houdiniStyle", True)
         self.setStyleSheet(hou.qt.styleSheet())
         self.setWindowIcon(QtGui.QIcon(icon_path))
+        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
+        self.setAttribute(QtCore.Qt.WA_AlwaysShowToolTips)
+        # self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+
+        # Create widgets
+        self.__mode_combo_box = ComboBox("Mode")
+        self.__cpu_combo_box = ComboBox("CPU:", False)
+        self.__ram_combo_box = ComboBox("RAM:", False)
+        self.__distribute_combo_box = ComboBox("Distribute:", False)
+        self.__port_slider = SliderBox("Port")
+        self.__port_increment_check_box = CheckBox("", "Increment on the Farm", False)
+        self.__output_list_box = OutputListBox("Output")
+        self.__camera_combo_box = ComboBox("Camera")
+        self.__ipr_update_check_box = CheckBox("IPR", "Auto Update")
+        self.__bucket_combo_box = ComboBox("Bucket Scan")
+        self.__resolution_combo_box = ComboBox("Resolution")
+        self.__camera_aa_combo_box = ComboBox("Camera (AA)")
+        self.__camera_aa_slider = SliderBox("", 3, False)
+        self.__render_region_combo_box = ComboBox("Region")
+        self.__render_region_x_spin_box = SpinBox("", 0, False)
+        self.__render_region_y_spin_box = SpinBox("", 0, False)
+        self.__render_region_r_spin_box = SpinBox("", 0, False)
+        self.__render_region_t_spin_box = SpinBox("", 0, False)
+        self.__render_region_reset_button = QtWidgets.QPushButton("Reset")
+        self.__render_region_get_button = QtWidgets.QPushButton("Get")
+        self.__sequence_checkbox = CheckBox("", "Enable", False)
+        self.__seq_start_spin_box = SpinBox("Start:", self.start_frame, False)
+        self.__seq_end_spin_box = SpinBox("End:", self.end_frame, False)
+        self.__seq_step_spin_box = SpinBox("Step:", 1, False)
+        self.__seq_rebuild_checkbox = CheckBox("", "Rebuild", False)
+        self.__motion_blur_check_box = CheckBox("", "Motion Blur", False)
+        self.__subdivs_check_box = CheckBox("", "Subdivs", False)
+        self.__displace_check_box = CheckBox("", "Displace", False)
+        self.__bump_check_box = CheckBox("", "Bump", False)
+        self.__sss_check_box = CheckBox("", "SSS", False)
+        self.__start_button = QtWidgets.QPushButton("Start / Refresh")
+        self.__stop_button = QtWidgets.QPushButton("Stop")
+        self.__reset_button = QtWidgets.QPushButton("Reset")
 
         # Setup UI
-        self.host_line_edit = None
-        self.host_check_box = None
-        self.port_slider = None
-        self.port_check_box = None
-        self.output_combo_box = None
-        self.camera_combo_box = None
-        self.ipr_update_check_box = None
-        self.bucket_combo_box = None
-        self.resolution_combo_box = None
-        self.camera_aa_slider = None
-        self.render_region_x_spin_box = None
-        self.render_region_y_spin_box = None
-        self.render_region_r_spin_box = None
-        self.render_region_t_spin_box = None
-        self.overscan_slider = None
-        self.sequence_checkbox = None
-        self.seq_start_spin_box = None
-        self.seq_end_spin_box = None
-        self.seq_step_spin_box = None
-        self.seq_rebuild_checkbox = None
-        self.motion_blur_check_box = None
-        self.subdivs_check_box = None
-        self.displace_check_box = None
-        self.bump_check_box = None
-        self.sss_check_box = None
+        self.__build_ui()
+        self.__initialise_ui()
+        self.__connect_signals_ui()
 
-        # Build UI
-        self.build_ui()
+        # Set window title
+        self.setWindowTitle("%s %s - %s" % (self.__class__.__name__, __version__, self.output.rop_name))
 
         # Adding a reset_callback
-        hou.hipFile.addEventCallback(self.reset_callback)
+        hou.hipFile.addEventCallback(self.__reset_ui_callback)
+
+    def closeEvent(self, event):
+        """ Called when the UI has been closed
+        :param event: QEvent
+        :return:
+        """
+        if self.ipr.isActive():
+            self.ipr.killRender()
+        self.__remove_aton_overrides()
+
+        self.setParent(None)
+        self.deleteLater()
+        self.destroy()
+
+        hou.hipFile.removeEventCallback(self.__reset_ui_callback)
+
+        for item in self.__output_list:
+            item.remove_callbacks()
+
+    def __reset_ui_callback(self, event):
+        """ Reset the UI if the scene was cleared or the new scene was loaded
+        :param event: hou.hipFileEventType
+        """
+        if event == hou.hipFileEventType.AfterLoad or event == hou.hipFileEventType.AfterClear:
+            self.__reset_ui()
+
+    def __generate_res_list(self):
+        """ Generate Resolution List for the Aton UI
+        """
+        xres, yres = self.output.res_x, self.output.res_y
+        l = ["Use ROPs"]
+        l += ["%d%% (%dx%d)" % (i, xres / 100.0 * i, yres / 100.0 * i) for i in [100.0, 75.0, 50.0, 25.0, 10.0, 5.0]]
+        return l
+
+    def __build_ui(self):
+        """ Build Aton UI
+        """
+        # Main Layout
+        main_layout = QtWidgets.QVBoxLayout()
+
+        # General Group
+        general_group_box = QtWidgets.QGroupBox("General")
+        general_layout = QtWidgets.QVBoxLayout(general_group_box)
+
+        # Mode Layout
+        mode_layout = QtWidgets.QHBoxLayout()
+        mode_layout.addWidget(self.__mode_combo_box)
+        mode_layout.addWidget(self.__cpu_combo_box)
+        mode_layout.addWidget(self.__ram_combo_box)
+        mode_layout.addWidget(self.__distribute_combo_box)
+
+        # Port Layout
+        port_layout = QtWidgets.QHBoxLayout()
+        port_layout.addWidget(self.__port_slider)
+        port_layout.addWidget(self.__port_increment_check_box)
+
+        # Output Driver Layout
+        output_driver_layout = QtWidgets.QHBoxLayout()
+        output_driver_layout.addWidget(self.__output_list_box)
+
+        # Camera Layout
+        camera_layout = QtWidgets.QHBoxLayout()
+        camera_layout.addWidget(self.__camera_combo_box)
+
+        # Overrides Group
+        overrides_group_box = QtWidgets.QGroupBox("Overrides")
+        overrides_layout = QtWidgets.QVBoxLayout(overrides_group_box)
+
+        # IPR Update Layout
+        ipr_update_layout = QtWidgets.QHBoxLayout()
+        ipr_update_layout.addWidget(self.__ipr_update_check_box)
+
+        # Bucket Layout
+        bucket_layout = QtWidgets.QHBoxLayout()
+        bucket_layout.addWidget(self.__bucket_combo_box)
+
+        # Resolution Layout
+        resolution_layout = QtWidgets.QHBoxLayout()
+        resolution_layout.addWidget(self.__resolution_combo_box)
+
+        # Camera AA Layout
+        camera_aa_layout = QtWidgets.QHBoxLayout()
+        camera_aa_layout.addWidget(self.__camera_aa_combo_box)
+        camera_aa_layout.addWidget(self.__camera_aa_slider)
+
+        # Render region layout
+        render_region_layout = QtWidgets.QHBoxLayout()
+        render_region_layout.addWidget(self.__render_region_combo_box)
+        render_region_layout.addWidget(self.__render_region_x_spin_box)
+        render_region_layout.addWidget(self.__render_region_y_spin_box)
+        render_region_layout.addWidget(self.__render_region_r_spin_box)
+        render_region_layout.addWidget(self.__render_region_t_spin_box)
+        render_region_layout.addWidget(self.__render_region_reset_button)
+        render_region_layout.addWidget(self.__render_region_get_button)
+
+        # Ignore Layout
+        ignores_group_box = QtWidgets.QGroupBox("Ignore")
+        ignores_layout = QtWidgets.QVBoxLayout(ignores_group_box)
+        ignore_layout = QtWidgets.QHBoxLayout()
+        ignore_layout.addWidget(self.__motion_blur_check_box)
+        ignore_layout.addWidget(self.__subdivs_check_box)
+        ignore_layout.addWidget(self.__displace_check_box)
+        ignore_layout.addWidget(self.__bump_check_box)
+        ignore_layout.addWidget(self.__sss_check_box)
+
+        # Sequence layout
+        sequence_group_box = QtWidgets.QGroupBox("Sequence")
+        sequence_layout = QtWidgets.QHBoxLayout(sequence_group_box)
+        sequence_layout.addWidget(self.__sequence_checkbox)
+        sequence_layout.addWidget(self.__seq_start_spin_box)
+        sequence_layout.addWidget(self.__seq_end_spin_box)
+        sequence_layout.addWidget(self.__seq_step_spin_box)
+        sequence_layout.addWidget(self.__seq_rebuild_checkbox)
+
+        # Main Buttons Layout
+        main_buttons_layout = QtWidgets.QHBoxLayout()
+        main_buttons_layout.addWidget(self.__start_button)
+        main_buttons_layout.addWidget(self.__stop_button)
+        main_buttons_layout.addWidget(self.__reset_button)
+
+        # Add Layouts to Main
+        general_layout.addLayout(mode_layout)
+        general_layout.addLayout(port_layout)
+        general_layout.addLayout(output_driver_layout)
+        overrides_layout.addLayout(ipr_update_layout)
+        overrides_layout.addLayout(camera_layout)
+        overrides_layout.addLayout(bucket_layout)
+        overrides_layout.addLayout(resolution_layout)
+        overrides_layout.addLayout(camera_aa_layout)
+        overrides_layout.addLayout(render_region_layout)
+        ignores_layout.addLayout(ignore_layout)
+
+        main_layout.addWidget(general_group_box)
+        main_layout.addWidget(overrides_group_box)
+        main_layout.addWidget(sequence_group_box)
+        main_layout.addWidget(ignores_group_box)
+        main_layout.addLayout(main_buttons_layout)
+
+        self.setLayout(main_layout)
+
+    def __initialise_ui(self):
+        """ Initialise Aton UI
+        """
+        # Mode Layout
+        self.__mode_combo_box.add_items(["Local"])
+
+        # Farm support if implemented
+        if not issubclass(Aton, self.__class__):
+            self.__mode_combo_box.add_items(["Farm"])
+
+        self.__cpu_combo_box.add_items(self.farm_cpu_menu())
+        self.__cpu_combo_box.setEnabled(False)
+        self.__ram_combo_box.add_items(self.farm_ram_menu())
+        self.__ram_combo_box.setEnabled(False)
+        self.__distribute_combo_box.add_items(self.farm_distribute_menu())
+        self.__distribute_combo_box.setEnabled(False)
+
+        # Port Layout
+        self.__port_slider.set_minimum(0, 0)
+        self.__port_slider.set_maximum(9999, 15)
+        self.__port_slider.set_value(self.port, self.port - self.__default_port)
+        self.__port_increment_check_box.set_checked(False)
+        self.__port_increment_check_box.set_enabled(False)
+
+        # Output items list
+        self.__output_list = [OutputItem(rop, self.output_list_box) for rop in get_rop_list()]
+        self.__output_list_box.set_first_item()
+
+        # Camera Layout
+        self.__camera_combo_box.add_items(["Use ROPs"] + get_all_cameras(path=True))
+        self.__camera_combo_box.set_default_name(self.output.cam_path)
+
+        # IPR Update Layout
+        self.__ipr_update_check_box.set_checked(self.ipr.isAutoUpdateOn())
+
+        # Bucket Layout
+        self.__bucket_combo_box.add_items(["Use ROPs"] + get_bucket_modes())
+        self.__bucket_combo_box.set_default_name(self.output.bucket_scanning)
+
+        # Resolution Layout
+        self.__resolution_combo_box.add_items(self.__generate_res_list())
+        self.__resolution_combo_box.set_default_name("%dx%d" % (self.output.res_x,
+                                                                self.output.res_y))
+        # Camera AA Layout
+        self.__camera_aa_combo_box.add_items(["Use ROPs", "Custom"])
+        self.__camera_aa_slider.set_minimum(-64, -3)
+        self.__camera_aa_slider.set_maximum(64, 16)
+        self.__camera_aa_slider.set_value(self.output.aa_samples, self.output.aa_samples)
+        self.__camera_aa_slider.set_enabled(False)
+
+        # Render region layout
+        self.__render_region_combo_box.add_items(["Disable", "Enable"])
+        self.__render_region_x_spin_box.set_enabled(False)
+        self.__render_region_y_spin_box.set_enabled(False)
+        self.__render_region_r_spin_box.set_enabled(False)
+        self.__render_region_t_spin_box.set_enabled(False)
+        self.__render_region_reset_button.setEnabled(False)
+        self.__render_region_get_button.setEnabled(False)
+        self.__render_region_r_spin_box.set_value(self.output.res_x)
+        self.__render_region_t_spin_box.set_value(self.output.res_y)
+
+        # Sequence layout
+        self.__seq_rebuild_checkbox.setEnabled(False)
+        self.__seq_start_spin_box.setEnabled(False)
+        self.__seq_end_spin_box.setEnabled(False)
+        self.__seq_step_spin_box.setEnabled(False)
+
+    def __connect_signals_ui(self):
+        """ Connects UI Signals
+        """
+        self.__mode_combo_box.current_index_changed.connect(self.__mode_update_ui)
+        self.__mode_combo_box.current_index_changed.connect(self.__port_increment_check_box.set_enabled)
+        self.__port_slider.connect(self.__port_update_ui)
+        self.__output_list_box.current_item_changed.connect(self.__output_update_ui)
+        self.__ipr_update_check_box.toggled.connect(self.__set_auto_update)
+        self.__camera_combo_box.current_index_changed.connect(self.__add_aton_overrides)
+        self.__bucket_combo_box.current_index_changed.connect(self.__add_aton_overrides)
+        self.__resolution_combo_box.current_index_changed.connect(self.__add_aton_overrides)
+        self.__camera_aa_combo_box.current_index_changed.connect(self.__camera_aa_update_ui)
+        self.__camera_aa_slider.value_changed.connect(self.__add_aton_overrides)
+        self.__render_region_combo_box.current_index_changed.connect(self.__render_region_x_spin_box.set_enabled)
+        self.__render_region_combo_box.current_index_changed.connect(self.__render_region_y_spin_box.set_enabled)
+        self.__render_region_combo_box.current_index_changed.connect(self.__render_region_r_spin_box.set_enabled)
+        self.__render_region_combo_box.current_index_changed.connect(self.__render_region_t_spin_box.set_enabled)
+        self.__render_region_combo_box.current_index_changed.connect(self.__render_region_reset_button.setEnabled)
+        self.__render_region_combo_box.current_index_changed.connect(self.__render_region_get_button.setEnabled)
+        self.__render_region_x_spin_box.value_changed.connect(self.__add_aton_overrides)
+        self.__render_region_y_spin_box.value_changed.connect(self.__add_aton_overrides)
+        self.__render_region_r_spin_box.value_changed.connect(self.__add_aton_overrides)
+        self.__render_region_t_spin_box.value_changed.connect(self.__add_aton_overrides)
+        self.__render_region_reset_button.clicked.connect(self.__reset_region_ui)
+        self.__render_region_get_button.clicked.connect(self.__get_render_region)
+        self.__sequence_checkbox.toggled.connect(self.__seq_start_spin_box.setEnabled)
+        self.__sequence_checkbox.toggled.connect(self.__seq_end_spin_box.setEnabled)
+        self.__sequence_checkbox.toggled.connect(self.__seq_step_spin_box.setEnabled)
+        self.__sequence_checkbox.toggled.connect(self.__seq_rebuild_checkbox.setEnabled)
+        self.__motion_blur_check_box.toggled.connect(self.__add_aton_overrides)
+        self.__subdivs_check_box.toggled.connect(self.__add_aton_overrides)
+        self.__displace_check_box.toggled.connect(self.__add_aton_overrides)
+        self.__bump_check_box.toggled.connect(self.__add_aton_overrides)
+        self.__sss_check_box.toggled.connect(self.__add_aton_overrides)
+        self.__start_button.clicked.connect(self.__start_render)
+        self.__stop_button.clicked.connect(self.__stop_render)
+        self.__reset_button.clicked.connect(self.__reset_ui)
+
+        for output in self.__output_list:
+            output.signal.rop_name_changed.connect(self.__output_update_ui)
+            output.signal.camera_changed.connect(self.__camera_update_ui)
+            output.signal.resolution_changed.connect(self.__res_update_ui)
+            output.signal.aa_samples_changed.connect(self.__camera_aa_update_ui)
+            output.signal.bucket_scanning_changed.connect(self.__bucket_scanning_update_ui)
+
+    def __reset_ui(self):
+        """ Reset UI
+        """
+        if self.ipr.isActive():
+            self.__stop_render()
+
+        self.__mode_combo_box.set_current_index(0)
+
+        # # Store current item name
+        current_name = self.__output_list_box.current_name()
+
+        # Removes callbacks
+        for i in self.__output_list:
+            i.remove_callbacks()
+
+        self.__output_list_box.clear()
+        self.__output_list = [OutputItem(rop, self.output_list_box) for rop in get_rop_list()]
+
+        # Update to default settings
+        self.__port_slider.set_value(self.port, self.port - self.__default_port)
+        self.__port_increment_check_box.set_checked(False)
+        self.__ipr_update_check_box.set_checked(True)
+        self.__bucket_combo_box.new_items(["Use ROPs"] + get_bucket_modes())
+        self.__camera_combo_box.new_items(["Use ROPs"] + get_all_cameras(path=True))
+        self.__resolution_combo_box.set_current_index(0)
+        self.__camera_aa_combo_box.set_current_index(0)
+        self.__render_region_x_spin_box.set_value(0)
+        self.__render_region_y_spin_box.set_value(0)
+        self.__render_region_combo_box.set_current_index(0)
+        self.__sequence_checkbox.set_checked(False)
+        self.__seq_rebuild_checkbox.set_checked(False)
+        self.__seq_start_spin_box.set_value(hou.playbar.frameRange()[0])
+        self.__seq_end_spin_box.set_value(hou.playbar.frameRange()[1])
+        self.__seq_step_spin_box.set_value(1)
+        self.__motion_blur_check_box.set_checked(False)
+        self.__subdivs_check_box.set_checked(False)
+        self.__displace_check_box.set_checked(False)
+        self.__bump_check_box.set_checked(False)
+        self.__sss_check_box.set_checked(False)
+
+        # Restore
+        for item in self.__output_list:
+            if current_name == item.rop_path:
+                self.__output_list_box.set_current_item(item)
+                break
+
+        # Set Resolution list
+        self.__res_update_ui()
+
+        self.__output_list_box.set_multi_selection(False)
+
+    def __mode_update_ui(self, value):
+        """ Updates UI Local vs Farm mode
+        :param value: int
+        """
+        self.__output_list_box.set_multi_selection(value)
+        self.__cpu_combo_box.setEnabled(value)
+        self.__ram_combo_box.setEnabled(value)
+        self.__distribute_combo_box.setEnabled(value)
+        self.__ipr_update_check_box.set_enabled(not value)
+        self.__sequence_checkbox.set_enabled(not value)
+        self.__seq_start_spin_box.set_enabled(not value)
+        self.__seq_end_spin_box.set_enabled(not value)
+        self.__seq_step_spin_box.set_enabled(not value)
+        self.__seq_rebuild_checkbox.set_enabled(not value)
+
+    def __port_update_ui(self, value):
+        """ Update Port UI
+        """
+        self.__port_slider.spinBox.setValue(value + self.__default_port)
+
+    def __output_update_ui(self, item):
+        """ Update the UI when changing the output rop
+        """
+        if type(item) is OutputItem:
+            self.__res_update_ui()
+            self.__camera_combo_box.set_default_name(item.cam_path)
+            self.__bucket_combo_box.set_default_name(item.bucket_scanning)
+
+            if not self.__camera_aa_combo_box.current_index():
+                self.__camera_aa_slider.set_value(item.aa_samples, item.aa_samples)
+
+            self.__render_region_x_spin_box.set_value(0)
+            self.__render_region_y_spin_box.set_value(0)
+            self.__render_region_r_spin_box.set_value(item.res_x)
+            self.__render_region_t_spin_box.set_value(item.res_y)
+
+        self.setWindowTitle("%s %s - %s" % (self.__class__.__name__, __version__, self.output.rop_name))
+
+    def __camera_update_ui(self, value):
+        """ Updates Camera combo box
+        :param value: str
+        """
+        self.__camera_combo_box.set_default_name(value)
+
+    def __bucket_scanning_update_ui(self, value):
+        self.__bucket_combo_box.set_default_name(value)
+
+    def __res_update_ui(self):
+        """ Update Resolution UI
+        """
+        index = self.__resolution_combo_box.current_index()
+        self.__resolution_combo_box.new_items(self.__generate_res_list())
+        self.__resolution_combo_box.set_current_index(index)
+        self.__resolution_combo_box.set_default_name("%dx%d" % (self.output.origin_res_x,
+                                                                self.output.origin_res_y))
+
+        self.__render_region_r_spin_box.set_value(self.output.origin_res_x)
+        self.__render_region_t_spin_box.set_value(self.output.origin_res_y)
+
+    def __camera_aa_update_ui(self):
+        if self.__camera_aa_combo_box.current_index():
+            self.__camera_aa_slider.set_enabled(True)
+        else:
+            self.__camera_aa_slider.set_enabled(False)
+            self.__camera_aa_slider.set_value(self.output.aa_samples, self.output.aa_samples)
+
+    def __reset_region_ui(self):
+        """ Reset Region UI
+        """
+        self.__render_region_x_spin_box.set_value(0)
+        self.__render_region_y_spin_box.set_value(0)
+        self.__render_region_r_spin_box.set_value(self.output.origin_res_x)
+        self.__render_region_t_spin_box.set_value(self.output.origin_res_y)
+
+    def __general_ui_set_enabled(self, value):
+        """ Toggle UI Enabled during the rendering process
+        """
+        self.__port_slider.set_enabled(value)
+        self.__output_list_box.set_enabled(value)
+
+    def __get_render_region(self):
+        """ Get crop node data from Nuke
+        """
+        data = QtWidgets.QApplication.clipboard().text()
+
+        crop_data = data.split(",")
+
+        if crop_data is not None:
+
+            if len(crop_data) == 5:
+                nk_x = float(crop_data[0])
+                nk_y = float(crop_data[1])
+                nk_r = float(crop_data[2])
+                nk_t = float(crop_data[3])
+                nk_res = float(crop_data[4])
+
+                region_mult = self.output.origin_res_x / nk_res
+
+                self.__render_region_x_spin_box.set_value(int(nk_x * region_mult))
+                self.__render_region_y_spin_box.set_value(int(nk_y * region_mult))
+                self.__render_region_r_spin_box.set_value(int(nk_r * region_mult))
+                self.__render_region_t_spin_box.set_value(int(nk_t * region_mult))
+
+    def __get_resolution(self, attr, output):
+        """ Get Resolution and Region overrides
+        :param attr: int
+        :param attr: OutputItem
+        :rtype: int
+        """
+        index = self.__resolution_combo_box.current_index()
+
+        if index == 2:
+            res_value = 75
+        elif index == 3:
+            res_value = 50
+        elif index == 4:
+            res_value = 25
+        elif index == 5:
+            res_value = 10
+        elif index == 6:
+            res_value = 5
+        else:
+            res_value = 100
+
+        xres = output.origin_res_x * res_value / 100
+        yres = output.origin_res_y * res_value / 100
+
+        result = {0: lambda: xres,
+                  1: lambda: yres,
+                  2: lambda: (self.__render_region_x_spin_box.value() * res_value / 100),
+                  3: lambda: yres - (self.__render_region_t_spin_box.value() * res_value / 100),
+                  4: lambda: (self.__render_region_r_spin_box.value() * res_value / 100) - 1,
+                  5: lambda: (yres - (self.__render_region_y_spin_box.value() * res_value / 100)) - 1}[attr]()
+
+        return result
+
+    def __set_auto_update(self, value):
+        self.ipr.setAutoUpdate(value)
+
+    def __start_render(self, caller=None):
+        """ Start Button Command
+        :param caller: function
+        """
+        if not self.__mode_combo_box.current_index():
+
+            if not self.output.empty:
+
+                # Set IPR Options
+                try:
+                    self.ipr.setRopNode(self.output.rop)
+                except hou.ObjectWasDeleted:
+                    return
+
+                self.ipr.killRender()
+
+                # Sequence rendering mode
+                if self.__sequence_checkbox.is_checked():
+                    self.ipr.setPreview(False)
+                    if caller is None:
+                        hou.setFrame(self.__seq_start_spin_box.value())
+                else:
+                    self.ipr.setPreview(True)
+
+                self.ipr.startRender()
+                self.ipr.pauseRender()
+
+                if self.__add_aton_overrides():
+
+                    self.ipr.resumeRender()
+                    self.__general_ui_set_enabled(False)
+                    self.output.set_status("Rendering...")
+
+                    if self.__sequence_checkbox.is_checked():
+                        self.hick_status.start()
+                else:
+                    self.__stop_render()
+        else:
+            self.__export_ass()
+
+    def __stop_render(self):
+        """ Stop Button command
+        """
+        if not self.__mode_combo_box.current_index():
+            self.ipr.killRender()
+            self.__remove_aton_overrides()
+            self.__general_ui_set_enabled(True)
+            self.output.set_status()
+        else:
+            self.farm_stop()
+
+    def __change_time(self):
+        """ Change time for sequence rendering
+        """
+        current_frame = int(self.current_frame)
+        end_frame = self.__seq_end_spin_box.value()
+        step = self.__seq_step_spin_box.value()
+        rebuild = self.__seq_rebuild_checkbox.is_checked()
+
+        if step > 1 and current_frame < end_frame - step + 1:
+            next_frame = current_frame + step
+        elif step > 1 and current_frame == end_frame - step + 1:
+            next_frame = end_frame
+        else:
+            next_frame = current_frame + step
+
+        if next_frame <= end_frame:
+            hou.setFrame(next_frame)
+        else:
+            self.__stop_render()
+            return
+
+        if rebuild:
+            self.__stop_render()
+            self.__start_render(self.__change_time)
+
+    def __export_ass(self):
+        """ Exports an ass file, calls overrides and inits a farm job
+        """
+        port = self.__port_slider.value()
+
+        for output in self.__output_list_box.selected_items():
+
+            output.set_status("Exporting ASS...")
+
+            if output.rop is not None:
+                ass_path = self.export_ass_path(output.rop_name)
+                ass_name = self.export_ass_name(output.rop_name)
+
+                if ass_path and ass_name:
+                    rop_ass_enable_param = output.rop.parm('ar_ass_export_enable')
+                    rop_ass_file_parm = output.rop.parm('ar_ass_file')
+                    rop_picture_param = output.rop.parm("ar_picture")
+
+                    if rop_ass_file_parm is not None:
+
+                        default_state = rop_ass_enable_param.eval()
+                        default_path = rop_ass_file_parm.rawValue()
+                        default_picture = rop_picture_param.eval()
+
+                        rop_picture_param.set("")
+                        rop_ass_enable_param.set(1)
+                        ass_file_path = os.path.join(ass_path, ass_name)
+                        rop_ass_file_parm.set(ass_file_path)
+                        ass_file_path = rop_ass_file_parm.eval()
+
+                        output.rop.parm('execute').pressButton()
+
+                        rop_ass_enable_param.set(default_state)
+                        rop_ass_file_parm.set(default_path)
+                        rop_picture_param.set(default_picture)
+
+                        # Exported
+                        output.set_status()
+
+                        if self.__add_ass_overrides(output, ass_file_path, port):
+
+                            self.__init_farm_job(output, ass_file_path)
+
+                            if self.__port_increment_check_box.is_checked():
+                                port += 1
+
+    def __init_farm_job(self, output, ass_file_path):
+        """ Initialises farm job requirements
+        :param output: OutputItem
+        :param ass_file_path: str
+        """
+        distribute = self.__distribute_combo_box.current_index()
+
+        x_res = self.__get_resolution(0, output)
+        y_res = self.__get_resolution(1, output)
+        x_reg = self.__get_resolution(2, output)
+        y_reg = self.__get_resolution(3, output)
+        r_reg = self.__get_resolution(4, output)
+        t_reg = self.__get_resolution(5, output)
+
+        if self.__region_changed():
+            x_res = r_reg - x_reg
+            y_res = t_reg - y_reg
+
+        for tile in generate_tiles(x_res, y_res, distribute):
+
+            if distribute:
+                if self.__region_changed():
+                    region_list = [tile[0] + x_reg,
+                                   tile[1] + y_reg,
+                                   tile[2] + r_reg - x_res + 1,
+                                   tile[3] + t_reg - y_res]
+                else:
+                    region_list = [tile[0], tile[1], tile[2] - 1, tile[3] - 1]
+            else:
+                region_list = list()
+
+            self.farm_start(ass_file_path,
+                            output.rop_name,
+                            self.current_frame,
+                            self.__cpu_combo_box.current_name(),
+                            self.__ram_combo_box.current_name(),
+                            region_list)
+
+    def __aa_samples_changed(self):
+        """ Check if the AA Samples has been overriden
+        """
+        if self.__camera_aa_combo_box.current_index():
+            return self.__camera_aa_slider.value() != self.output.aa_samples
+        else:
+            return False
+
+    def __camera_changed(self):
+        """ Check if the Camera has been overriden
+        """
+        return self.__camera_combo_box.current_index() and \
+               self.__camera_combo_box.current_name() != self.output.cam_path
+
+    def __resolution_changed(self, output=None):
+        """ Check if the Resolution and Region have been overridden
+        """
+        if output is None:
+            output = self.output
+
+        x_res = self.__get_resolution(0, output)
+        y_res = self.__get_resolution(1, output)
+        x_reg = self.__get_resolution(2, output)
+        y_reg = self.__get_resolution(3, output)
+        r_reg = self.__get_resolution(4, output)
+        t_reg = self.__get_resolution(5, output)
+
+        if x_res != output.res_x or y_res != output.res_y:
+            return True
+        elif x_reg != 0 or y_reg != 0 or r_reg != x_res - 1 or t_reg != y_res - 1:
+            return True
+        else:
+            return False
+
+    def __region_changed(self, output=None):
+        """ Check if the Region have been overridden
+        """
+        if output is None:
+            output = self.output
+
+        x_res = self.__get_resolution(0, output)
+        y_res = self.__get_resolution(1, output)
+        x_reg = self.__get_resolution(2, output)
+        y_reg = self.__get_resolution(3, output)
+        r_reg = self.__get_resolution(4, output)
+        t_reg = self.__get_resolution(5, output)
+
+        return self.__render_region_combo_box.current_index() and \
+               (x_reg != 0 or y_reg != 0 or r_reg != x_res - 1 or t_reg != y_res - 1)
+
+    def __bucket_scanning_changed(self):
+        """ Check if the Bucket Scanning has been overriden
+        """
+        return self.__bucket_combo_box.current_index() and \
+               self.__bucket_combo_box.current_name() != self.output.bucket_scanning
+
+    def __ignore_mbl_changed(self):
+        """ Check if the Ignore Motion Blur has been Enabled
+        """
+        return self.__motion_blur_check_box.is_checked()
+
+    def __ignore_sdv_changed(self):
+        """ Check if the Ignore Subdivisions has been Enabled
+        """
+        return self.__subdivs_check_box.is_checked()
+
+    def __ignore_dsp_changed(self):
+        """ Check if the Ignore Displacement has been Enabled
+        """
+        return self.__displace_check_box.is_checked()
+
+    def __ignore_bmp_changed(self):
+        """ Check if the Ignore Bump has been Enabled
+        """
+        return self.__bump_check_box.is_checked()
+
+    def __ignore_sss_changed(self):
+        """ Check if the Ignore Sub Surface Scattering has been Enabled
+        """
+        return self.__sss_check_box.is_checked()
+
+    def __add_ass_overrides(self, output, ass_file_path, port):
+        """ Overrides exported ASS files parameters
+        :param output: OutputItem
+        :param ass_file_path: str
+        :param port: int
+        :rtype: bool
+        """
+        AiBegin()
+        AiMsgSetConsoleFlags(AI_LOG_ALL)
+
+        AiASSLoad(ass_file_path)
+
+        # Creates driver_aton node
+        aton_node = AiNode("driver_aton")
+        AiNodeSetStr(aton_node, "name", output.rop_path + ":aton:" + output.cam_name)
+        AiNodeSetStr(aton_node, "host", socket.gethostbyname(socket.gethostname()))
+        AiNodeSetInt(aton_node, "port", port)
+        AiNodeSetStr(aton_node, "output", output.rop_name)
+
+        # Distributive rendering session
+        if self.__distribute_combo_box.current_index():
+            AiNodeSetInt(aton_node, "session", int(time.time()))
+
+        # Gets option node
+        options_node = AiUniverseGetOptions()
+
+        # Get the outputs string array param (on the options node) as a python list
+        array = AiNodeGetArray(options_node, "outputs")
+        elements = AiArrayGetNumElements(array)
+        outputs = [AiArrayGetStr(array, i) for i in xrange(elements)]
+
+        if outputs:
+
+            # Get output name to be replaced with Aton
+            name = outputs[0].split()[-1]
+
+            # Ignoring variance outputs coming from Noice
+            aton_outputs = [i.replace(name, AiNodeGetName(aton_node)) for i in outputs if "variance_filter" not in i]
+            nodeSetArrayString(options_node, "outputs", aton_outputs)
+
+            if self.__aa_samples_changed():
+                AiNodeSetInt(options_node, "AA_samples", self.__camera_aa_slider.value())
+
+            AiNodeSetStr(options_node, "camera", self.__camera_combo_box.current_name())
+
+            if self.__resolution_changed(output):
+                AiNodeSetInt(options_node, "xres", self.__get_resolution(0, output))
+                AiNodeSetInt(options_node, "yres", self.__get_resolution(1, output))
+
+            if self.__region_changed(output):
+                AiNodeSetInt(options_node, "region_min_x", self.__get_resolution(2, output))
+                AiNodeSetInt(options_node, "region_min_y", self.__get_resolution(3, output))
+                AiNodeSetInt(options_node, "region_max_x", self.__get_resolution(4, output))
+                AiNodeSetInt(options_node, "region_max_y", self.__get_resolution(5, output))
+
+            if self.__bucket_scanning_changed():
+                AiNodeSetStr(options_node, "bucket_scanning", self.__bucket_combo_box.current_name())
+
+            if self.__ignore_mbl_changed():
+                AiNodeSetBool(options_node, "ignore_motion_blur", self.__motion_blur_check_box.is_checked())
+
+            if self.__ignore_sdv_changed():
+                AiNodeSetBool(options_node, "ignore_subdivision", self.__subdivs_check_box.is_checked())
+
+            if self.__ignore_dsp_changed():
+                AiNodeSetBool(options_node, "ignore_displacement", self.__displace_check_box.is_checked())
+
+            if self.__ignore_bmp_changed():
+                AiNodeSetBool(options_node, "ignore_bump", self.__bump_check_box.is_checked())
+
+            if self.__ignore_sss_changed():
+                AiNodeSetBool(options_node, "ignore_sss", self.__sss_check_box.is_checked())
+
+            AiASSWrite(ass_file_path)
+            AiEnd()
+
+            return True
+
+    def __add_aton_overrides(self):
+        """ Adds Aton overrides as a User Options
+        :rtype: bool
+        """
+        if self.ipr.isActive():
+
+            self.output.remove_callbacks()
+
+            # Aton Attributes
+            self.output.user_options += " " if self.output.origin_user_options else ""
+            self.output.user_options += "declare aton_enable constant BOOL aton_enable on "
+            self.output.user_options += "declare aton_host constant STRING aton_host \"%s\" " % self.__default_host
+            self.output.user_options += "declare aton_port constant INT aton_port %d " % self.__port_slider.value()
+            self.output.user_options += "declare aton_output constant STRING aton_output \"%s\" " % self.output.rop_name
+
+            # Enable User Options Overrides
+            user_options_enabled = self.output.rop.parm("ar_user_options_enable").eval()
+            if not user_options_enabled:
+                self.output.rop.parm("ar_user_options_enable").set(True)
+            # Camera
+            if self.__camera_changed():
+                self.output.rop.parm("camera").set(self.__camera_combo_box.current_name())
+            else:
+                self.output.rop.parm("camera").set(self.output.cam_path)
+
+            # AA Samples
+            if self.__aa_samples_changed():
+                self.output.rop.parm("ar_AA_samples").set(self.__camera_aa_slider.value())
+            else:
+                self.output.rop.parm("ar_AA_samples").set(self.output.aa_samples)
+
+            # Resolution
+            if self.__resolution_changed():
+                self.output.rop.parm("override_camerares").set(True)
+                self.output.rop.parm("res_fraction").set("specific")
+                self.output.rop.parm("res_overridex").set(self.__get_resolution(0, self.output))
+                self.output.rop.parm("res_overridey").set(self.__get_resolution(1, self.output))
+                self.output.rop.parm("aspect_override").set(self.output.pixel_aspect)
+            else:
+                self.output.rop.parm("override_camerares").set(self.output.override_camera_res)
+                self.output.rop.parm("res_fraction").set(self.output.res_fraction)
+                self.output.rop.parm("res_overridex").set(self.output.res_x)
+                self.output.rop.parm("res_overridey").set(self.output.res_y)
+
+                self.output.rop.parm("aspect_override").set(self.output.pixel_aspect)
+
+            # Render Region
+            if self.__region_changed():
+                self.output.user_options += "declare aton_region_min_x constant INT aton_region_min_x %d " % \
+                                            self.__get_resolution(2, self.output)
+                self.output.user_options += "declare aton_region_min_y constant INT aton_region_min_y %d " % \
+                                            self.__get_resolution(3, self.output)
+                self.output.user_options += "declare aton_region_max_x constant INT aton_region_max_x %d " % \
+                                            self.__get_resolution(4, self.output)
+                self.output.user_options += "declare aton_region_max_y constant INT aton_region_max_y %d " % \
+                                            self.__get_resolution(5, self.output)
+
+            # Bucket Scanning
+            if self.__bucket_scanning_changed():
+                self.output.user_options += "declare aton_bucket constant STRING aton_bucket \"%s\" " % \
+                                self.__bucket_combo_box.current_name()
+
+            # Ignore Features
+            if self.__ignore_mbl_changed():
+                self.output.user_options += "declare aton_ignore_mbl constant BOOL aton_ignore_mbl %s  " % \
+                                ("on" if self.__motion_blur_check_box.is_checked() else "off")
+            if self.__ignore_sdv_changed():
+                self.output.user_options += "declare aton_ignore_sdv constant BOOL aton_ignore_sdv %s " % \
+                                ("on" if self.__subdivs_check_box.is_checked() else "off")
+            if self.__ignore_dsp_changed():
+                self.output.user_options += "declare aton_ignore_dsp constant BOOL aton_ignore_dsp %s " % \
+                                ("on" if self.__displace_check_box.is_checked() else "off")
+            if self.__ignore_bmp_changed():
+                self.output.user_options += "declare aton_ignore_bmp constant BOOL aton_ignore_bmp %s " % \
+                                ("on" if self.__bump_check_box.is_checked() else "off")
+            if self.__ignore_sss_changed():
+                self.output.user_options += "declare aton_ignore_sss constant BOOL aton_ignore_sss %s " % \
+                                ("on" if self.__sss_check_box.is_checked() else "off")
+
+            self.output.add_callbacks()
+
+            return True
+
+    def __remove_aton_overrides(self):
+        """ Remove all Aton Overrides
+        """
+        for output in self.__output_list:
+
+            if self.__camera_changed():
+                output.rollback_camera()
+
+            if self.__resolution_changed():
+                output.rollback_resolution()
+
+            if self.__aa_samples_changed():
+                output.rollback_aa_samples()
+
+            output.rollback_user_options()
+
+    def farm_cpu_menu(self):
+        """ Farm CPU list menu to be implemented in sub-classes
+        :rtype: list: str
+        """
+        return list()
+
+    def farm_ram_menu(self):
+        """ Farm RAM list menu to be implemented in sub-classes
+        :rtype: list: str
+        """
+        return list()
+
+    def farm_distribute_menu(self):
+        """ Farm Distribution list menu to be implemented in sub-classes
+        :rtype: list: str
+        """
+        return list()
+
+    def export_ass_path(self, rop_name):
+        """ Export ASS path to be implemented in sub-classes
+        :param rop_name: str
+        :rtype: str
+        """
+        return str()
+
+    def export_ass_name(self, rop_name):
+        """ Export ASS name to be implemented in sub-classes
+        :param rop_name: str
+        :rtype: str
+        """
+        return str()
+
+    def farm_start(self, ass_file_path, rop_name, frame, cpu, ram, region):
+        """ Farm submission start method to be implemented in the sub-classes
+        :param ass_file_path: str
+        :param rop_name: str
+        :param frame: float
+        :param cpu: int
+        :param ram: int
+        :param region: list[4]: int
+        :rtype: None
+        """
+        pass
+
+    def farm_stop(self):
+        """ Farm submition stop method to be implemented in the sub-classes
+        :rtype: None
+        """
+        pass
+
+    @property
+    def output_list_box(self):
+        return self.__output_list_box.widget
+
+    @property
+    def instance(self):
+        return self.__instance
 
     @property
     def ipr(self):
@@ -637,643 +2024,39 @@ class Aton(QtWidgets.QWidget):
     def output(self):
         """ Returns output object based on the current Aton UI selection
         """
-        idx = self.output_combo_box.current_index()
-        if 0 <= idx < len(self.outputs_list):
-            self._output = self.outputs_list[idx]
+        item = self.__output_list_box.current_item()
+        if item is not None:
+            return self.__output_list_box.current_item()
         else:
-            self._output = Output()
-        return self._output
+            return OutputItem()
 
     @property
     def hick_status(self):
         """ Returns HickStatus object
         """
-        if self._hick_status is None:
-            self._hick_status = HickStatus(self.ipr)
-            self._hick_status.finished.connect(self.change_time)
+        if self.__hick_status is None:
+            self.__hick_status = HickStatus(self.ipr)
+            self.__hick_status.finished.connect(self.__change_time)
 
-        return self._hick_status
+        return self.__hick_status
 
     @property
     def port(self):
         """ Returns Port number based on AtonU UI instance count
         """
-        if self.instance > 0:
-            return self.default_port + self.instance
+        if self.__instance > 0:
+            return self.__default_port + self.__instance
         else:
-            return self.default_port
-
-    def reset_callback(self, event):
-        """ Reset the UI if the scene was cleared or the new scene was loaded
-        """
-        if event == hou.hipFileEventType.AfterLoad or \
-           event == hou.hipFileEventType.AfterClear:
-            self.reset_ui()
-
-    def closeEvent(self, event):
-        """ Called when the UI has been closed
-        """
-        if self.ipr.isActive():
-            self.ipr.killRender()
-        self.remove_aton_overrides()
-        
-        self.setParent(None)
-        self.deleteLater()
-        self.destroy()
-
-        hou.hipFile.removeEventCallback(self.reset_callback)
-
-    def generate_res_list(self):
-        """ Generate Resolution List for the Aton UI
-        """
-        xres, yres = self.output.resolution[0], self.output.resolution[1]
-        return ["%d%% (%dx%d)" % (i, xres/100.0*i, yres/100.0*i) for i in [100.0, 75.0, 50.0, 25.0, 10.0, 5.0]]
-
-    def build_ui(self):
-        """ Build Aton UI
-        """
-
-        # Set UI Flags
-        self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
-        self.setAttribute(QtCore.Qt.WA_AlwaysShowToolTips)
-
-        # Main Layout
-        main_layout = QtWidgets.QVBoxLayout()
-
-        # General Group
-        general_group_box = QtWidgets.QGroupBox("General")
-        general_layout = QtWidgets.QVBoxLayout(general_group_box)
-
-        # Host Layout
-        host_layout = QtWidgets.QHBoxLayout()
-        self.host_line_edit = LineEditBox("Host", self.default_host)
-        self.host_check_box = CheckBox("", "", False)
-        self.host_check_box.set_checked(True)
-        self.host_check_box.state_changed.connect(self.host_line_edit.set_enabled)
-        host_layout.addWidget(self.host_line_edit)
-        host_layout.addWidget(self.host_check_box)
-
-        # Port Layout
-        port_layout = QtWidgets.QHBoxLayout()
-        self.port_slider = SliderBox("Port")
-        self.port_slider.set_minimum(0, 0)
-        self.port_slider.set_maximum(9999, 15)
-        self.port_slider.set_value(self.port, self.port - self.default_port)
-        self.port_slider.connect(self.port_update_ui)
-        self.port_check_box = CheckBox("", "", False)
-        self.port_check_box.set_checked(True)
-        self.port_check_box.state_changed.connect(self.port_slider.set_enabled)
-        port_layout.addWidget(self.port_slider)
-        port_layout.addWidget(self.port_check_box)
-
-        # Output Driver Layout
-        output_driver_layout = QtWidgets.QHBoxLayout()
-        self.output_combo_box = ComboBox("Output")
-        self.output_combo_box.add_items([i.path for i in self.outputs_list])
-        self.output_combo_box.current_index_changed.connect(self.output_update_ui)
-        self.setWindowTitle("%s - %s" % (self.__class__.__name__, self.output.name))
-        output_driver_layout.addWidget(self.output_combo_box)
-
-        # Camera Layout
-        camera_layout = QtWidgets.QHBoxLayout()
-        self.camera_combo_box = ComboBox("Camera")
-        self.camera_combo_box.add_items(get_all_cameras(path=True))
-        self.camera_combo_box.set_current_name(self.output.camera_path)
-        camera_layout.addWidget(self.camera_combo_box)
-
-        # Overrides Group
-        overrides_group_box = QtWidgets.QGroupBox("Overrides")
-        overrides_layout = QtWidgets.QVBoxLayout(overrides_group_box)
-
-        # IPR Update Layout
-        ipr_update_layout = QtWidgets.QHBoxLayout()
-        self.ipr_update_check_box = CheckBox("IPR", "Auto Update")
-        self.ipr_update_check_box.set_checked(self.ipr.isAutoUpdateOn())
-        self.ipr_update_check_box.state_changed.connect(lambda: self.ipr.setAutoUpdate(
-            self.ipr_update_check_box.is_checked()))
-        ipr_update_layout.addWidget(self.ipr_update_check_box)
-
-        # Bucket Layout
-        bucket_layout = QtWidgets.QHBoxLayout()
-        self.bucket_combo_box = ComboBox("Bucket Scan")
-        self.bucket_combo_box.add_items(get_bucket_modes())
-        self.bucket_combo_box.set_current_name(self.output.bucket_scanning)
-        bucket_layout.addWidget(self.bucket_combo_box)
-
-        # Resolution Layout
-        resolution_layout = QtWidgets.QHBoxLayout()
-        self.resolution_combo_box = ComboBox("Resolution")
-        self.resolution_combo_box.add_items(self.generate_res_list())
-        resolution_layout.addWidget(self.resolution_combo_box)
-
-        # Camera AA Layout
-        camera_aa_layout = QtWidgets.QHBoxLayout()
-        self.camera_aa_slider = SliderBox("Camera (AA)")
-        self.camera_aa_slider.set_minimum(-64, -3)
-        self.camera_aa_slider.set_maximum(64, 16)
-        self.camera_aa_slider.set_value(self.output.aa_samples, self.output.aa_samples)
-        camera_aa_layout.addWidget(self.camera_aa_slider)
-
-        # Render region layout
-        render_region_layout = QtWidgets.QHBoxLayout()
-        self.render_region_x_spin_box = SpinBox("Region X")
-        self.render_region_y_spin_box = SpinBox("Y:", 0, False)
-        self.render_region_r_spin_box = SpinBox("R:", 0, False)
-        self.render_region_t_spin_box = SpinBox("T:", 0, False)
-        self.render_region_r_spin_box.set_value(self.output.resolution[0])
-        self.render_region_t_spin_box.set_value(self.output.resolution[1])
-        render_region_reset_button = QtWidgets.QPushButton("Reset")
-        render_region_get_nuke_button = QtWidgets.QPushButton("Get")
-        render_region_reset_button.clicked.connect(self.reset_region_ui)
-        render_region_get_nuke_button.clicked.connect(self.get_nuke_crop_node)
-        render_region_layout.addWidget(self.render_region_x_spin_box)
-        render_region_layout.addWidget(self.render_region_y_spin_box)
-        render_region_layout.addWidget(self.render_region_r_spin_box)
-        render_region_layout.addWidget(self.render_region_t_spin_box)
-        render_region_layout.addWidget(render_region_reset_button)
-        render_region_layout.addWidget(render_region_get_nuke_button)
-
-        # Overscan Layout
-        overscan_layout = QtWidgets.QHBoxLayout()
-        self.overscan_slider = SliderBox("Overscan")
-        self.overscan_slider.set_minimum(0)
-        self.overscan_slider.set_maximum(9999, 250)
-        self.overscan_slider.set_value(0, 0)
-        overscan_layout.addWidget(self.overscan_slider)
-
-        # Ignore Group
-        ignores_group_box = QtWidgets.QGroupBox("Ignore")
-        ignores_group_box.setMaximumSize(9999, 75)
-
-        # Ignore Layout
-        ignores_layout = QtWidgets.QVBoxLayout(ignores_group_box)
-        ignore_layout = QtWidgets.QHBoxLayout()
-        self.motion_blur_check_box = CheckBox("", "Motion Blur", False)
-        self.subdivs_check_box = CheckBox("", "Subdivs", False)
-        self.displace_check_box = CheckBox("", "Displace", False)
-        self.bump_check_box = CheckBox("", "Bump", False)
-        self.sss_check_box = CheckBox("", "SSS", False)
-        ignore_layout.addWidget(self.motion_blur_check_box)
-        ignore_layout.addWidget(self.subdivs_check_box)
-        ignore_layout.addWidget(self.displace_check_box)
-        ignore_layout.addWidget(self.bump_check_box)
-        ignore_layout.addWidget(self.sss_check_box)
-
-        # Sequence layout
-        sequence_group_box = QtWidgets.QGroupBox("Sequence")
-        sequence_layout = QtWidgets.QHBoxLayout(sequence_group_box)
-        self.sequence_checkbox = CheckBox("Enable")
-        self.seq_start_spin_box = SpinBox("Start:", hou.playbar.frameRange()[0], False)
-        self.seq_end_spin_box = SpinBox("End:", hou.playbar.frameRange()[1], False)
-        self.seq_step_spin_box = SpinBox("Step:", 1, False)
-        self.seq_rebuild_checkbox = CheckBox("", "Rebuild", False)
-        self.seq_rebuild_checkbox.setEnabled(False)
-        self.seq_start_spin_box.setEnabled(False)
-        self.seq_end_spin_box.setEnabled(False)
-        self.seq_step_spin_box.setEnabled(False)
-        self.sequence_checkbox.toggled.connect(self.seq_start_spin_box.setEnabled)
-        self.sequence_checkbox.toggled.connect(self.seq_end_spin_box.setEnabled)
-        self.sequence_checkbox.toggled.connect(self.seq_step_spin_box.setEnabled)
-        self.sequence_checkbox.toggled.connect(self.seq_rebuild_checkbox.setEnabled)
-        sequence_layout.addWidget(self.sequence_checkbox)
-        sequence_layout.addWidget(self.seq_start_spin_box)
-        sequence_layout.addWidget(self.seq_end_spin_box)
-        sequence_layout.addWidget(self.seq_step_spin_box)
-        sequence_layout.addWidget(self.seq_rebuild_checkbox)
-
-        # Main Buttons Layout
-        main_buttons_layout = QtWidgets.QHBoxLayout()
-        start_button = QtWidgets.QPushButton("Start / Refresh")
-        stop_button = QtWidgets.QPushButton("Stop")
-        reset_button = QtWidgets.QPushButton("Reset")
-        start_button.clicked.connect(self.start_render)
-        stop_button.clicked.connect(self.stop_render)
-        reset_button.clicked.connect(self.reset_ui)
-        main_buttons_layout.addWidget(start_button)
-        main_buttons_layout.addWidget(stop_button)
-        main_buttons_layout.addWidget(reset_button)
-
-        # Add Layouts to Main
-        general_layout.addLayout(host_layout)
-        general_layout.addLayout(port_layout)
-        general_layout.addLayout(output_driver_layout)
-        overrides_layout.addLayout(ipr_update_layout)
-        overrides_layout.addLayout(camera_layout)
-        overrides_layout.addLayout(bucket_layout)
-        overrides_layout.addLayout(resolution_layout)
-        overrides_layout.addLayout(camera_aa_layout)
-        overrides_layout.addLayout(render_region_layout)
-        overrides_layout.addLayout(overscan_layout)
-        ignores_layout.addLayout(ignore_layout)
-
-        main_layout.addWidget(general_group_box)
-        main_layout.addWidget(overrides_group_box)
-        main_layout.addWidget(sequence_group_box)
-        main_layout.addWidget(ignores_group_box)
-        main_layout.addLayout(main_buttons_layout)
-
-        self.setLayout(main_layout)
-
-        self.camera_combo_box.current_index_changed.connect(self.add_aton_overrides)
-        self.bucket_combo_box.current_index_changed.connect(self.add_aton_overrides)
-        self.resolution_combo_box.current_index_changed.connect(self.add_aton_overrides)
-        self.camera_aa_slider.value_changed.connect(self.add_aton_overrides)
-        self.render_region_x_spin_box.value_changed.connect(self.add_aton_overrides)
-        self.render_region_y_spin_box.value_changed.connect(self.add_aton_overrides)
-        self.render_region_r_spin_box.value_changed.connect(self.add_aton_overrides)
-        self.render_region_t_spin_box.value_changed.connect(self.add_aton_overrides)
-        self.overscan_slider.value_changed.connect(self.add_aton_overrides)
-        self.motion_blur_check_box.toggled.connect(self.add_aton_overrides)
-        self.subdivs_check_box.toggled.connect(self.add_aton_overrides)
-        self.displace_check_box.toggled.connect(self.add_aton_overrides)
-        self.bump_check_box.toggled.connect(self.add_aton_overrides)
-        self.sss_check_box.toggled.connect(self.add_aton_overrides)
-
-    def port_update_ui(self, value):
-        """ Update Port UI
-        """
-        self.port_slider.spinBox.setValue(value + self.default_port)
-
-    def output_update_ui(self, index):
-        """ Update the UI when changing the output rop
-        """
-        if index >= 0:
-            self.res_update_ui()
-            self.camera_combo_box.set_current_name(self.output.camera_path)
-            self.bucket_combo_box.set_current_name(self.output.bucket_scanning)
-            self.camera_aa_slider.set_value(self.output.aa_samples, self.output.aa_samples)
-            self.render_region_r_spin_box.set_value(self.output.resolution[0])
-            self.render_region_t_spin_box.set_value(self.output.resolution[1])
-
-        self.setWindowTitle("%s - %s" % (self.__class__.__name__, self.output.name))
-
-    def res_update_ui(self):
-        """ Update Resolution UI
-        """
-        index = self.resolution_combo_box.current_index()
-        self.resolution_combo_box.new_items(self.generate_res_list())
-        self.resolution_combo_box.set_current_index(index)
-
-    def reset_ui(self):
-        """ Reset UI
-        """
-        if self.ipr.isActive():
-            self.stop_render()
-
-        # Update Defualt Settings
-        self.outputs_list = [Output(rop) for rop in get_output_drivers()]
-
-        current_output_name = self.output_combo_box.current_name()
-
-        self.host_check_box.set_checked(True)
-        self.port_check_box.set_checked(True)
-        self.host_line_edit.set_text(self.default_host)
-        self.port_slider.set_value(self.port, self.port - self.default_port)
-        self.ipr_update_check_box.set_checked(True)
-
-        self.bucket_combo_box.new_items(get_bucket_modes())
-        self.camera_combo_box.new_items(get_all_cameras(path=True))
-        self.resolution_combo_box.new_items(self.generate_res_list())
-        self.output_combo_box.new_items(get_output_drivers(path=True))
-        self.output_combo_box.set_current_name(current_output_name)
-
-        self.render_region_x_spin_box.set_value(0)
-        self.render_region_y_spin_box.set_value(0)
-        self.overscan_slider.set_value(0, 0)
-        self.motion_blur_check_box.set_checked(False)
-        self.subdivs_check_box.set_checked(False)
-        self.displace_check_box.set_checked(False)
-        self.bump_check_box.set_checked(False)
-        self.sss_check_box.set_checked(False)
-
-        self.output_update_ui(self.output_combo_box.current_index())
-
-    def reset_region_ui(self):
-        """ Reset Region UI
-        """
-        self.render_region_x_spin_box.set_value(0)
-        self.render_region_y_spin_box.set_value(0)
-        self.render_region_r_spin_box.set_value(self.output.resolution[0])
-        self.render_region_t_spin_box.set_value(self.output.resolution[1])
-        self.overscan_slider.set_value(0, 0)
-
-    def general_ui_set_enabled(self, value):
-        """ Toggle UI Enabled during the rendering process
-        """
-        if value:
-            if self.host_check_box.is_checked():
-                self.host_line_edit.set_enabled(value)
-        else:
-            self.host_line_edit.set_enabled(value)
-        self.host_check_box.set_enabled(value)
-        
-        if value:
-            if self.port_check_box.is_checked():
-                self.port_slider.set_enabled(value)
-        else:
-            self.port_slider.set_enabled(value)
-        
-        self.port_check_box.set_enabled(value)
-        self.output_combo_box.set_enabled(value)
-
-    def get_nuke_crop_node(self):
-        """ Get crop node data from Nuke
-        """
-        def find_between(s, first, last):
-            try:
-                start = s.index(first) + len(first)
-                end = s.index(last, start)
-                return s[start:end]
-            except ValueError:
-                return ""
-
-        clipboard = QtWidgets.QApplication.clipboard()
-        data = clipboard.text()
-
-        crop_data = None
-        check_data1 = "set cut_paste_input [stack 0]"
-        check_data2 = "Crop {"
-
-        if (check_data1 in data.split("\n", 10)[0]) and \
-           (check_data2 in data.split("\n", 10)[3]):
-                crop_data = find_between(data.split("\n", 10)[4], "box {", "}").split()
-
-        if len(data.split(",")) == 5:
-            crop_data = data.split(",")
-
-        if crop_data is not None:
-            nk_x = float(crop_data[0])
-            nk_y = float(crop_data[1])
-            nk_r = float(crop_data[2])
-            nk_t = float(crop_data[3])
-            nk_res = float(crop_data[4])
-
-            region_mult = self.output.resolution[0] / nk_res
-
-            self.render_region_x_spin_box.set_value(int(nk_x * region_mult))
-            self.render_region_y_spin_box.set_value(int(nk_y * region_mult))
-            self.render_region_r_spin_box.set_value(int(nk_r * region_mult))
-            self.render_region_t_spin_box.set_value(int(nk_t * region_mult))
-
-    def get_resolution(self, attr, res_scale=True):
-        """ Get Resolution and Region overrides
-        """
-        res_value = 100
-
-        if res_scale:
-            index = self.resolution_combo_box.current_index()
-            
-            if index == 1:
-                res_value = 75
-            elif index == 2:
-                res_value = 50
-            elif index == 3:
-                res_value = 25
-            elif index == 4:
-                res_value = 10
-            elif index == 5:
-                res_value = 5
-
-        ovr_scn_value = self.overscan_slider.value() * res_value / 100
-
-        xres = self.output.resolution[0] * res_value / 100
-        yres = self.output.resolution[1] * res_value / 100
-
-        result = {0: lambda: xres,
-                  1: lambda: yres,
-                  2: lambda: (self.render_region_x_spin_box.value() * res_value / 100) - ovr_scn_value,
-                  3: lambda: yres - (self.render_region_t_spin_box.value() * res_value / 100) - ovr_scn_value,
-                  4: lambda: (self.render_region_r_spin_box.value() * res_value / 100) - 1 + ovr_scn_value,
-                  5: lambda: (yres - (self.render_region_y_spin_box.value() *
-                                      res_value / 100)) - 1 + ovr_scn_value}[attr]()
-
-        return result
-
-    def start_render(self, caller=None):
-        """ Start Button Command
-        """
-        if self.output.rop is not None:
-            
-            # Set IPR Options
-            try:
-                self.ipr.setRopNode(self.output.rop)
-            except hou.ObjectWasDeleted:
-                return
-
-            self.ipr.killRender()
-
-            # Sequence rendering mode
-            if self.sequence_checkbox.is_checked():
-                self.ipr.setPreview(False)
-                if caller is None:
-                    hou.setFrame(self.seq_start_spin_box.value())
-            else:
-                self.ipr.setPreview(True)
-
-            self.ipr.startRender()
-            self.ipr.pauseRender()
-            
-            if self.add_aton_overrides():
-                self.ipr.resumeRender()
-                self.general_ui_set_enabled(False)
-
-                if self.sequence_checkbox.is_checked():
-                    self.hick_status.start()
-            else:
-                self.stop_render()
-
-    def change_time(self):
-        """ Change time for sequence rendering
-        """
-        current_frame = int(hou.frame())
-        end_frame = self.seq_end_spin_box.value()
-        step = self.seq_step_spin_box.value()
-        rebuild = self.seq_rebuild_checkbox.is_checked()
-
-        if step > 1 and current_frame < end_frame - step + 1:
-            next_frame = current_frame + step
-        elif step > 1 and current_frame == end_frame - step + 1:
-            next_frame = end_frame
-        else:
-            next_frame = current_frame + step
-
-        if next_frame <= end_frame:
-            hou.setFrame(next_frame)
-        else:
-            self.stop_render()
-            return
-
-        if rebuild:
-            self.stop_render()
-            self.start_render(self.change_time)
-
-    def stop_render(self):
-        """ Stop Button command
-        """
-        self.ipr.killRender()
-        self.remove_aton_overrides()
-        self.general_ui_set_enabled(True)
-
-    def aa_samples_changed(self):
-        """ Check if the AA Samples has been overriden
-        """
-        return self.camera_aa_slider.value() != self.output.aa_samples
-
-    def camera_changed(self):
-        """ Check if the Camera has been overriden
-        """
-        if self.output.camera is not None:
-            return self.camera_combo_box.current_name() != self.output.camera.path()
-
-    def resolution_changed(self):
-        """ Check if the Resolution and Region have been overriden
-        """
-        x_res = self.get_resolution(0)
-        y_res = self.get_resolution(1)
-        x_reg = self.get_resolution(2)
-        y_reg = self.get_resolution(3)
-        r_reg = self.get_resolution(4)
-        t_reg = self.get_resolution(5)
-        
-        if x_res != self.output.resolution[0] or y_res != self.output.resolution[1]:
-            return True
-        elif x_reg != 0 or y_reg != 0 or r_reg != x_res - 1 or t_reg != y_res - 1:
-            return True
-        elif self.overscan_slider.value() != 0:
-            return True
-        else:
-            return False
-
-    def bucket_scanning_changed(self):
-        """ Check if the Bucket Scanning has been overriden
-        """
-        return self.bucket_combo_box.current_name() != self.output.bucket_scanning
-
-    def ignore_mbl_changed(self):
-        """ Check if the Ignore Motion Blur has been Enabled
-        """
-        return self.motion_blur_check_box.is_checked()
-
-    def ignore_sdv_changed(self):
-        """ Check if the Ignore Subdivisions has been Enabled
-        """
-        return self.subdivs_check_box.is_checked()
-
-    def ignore_dsp_changed(self):
-        """ Check if the Ignore Displacement has been Enabled
-        """
-        return self.displace_check_box.is_checked()
-
-    def ignore_bmp_changed(self):
-        """ Check if the Ignore Bump has been Enabled
-        """
-        return self.bump_check_box.is_checked()
-
-    def ignore_sss_changed(self):
-        """ Check if the Ignore Sub Surface Scattering has been Enabled
-        """
-        return self.sss_check_box.is_checked()
-
-    def add_aton_overrides(self):
-        """ Adds Aton overrides as a User Options
-        """
-        if self.ipr.isActive():
-
-            user_options = self.output.user_options
-            
-            if user_options is not None:
-
-                # Get Host and Port
-                host = self.host_line_edit.text() if self.host_check_box.is_checked() else get_host()
-                port = self.port_slider.value() if self.port_check_box.is_checked() else get_port()
-
-                # Aton Attributes
-                user_options += " " if user_options else ""
-                user_options += "declare aton_enable constant BOOL aton_enable on "
-                user_options += "declare aton_host constant STRING aton_host \"%s\" " % host
-                user_options += "declare aton_port constant INT aton_port %d " % port
-                user_options += "declare aton_output constant STRING aton_output \"%s\" " % self.output.name
-                   
-                # Enable User Options Overrides
-                user_options_enabled = self.output.rop.parm("ar_user_options_enable").eval()
-                if not user_options_enabled:
-                    self.output.rop.parm("ar_user_options_enable").set(True)
-
-                # Camera
-                if self.camera_changed():
-                    self.output.rop.parm("camera").set(self.camera_combo_box.current_name())
-                else:
-                    if self.output.camera is not None:
-                        self.output.rop.parm("camera").set(self.output.camera.path())
-
-                # AA Samples
-                if self.aa_samples_changed():
-                    self.output.rop.parm("ar_AA_samples").set(self.camera_aa_slider.value())
-                else:
-                    self.output.rop.parm("ar_AA_samples").set(self.output.aa_samples)
-
-                # Resolution
-                if self.resolution_changed():
-                    self.output.rop.parm("override_camerares").set(True)
-                    self.output.rop.parm("res_fraction").set("specific")
-                    self.output.rop.parm("res_overridex").set(self.get_resolution(0))
-                    self.output.rop.parm("res_overridey").set(self.get_resolution(1))
-                    self.output.rop.parm("aspect_override").set(self.output.pixel_aspect)
-
-                    # Render Region
-                    user_options += "declare aton_region_min_x constant INT aton_region_min_x %d " % \
-                                    self.get_resolution(2)
-                    user_options += "declare aton_region_min_y constant INT aton_region_min_y %d " % \
-                                    self.get_resolution(3)
-                    user_options += "declare aton_region_max_x constant INT aton_region_max_x %d " % \
-                                    self.get_resolution(4)
-                    user_options += "declare aton_region_max_y constant INT aton_region_max_y %d " % \
-                                    self.get_resolution(5)
-                else:
-                    self.output.rop.parm("override_camerares").set(self.output.override_camera_res)
-                    self.output.rop.parm("res_fraction").set(self.output.res_fraction)
-                    self.output.rop.parm("res_overridex").set(self.output.res_override[0])
-                    self.output.rop.parm("res_overridey").set(self.output.res_override[1])
-
-                    self.output.rop.parm("aspect_override").set(self.output.pixel_aspect)
-
-                # Bucket Scanning
-                if self.bucket_scanning_changed():
-                    user_options += "declare aton_bucket constant STRING aton_bucket \"%s\" " % \
-                                   self.bucket_combo_box.current_name()
-
-                # Ignore Feautres
-                if self.ignore_mbl_changed():
-                    user_options += "declare aton_ignore_mbl constant BOOL aton_ignore_mbl %s  " % \
-                                   ("on" if self.motion_blur_check_box.is_checked() else "off")
-                if self.ignore_sdv_changed():
-                    user_options += "declare aton_ignore_sdv constant BOOL aton_ignore_sdv %s " % \
-                                   ("on" if self.subdivs_check_box.is_checked() else "off")
-                if self.ignore_dsp_changed():
-                    user_options += "declare aton_ignore_dsp constant BOOL aton_ignore_dsp %s " % \
-                                   ("on" if self.displace_check_box.is_checked() else "off")
-                if self.ignore_bmp_changed():
-                    user_options += "declare aton_ignore_bmp constant BOOL aton_ignore_bmp %s " % \
-                                   ("on" if self.bump_check_box.is_checked() else "off")
-                if self.ignore_sss_changed():
-                    user_options += "declare aton_ignore_sss constant BOOL aton_ignore_sss %s " % \
-                                   ("on" if self.sss_check_box.is_checked() else "off")
-
-                self.output.user_options_parm.set(user_options)
-                
-                return True
-
-    def remove_aton_overrides(self):
-        """ Remove all Aton Overrides"""
-        for output in self.outputs_list:
-            
-            if self.camera_changed():
-                output.rollback_camera()
-            
-            if self.resolution_changed():
-                output.rollback_resolution()
-            
-            if self.aa_samples_changed():
-                output.rollback_aa_samples()
-            
-            output.rollback_user_options()
+            return self.__default_port
+
+    @property
+    def current_frame(self):
+        return hou.frame()
+
+    @property
+    def start_frame(self):
+        return hou.playbar.frameRange()[0]
+
+    @property
+    def end_frame(self):
+        return hou.playbar.frameRange()[1]
