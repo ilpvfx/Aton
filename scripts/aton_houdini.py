@@ -920,12 +920,16 @@ class OutputItem(QtWidgets.QListWidgetItem):
             self.setText(self.rop_path)
 
     def add_callbacks(self):
+        """ Adds callbacks for the ROP
+        """
         if self.__rop is not None:
             self.__rop.addEventCallback((hou.nodeEventType.NameChanged,), self.__name_changed)
             self.__rop.addEventCallback((hou.nodeEventType.BeingDeleted,), self.__being_deleted)
             self.__rop.addEventCallback((hou.nodeEventType.ParmTupleChanged,), self.__parm_changed)
 
     def remove_callbacks(self):
+        """ Removes callbacks for the ROP
+        """
         try:
             if self.__rop is not None:
                 self.__rop.removeEventCallback((hou.nodeEventType.NameChanged,), self.__name_changed)
@@ -1470,6 +1474,7 @@ class Aton(QtWidgets.QWidget):
 
     def __port_update_ui(self, value):
         """ Update Port UI
+        :param: int
         """
         self.__port_slider.spinBox.setValue(value + self.__default_port)
 
@@ -1536,6 +1541,7 @@ class Aton(QtWidgets.QWidget):
 
     def __general_ui_set_enabled(self, value):
         """ Toggle UI Enabled during the rendering process
+        :param: bool
         """
         self.__port_slider.set_enabled(value)
         self.__output_list_box.set_enabled(value)
@@ -1599,7 +1605,6 @@ class Aton(QtWidgets.QWidget):
     def __set_auto_update(self, value):
         """ Sets Auto Update on in
         :param value:
-        :return:
         """
         self.ipr.setAutoUpdate(value)
 
@@ -1783,6 +1788,7 @@ class Aton(QtWidgets.QWidget):
 
     def __resolution_changed(self, output=None):
         """ Check if the Resolution and Region have been overridden
+        :param: OutputItem
         :rtype: bool
         """
         if output is None:
@@ -1804,6 +1810,7 @@ class Aton(QtWidgets.QWidget):
 
     def __region_changed(self, output=None):
         """ Check if the Region have been overridden
+        :param: OutputItem
         :rtype: bool
         """
         if output is None:
