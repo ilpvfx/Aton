@@ -39,7 +39,7 @@ def atonPatch():
 
 
 def aton_update(self):
-    """ Runing this function for Aton overrides
+    """ Runs this function for overrides
     :param self: htoa.session.HaRop.generate
     """
     if self.session.isInteractiveRender():
@@ -127,7 +127,6 @@ def generate_decorated(func):
     :param func: htoa.session.HaRop.generate
     :rtype: function
     """
-
     def generate_decorator(self, *args, **kwargs):
         """ Extends generate method
         :param self: htoa.session.HaRop.generate
@@ -304,7 +303,6 @@ class HickStatus(QtCore.QThread):
 class BoxWidget(QtWidgets.QFrame):
     """ Abstract Class for UI Widgets
     """
-
     def __init__(self, label, first=True):
         """
         :param label: str
@@ -320,17 +318,16 @@ class BoxWidget(QtWidgets.QFrame):
 
         if first:
             self._label.setText(label + ":")
-            self._label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignCenter)
             self._label.setMinimumSize(75, 20)
             self._label.setMaximumSize(75, 20)
 
+        self._label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignCenter)
         self._layout.addWidget(self._label)
 
 
 class LineEditBox(BoxWidget):
     """ QLineEdit Implementation
     """
-
     def __init__(self, label, text="", first=True):
         """
         :param label: str
@@ -344,20 +341,20 @@ class LineEditBox(BoxWidget):
         self._layout.addWidget(self.lineEditBox)
 
     def set_enabled(self, value):
-        """
+        """ Sets Enabled mode
         :param value: bool
         """
         self._label.setEnabled(value)
         self.lineEditBox.setEnabled(value)
 
     def text(self):
-        """
+        """ Gets current text
         :rtype: str
         """
         return self.lineEditBox.text()
 
     def set_text(self, text):
-        """
+        """ Sets given text
         :param text: str
         """
         self.lineEditBox.setText(text)
@@ -366,7 +363,6 @@ class LineEditBox(BoxWidget):
 class SliderBox(BoxWidget):
     """ SliderBox Widget based on QSpinbox and QSlider
     """
-
     def __init__(self, label, value=0, first=True):
         """
         :param label: str
@@ -389,7 +385,7 @@ class SliderBox(BoxWidget):
         self._layout.addWidget(self.slider)
 
     def set_minimum(self, spin_value=None, slider_value=None):
-        """
+        """ Sets Min limits
         :param spin_value: int
         :param slider_value: int
         """
@@ -399,7 +395,7 @@ class SliderBox(BoxWidget):
             self.slider.setMinimum(slider_value)
 
     def set_maximum(self, spin_value=None, slider_value=None):
-        """
+        """ Set Max limits
         :param spin_value: int
         :param slider_value: int
         """
@@ -409,7 +405,7 @@ class SliderBox(BoxWidget):
             self.slider.setMaximum(slider_value)
 
     def set_value(self, spin_value=None, slider_value=None):
-        """
+        """ Sets current values
         :param spin_value: int
         :param slider_value: int
         """
@@ -419,19 +415,19 @@ class SliderBox(BoxWidget):
             self.spinBox.setValue(spin_value)
 
     def value(self):
-        """
+        """ Gets current value
         :rtype: int
         """
         return self.spinBox.value()
 
     def connect(self, func):
-        """
+        """ Wraps the signal
         :param func: function
         """
         self.slider.valueChanged.connect(func)
 
     def set_enabled(self, value):
-        """
+        """ Sets Enabled
         :param value: bool
         """
         self._label.setEnabled(value)
@@ -440,7 +436,7 @@ class SliderBox(BoxWidget):
 
     @property
     def value_changed(self):
-        """
+        """ Wraps the signal
         :rtype: QtCore.Signal
         """
         return self.spinBox.valueChanged
@@ -449,7 +445,6 @@ class SliderBox(BoxWidget):
 class SpinBox(BoxWidget):
     """ QSpinBox  implementation
     """
-
     def __init__(self, label, value=0, first=True):
         """
         :param label: str
@@ -466,26 +461,27 @@ class SpinBox(BoxWidget):
         self._layout.addWidget(self.spin_box)
 
     def value(self):
-        """
+        """ Gets current value
         :rtype: int
         """
         return self.spin_box.value()
 
     def set_value(self, value):
-        """
+        """ Sets current value
         :param value: int
         """
         self.spin_box.setValue(value)
 
     def set_enabled(self, value):
-        """
+        """ Sets Enabled signal
         :param value: bool
         """
         self.spin_box.setEnabled(value)
+        self._label.setEnabled(value)
 
     @property
     def value_changed(self):
-        """
+        """ Wraps the signal
         :rtype: QtCore.Signal
         """
         return self.spin_box.valueChanged
@@ -510,20 +506,20 @@ class ComboBox(BoxWidget):
         self._layout.addWidget(self.combo_box)
 
     def set_enabled(self, value):
-        """
+        """ Sets Enabled mode
         :param value: bool
         """
         self._label.setEnabled(value)
         self.combo_box.setEnabled(value)
 
     def set_current_index(self, value):
-        """
+        """ Sets current index
         :param value:int
         """
         self.combo_box.setCurrentIndex(value)
 
     def set_current_name(self, value):
-        """
+        """ Sets given name as the current selection index
         :param value: str
         """
         for idx, item in enumerate(self.items):
@@ -531,16 +527,19 @@ class ComboBox(BoxWidget):
                 self.combo_box.setCurrentIndex(idx)
 
     def set_default_name(self, text):
+        """ Sets default text next to the name
+        :param text: str
+        """
         self.combo_box.setItemText(0, self.items[0] + " (%s) " % text)
 
     def current_index(self):
-        """
+        """ Gets current index
         :rtype: int
         """
         return self.combo_box.currentIndex()
 
     def current_name(self):
-        """
+        """ Gets current name
         :rtype: str
         """
         index = self.combo_box.currentIndex()
@@ -548,7 +547,7 @@ class ComboBox(BoxWidget):
             return self.items[index]
 
     def add_items(self, items):
-        """
+        """ Adds new items
         :param items: list
         """
         if items:
@@ -557,7 +556,7 @@ class ComboBox(BoxWidget):
             self.items += items
 
     def new_items(self, items):
-        """
+        """ Clears and Adds new items
         :param items: list
         """
         self.clear()
@@ -567,6 +566,9 @@ class ComboBox(BoxWidget):
             self.items += items
 
     def clear(self):
+        """ Clears the items list
+        :return:
+        """
         self.combo_box.clear()
         self.items = []
 
@@ -574,8 +576,12 @@ class ComboBox(BoxWidget):
 class CheckBox(BoxWidget):
     """ QCheckBox implementation
     """
-
     def __init__(self, label, title="", first=True):
+        """
+        :param label: str
+        :param title: str
+        :param first: bool
+        """
         super(CheckBox, self).__init__(label, first)
         self.widget = QtWidgets.QCheckBox(title)
 
@@ -583,32 +589,32 @@ class CheckBox(BoxWidget):
 
     @property
     def state_changed(self):
-        """
-        :rtype: QSignal
+        """ Wraps the signal
+        :rtype: QtCore.Signal
         """
         return self.widget.stateChanged
 
     @property
     def toggled(self):
-        """
-        :rtype: QSignal
+        """ Wraps the signal
+        :rtype: QtCore.Signal
         """
         return self.widget.toggled
 
     def is_checked(self):
-        """
+        """ Gets True if checked
         :rtype: bool
         """
         return self.widget.isChecked()
 
     def set_checked(self, value):
-        """
+        """ Sets Checked mode
         :param value: bool
         """
         self.widget.setChecked(value)
 
     def set_enabled(self, value):
-        """
+        """ Sets Enabled mode
         :param value:
         """
         self.widget.setEnabled(value)
@@ -631,30 +637,38 @@ class OutputListBox(BoxWidget):
         self._layout.addWidget(self._widget)
 
     def current_item(self):
+        """ Gets current item
+        :rtype: OutputItem
+        """
         return self._widget.currentItem()
 
     def current_name(self):
+        """ Gets current item's name
+        :rtype: str
+        """
         if self._widget.currentItem() is not None:
             return self._widget.currentItem().text()
 
     def set_current_item(self, item):
-        """
+        """ Sets given item as the current selection
         :param item: QtWidgets.QListWidgetItem
         """
         self._widget.setCurrentItem(item)
 
     def set_first_item(self):
+        """ Sets first item as the current selection
+        """
         if self._widget.count():
             self._widget.setCurrentItem(self._widget.itemAt(0, 0))
 
     def set_enabled(self, value):
-        """
+        """ Sets Enabled mode
         :param value: bool
         """
         self._widget.setEnabled(value)
 
     def set_multi_selection(self, value):
-        """
+        """ Sets selection mode
         :param value: bool
         """
         if value:
@@ -663,28 +677,34 @@ class OutputListBox(BoxWidget):
             self._widget.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
 
     def selected_items(self):
+        """ Gets selected items
+        :rtype: list
+        """
         return self._widget.selectedItems()
 
     def clear(self):
+        """ Clears the items list
+        """
         self._widget.clear()
-
-    def find_items(self, name):
-        return self._widget.findItems(name, QtCore.Qt.MatchExactly)
-
-    def remove_item_widget(self, item):
-        self._widget.removeItemWidget(item)
 
     @property
     def current_item_changed(self):
+        """ Wraps the following signal
+        :rtype: QtCore.Signal
+        """
         return self._widget.currentItemChanged
 
     @property
     def widget(self):
+        """ Gets Widget item
+        :rtype: QtWidgets.QListWidget
+        """
         return self._widget
 
 
 class Signal(QtCore.QObject):
-
+    """ Signals to use inside OutputItem
+    """
     rop_name_changed = QtCore.Signal(str)
     being_deleted = QtCore.Signal(str)
     camera_changed = QtCore.Signal(str)
@@ -696,7 +716,6 @@ class Signal(QtCore.QObject):
 class OutputItem(QtWidgets.QListWidgetItem):
     """ Output object holds ROP attributes
     """
-
     def __init__(self, rop=None, parent=None):
         """
         :param rop: hou.RopNode
@@ -721,7 +740,6 @@ class OutputItem(QtWidgets.QListWidgetItem):
                 self.__empty = False
 
                 self.setText(self.__rop.path())
-
                 self.add_callbacks()
         else:
             self.__rop = None
@@ -736,6 +754,7 @@ class OutputItem(QtWidgets.QListWidgetItem):
 
     def __get_camera(self):
         """ Get Camera object
+        :rtype: hou.Node
         """
         camera = hou.node(self.__rop.parm("camera").eval())
         if camera is None:
@@ -746,6 +765,7 @@ class OutputItem(QtWidgets.QListWidgetItem):
 
     def __get_resolution(self):
         """ Get Resolution tuple
+        :rtype: tuple
         """
         if self.__rop.parm("override_camerares").eval():
             res_scale = self.__rop.parm("res_fraction").eval()
@@ -760,6 +780,7 @@ class OutputItem(QtWidgets.QListWidgetItem):
 
     def __get_origin_resolution(self):
         """ Get Original Resolution tuple
+        :rtype: tuple
         """
         if self.__override_camera_res:
             res_scale = self.__res_fraction
@@ -774,6 +795,7 @@ class OutputItem(QtWidgets.QListWidgetItem):
 
     def __get_pixel_aspect(self):
         """ Get Camera Pixel Aspect Ration
+        :param: float
         """
         if self.__rop.parm("override_camerares").eval():
             return self.__rop.parm("aspect_override").eval()
@@ -784,14 +806,18 @@ class OutputItem(QtWidgets.QListWidgetItem):
                 return 1.0
 
     def __name_changed(self, **kwargs):
+        """ Name changed callback
+        :param kwargs: hou.Node
+        :return:
+        """
         node = kwargs['node']
-        node_name = node.name()
-
-        if type(node) == hou.RopNode:
-            self.setText(self.__rop.path())
-            self.signal.rop_name_changed.emit(node_name)
+        self.setText(node.path())
+        self.signal.rop_name_changed.emit(node.name())
 
     def __parm_changed(self, **kwargs):
+        """ Parameter changed callback
+        :param kwargs: tuple
+        """
         parm_tuple = kwargs['parm_tuple']
         parm_name = parm_tuple.name()
 
@@ -848,6 +874,14 @@ class OutputItem(QtWidgets.QListWidgetItem):
             self.__user_options_parm = self.__rop.parm("ar_user_options")
             self.__user_options_str = self.__user_options_parm.eval()
 
+    def __being_deleted(self, **kwargs):
+        """ Being deleted callback
+        :param kwargs: hou.Node
+        :return:
+        """
+        self.__rop = None
+        self.__empty = True
+
     def rollback_camera(self):
         """ Rollback ROP camera to default
         """
@@ -877,6 +911,9 @@ class OutputItem(QtWidgets.QListWidgetItem):
             self.__rop.parm("ar_user_options").set(re.sub("declare aton_enable.*", "", self.__user_options_string))
 
     def set_status(self, status=""):
+        """ Set Item's status
+        :param status: str
+        """
         if status:
             self.setText(self.rop_path + " ( %s )" % status)
         else:
@@ -885,12 +922,14 @@ class OutputItem(QtWidgets.QListWidgetItem):
     def add_callbacks(self):
         if self.__rop is not None:
             self.__rop.addEventCallback((hou.nodeEventType.NameChanged,), self.__name_changed)
+            self.__rop.addEventCallback((hou.nodeEventType.BeingDeleted,), self.__being_deleted)
             self.__rop.addEventCallback((hou.nodeEventType.ParmTupleChanged,), self.__parm_changed)
 
     def remove_callbacks(self):
         try:
             if self.__rop is not None:
                 self.__rop.removeEventCallback((hou.nodeEventType.NameChanged,), self.__name_changed)
+                self.__rop.removeEventCallback((hou.nodeEventType.BeingDeleted,), self.__being_deleted)
                 self.__rop.removeEventCallback((hou.nodeEventType.ParmTupleChanged,), self.__parm_changed)
         except hou.OperationFailed:
             return
@@ -935,6 +974,12 @@ class OutputItem(QtWidgets.QListWidgetItem):
         """
         if self.__rop is not None:
             return self.__rop.parm("ar_AA_samples").eval()
+
+    @property
+    def origin_aa_samples(self):
+        """ Returns original AA samples
+        """
+        return self.__aa_samples
 
     @property
     def res_x(self):
@@ -994,13 +1039,16 @@ class OutputItem(QtWidgets.QListWidgetItem):
 
     @property
     def user_options(self):
-        """ Returns User options string
+        """ Returns User options string from the ROP
         """
         if self.__rop is not None:
             return self.__rop.parm("ar_user_options").eval()
 
     @user_options.setter
     def user_options(self, string):
+        """ Sets User Options on the ROP
+        :param string: str
+        """
         if self.__rop is not None:
             self.__rop.parm("ar_user_options").set(string)
 
@@ -1026,7 +1074,7 @@ class OutputItem(QtWidgets.QListWidgetItem):
 
 
 class Aton(QtWidgets.QWidget):
-    """ Main Aton UI Object
+    """ Main UI Object
     """
     def __init__(self, icon_path=None):
         QtWidgets.QWidget.__init__(self)
@@ -1048,7 +1096,6 @@ class Aton(QtWidgets.QWidget):
         self.setWindowIcon(QtGui.QIcon(icon_path))
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setAttribute(QtCore.Qt.WA_AlwaysShowToolTips)
-        # self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
 
         # Create widgets
         self.__mode_combo_box = ComboBox("Mode")
@@ -1064,16 +1111,16 @@ class Aton(QtWidgets.QWidget):
         self.__resolution_combo_box = ComboBox("Resolution")
         self.__camera_aa_combo_box = ComboBox("Camera (AA)")
         self.__camera_aa_slider = SliderBox("", 3, False)
-        self.__render_region_combo_box = ComboBox("Region")
-        self.__render_region_x_spin_box = SpinBox("", 0, False)
-        self.__render_region_y_spin_box = SpinBox("", 0, False)
-        self.__render_region_r_spin_box = SpinBox("", 0, False)
-        self.__render_region_t_spin_box = SpinBox("", 0, False)
+        self.__render_region_check_box = CheckBox("Region")
+        self.__render_region_x_spin_box = SpinBox("X:", 0, False)
+        self.__render_region_y_spin_box = SpinBox("Y:", 0, False)
+        self.__render_region_r_spin_box = SpinBox("R:", 0, False)
+        self.__render_region_t_spin_box = SpinBox("T:", 0, False)
         self.__render_region_reset_button = QtWidgets.QPushButton("Reset")
         self.__render_region_get_button = QtWidgets.QPushButton("Get")
-        self.__sequence_checkbox = CheckBox("", "Enable", False)
-        self.__seq_start_spin_box = SpinBox("Start:", self.start_frame, False)
-        self.__seq_end_spin_box = SpinBox("End:", self.end_frame, False)
+        self.__sequence_checkbox = CheckBox("Sequence")
+        self.__seq_start_spin_box = SpinBox("Start:", int(self.start_frame), False)
+        self.__seq_end_spin_box = SpinBox("End:", int(self.end_frame), False)
         self.__seq_step_spin_box = SpinBox("Step:", 1, False)
         self.__seq_rebuild_checkbox = CheckBox("", "Rebuild", False)
         self.__motion_blur_check_box = CheckBox("", "Motion Blur", False)
@@ -1089,6 +1136,7 @@ class Aton(QtWidgets.QWidget):
         self.__build_ui()
         self.__initialise_ui()
         self.__connect_signals_ui()
+        self.__connect_output_signals_ui()
 
         # Set window title
         self.setWindowTitle("%s %s - %s" % (self.__class__.__name__, __version__, self.output.rop_name))
@@ -1124,9 +1172,9 @@ class Aton(QtWidgets.QWidget):
     def __generate_res_list(self):
         """ Generate Resolution List for the Aton UI
         """
-        xres, yres = self.output.res_x, self.output.res_y
+        res_x, res_y = self.output.res_x, self.output.res_y
         l = ["Use ROPs"]
-        l += ["%d%% (%dx%d)" % (i, xres / 100.0 * i, yres / 100.0 * i) for i in [100.0, 75.0, 50.0, 25.0, 10.0, 5.0]]
+        l += ["%d%% (%dx%d)" % (i, res_x / 100.0 * i, res_y / 100.0 * i) for i in [100.0, 75.0, 50.0, 25.0, 10.0, 5.0]]
         return l
 
     def __build_ui(self):
@@ -1182,7 +1230,7 @@ class Aton(QtWidgets.QWidget):
 
         # Render region layout
         render_region_layout = QtWidgets.QHBoxLayout()
-        render_region_layout.addWidget(self.__render_region_combo_box)
+        render_region_layout.addWidget(self.__render_region_check_box)
         render_region_layout.addWidget(self.__render_region_x_spin_box)
         render_region_layout.addWidget(self.__render_region_y_spin_box)
         render_region_layout.addWidget(self.__render_region_r_spin_box)
@@ -1286,7 +1334,6 @@ class Aton(QtWidgets.QWidget):
         self.__camera_aa_slider.set_enabled(False)
 
         # Render region layout
-        self.__render_region_combo_box.add_items(["Disable", "Enable"])
         self.__render_region_x_spin_box.set_enabled(False)
         self.__render_region_y_spin_box.set_enabled(False)
         self.__render_region_r_spin_box.set_enabled(False)
@@ -1297,10 +1344,10 @@ class Aton(QtWidgets.QWidget):
         self.__render_region_t_spin_box.set_value(self.output.res_y)
 
         # Sequence layout
-        self.__seq_rebuild_checkbox.setEnabled(False)
-        self.__seq_start_spin_box.setEnabled(False)
-        self.__seq_end_spin_box.setEnabled(False)
-        self.__seq_step_spin_box.setEnabled(False)
+        self.__seq_rebuild_checkbox.set_enabled(False)
+        self.__seq_start_spin_box.set_enabled(False)
+        self.__seq_end_spin_box.set_enabled(False)
+        self.__seq_step_spin_box.set_enabled(False)
 
     def __connect_signals_ui(self):
         """ Connects UI Signals
@@ -1313,25 +1360,26 @@ class Aton(QtWidgets.QWidget):
         self.__camera_combo_box.current_index_changed.connect(self.__add_aton_overrides)
         self.__bucket_combo_box.current_index_changed.connect(self.__add_aton_overrides)
         self.__resolution_combo_box.current_index_changed.connect(self.__add_aton_overrides)
+        self.__camera_aa_combo_box.current_index_changed.connect(self.__add_aton_overrides)
         self.__camera_aa_combo_box.current_index_changed.connect(self.__camera_aa_update_ui)
         self.__camera_aa_slider.value_changed.connect(self.__add_aton_overrides)
-        self.__render_region_combo_box.current_index_changed.connect(self.__add_aton_overrides)
-        self.__render_region_combo_box.current_index_changed.connect(self.__render_region_x_spin_box.set_enabled)
-        self.__render_region_combo_box.current_index_changed.connect(self.__render_region_y_spin_box.set_enabled)
-        self.__render_region_combo_box.current_index_changed.connect(self.__render_region_r_spin_box.set_enabled)
-        self.__render_region_combo_box.current_index_changed.connect(self.__render_region_t_spin_box.set_enabled)
-        self.__render_region_combo_box.current_index_changed.connect(self.__render_region_reset_button.setEnabled)
-        self.__render_region_combo_box.current_index_changed.connect(self.__render_region_get_button.setEnabled)
+        self.__render_region_check_box.toggled.connect(self.__add_aton_overrides)
+        self.__render_region_check_box.toggled.connect(self.__render_region_x_spin_box.set_enabled)
+        self.__render_region_check_box.toggled.connect(self.__render_region_y_spin_box.set_enabled)
+        self.__render_region_check_box.toggled.connect(self.__render_region_r_spin_box.set_enabled)
+        self.__render_region_check_box.toggled.connect(self.__render_region_t_spin_box.set_enabled)
+        self.__render_region_check_box.toggled.connect(self.__render_region_reset_button.setEnabled)
+        self.__render_region_check_box.toggled.connect(self.__render_region_get_button.setEnabled)
         self.__render_region_x_spin_box.value_changed.connect(self.__add_aton_overrides)
         self.__render_region_y_spin_box.value_changed.connect(self.__add_aton_overrides)
         self.__render_region_r_spin_box.value_changed.connect(self.__add_aton_overrides)
         self.__render_region_t_spin_box.value_changed.connect(self.__add_aton_overrides)
         self.__render_region_reset_button.clicked.connect(self.__reset_region_ui)
         self.__render_region_get_button.clicked.connect(self.__get_render_region)
-        self.__sequence_checkbox.toggled.connect(self.__seq_start_spin_box.setEnabled)
-        self.__sequence_checkbox.toggled.connect(self.__seq_end_spin_box.setEnabled)
-        self.__sequence_checkbox.toggled.connect(self.__seq_step_spin_box.setEnabled)
-        self.__sequence_checkbox.toggled.connect(self.__seq_rebuild_checkbox.setEnabled)
+        self.__sequence_checkbox.toggled.connect(self.__seq_start_spin_box.set_enabled)
+        self.__sequence_checkbox.toggled.connect(self.__seq_end_spin_box.set_enabled)
+        self.__sequence_checkbox.toggled.connect(self.__seq_step_spin_box.set_enabled)
+        self.__sequence_checkbox.toggled.connect(self.__seq_rebuild_checkbox.set_enabled)
         self.__motion_blur_check_box.toggled.connect(self.__add_aton_overrides)
         self.__subdivs_check_box.toggled.connect(self.__add_aton_overrides)
         self.__displace_check_box.toggled.connect(self.__add_aton_overrides)
@@ -1341,6 +1389,9 @@ class Aton(QtWidgets.QWidget):
         self.__stop_button.clicked.connect(self.__stop_render)
         self.__reset_button.clicked.connect(self.__reset_ui)
 
+    def __connect_output_signals_ui(self):
+        """ Connects OutputItem signals to the UI
+        """
         for output in self.__output_list:
             output.signal.rop_name_changed.connect(self.__output_update_ui)
             output.signal.camera_changed.connect(self.__camera_update_ui)
@@ -1360,11 +1411,12 @@ class Aton(QtWidgets.QWidget):
         current_name = self.__output_list_box.current_name()
 
         # Removes callbacks
-        for i in self.__output_list:
-            i.remove_callbacks()
+        for output in self.__output_list:
+            output.remove_callbacks()
 
         self.__output_list_box.clear()
         self.__output_list = [OutputItem(rop, self.output_list_box) for rop in get_rop_list()]
+        self.__connect_output_signals_ui()
 
         # Update to default settings
         self.__port_slider.set_value(self.port, self.port - self.__default_port)
@@ -1376,7 +1428,7 @@ class Aton(QtWidgets.QWidget):
         self.__camera_aa_combo_box.set_current_index(0)
         self.__render_region_x_spin_box.set_value(0)
         self.__render_region_y_spin_box.set_value(0)
-        self.__render_region_combo_box.set_current_index(0)
+        self.__render_region_check_box.set_checked(False)
         self.__sequence_checkbox.set_checked(False)
         self.__seq_rebuild_checkbox.set_checked(False)
         self.__seq_start_spin_box.set_value(hou.playbar.frameRange()[0])
@@ -1408,11 +1460,13 @@ class Aton(QtWidgets.QWidget):
         self.__ram_combo_box.setEnabled(value)
         self.__distribute_combo_box.setEnabled(value)
         self.__ipr_update_check_box.set_enabled(not value)
+
+        sequence_checked = self.__sequence_checkbox.is_checked()
         self.__sequence_checkbox.set_enabled(not value)
-        self.__seq_start_spin_box.set_enabled(not value)
-        self.__seq_end_spin_box.set_enabled(not value)
-        self.__seq_step_spin_box.set_enabled(not value)
-        self.__seq_rebuild_checkbox.set_enabled(not value)
+        self.__seq_start_spin_box.set_enabled(not value and sequence_checked)
+        self.__seq_end_spin_box.set_enabled(not value and sequence_checked)
+        self.__seq_step_spin_box.set_enabled(not value and sequence_checked)
+        self.__seq_rebuild_checkbox.set_enabled(not value and sequence_checked)
 
     def __port_update_ui(self, value):
         """ Update Port UI
@@ -1421,6 +1475,7 @@ class Aton(QtWidgets.QWidget):
 
     def __output_update_ui(self, item):
         """ Update the UI when changing the output rop
+        :param: item: OutputItem
         """
         if type(item) is OutputItem:
             self.__res_update_ui()
@@ -1438,12 +1493,15 @@ class Aton(QtWidgets.QWidget):
         self.setWindowTitle("%s %s - %s" % (self.__class__.__name__, __version__, self.output.rop_name))
 
     def __camera_update_ui(self, value):
-        """ Updates Camera combo box
+        """ Updates Camera combo box UI
         :param value: str
         """
         self.__camera_combo_box.set_default_name(value)
 
     def __bucket_scanning_update_ui(self, value):
+        """ Update Bucket scanning UI
+        :param value: str
+        """
         self.__bucket_combo_box.set_default_name(value)
 
     def __res_update_ui(self):
@@ -1459,11 +1517,14 @@ class Aton(QtWidgets.QWidget):
         self.__render_region_t_spin_box.set_value(self.output.origin_res_y)
 
     def __camera_aa_update_ui(self):
+        """ Updates Camera AA Samples UI
+        """
         if self.__camera_aa_combo_box.current_index():
             self.__camera_aa_slider.set_enabled(True)
         else:
             self.__camera_aa_slider.set_enabled(False)
-            self.__camera_aa_slider.set_value(self.output.aa_samples, self.output.aa_samples)
+            self.__camera_aa_slider.set_value(self.output.origin_aa_samples,
+                                              self.output.origin_aa_samples)
 
     def __reset_region_ui(self):
         """ Reset Region UI
@@ -1505,7 +1566,7 @@ class Aton(QtWidgets.QWidget):
     def __get_resolution(self, attr, output):
         """ Get Resolution and Region overrides
         :param attr: int
-        :param attr: OutputItem
+        :param output: OutputItem
         :rtype: int
         """
         index = self.__resolution_combo_box.current_index()
@@ -1536,6 +1597,10 @@ class Aton(QtWidgets.QWidget):
         return result
 
     def __set_auto_update(self, value):
+        """ Sets Auto Update on in
+        :param value:
+        :return:
+        """
         self.ipr.setAutoUpdate(value)
 
     def __start_render(self, caller=None):
@@ -1575,6 +1640,8 @@ class Aton(QtWidgets.QWidget):
                         self.hick_status.start()
                 else:
                     self.__stop_render()
+            else:
+                self.__reset_ui()
         else:
             self.__export_ass()
 
@@ -1699,21 +1766,24 @@ class Aton(QtWidgets.QWidget):
                             region_list)
 
     def __aa_samples_changed(self):
-        """ Check if the AA Samples has been overriden
+        """ Check if the AA Samples has been overridden
+        :rtype: bool
         """
         if self.__camera_aa_combo_box.current_index():
-            return self.__camera_aa_slider.value() != self.output.aa_samples
+            return self.__camera_aa_slider.value() != self.output.origin_aa_samples
         else:
             return False
 
     def __camera_changed(self):
-        """ Check if the Camera has been overriden
+        """ Check if the Camera has been overridden
+        :rtype: bool
         """
         return self.__camera_combo_box.current_index() and \
                self.__camera_combo_box.current_name() != self.output.cam_path
 
     def __resolution_changed(self, output=None):
         """ Check if the Resolution and Region have been overridden
+        :rtype: bool
         """
         if output is None:
             output = self.output
@@ -1725,7 +1795,7 @@ class Aton(QtWidgets.QWidget):
         r_reg = self.__get_resolution(4, output)
         t_reg = self.__get_resolution(5, output)
 
-        if x_res != output.res_x or y_res != output.res_y:
+        if x_res != output.origin_res_x or y_res != output.origin_res_y:
             return True
         elif x_reg != 0 or y_reg != 0 or r_reg != x_res - 1 or t_reg != y_res - 1:
             return True
@@ -1734,6 +1804,7 @@ class Aton(QtWidgets.QWidget):
 
     def __region_changed(self, output=None):
         """ Check if the Region have been overridden
+        :rtype: bool
         """
         if output is None:
             output = self.output
@@ -1745,37 +1816,43 @@ class Aton(QtWidgets.QWidget):
         r_reg = self.__get_resolution(4, output)
         t_reg = self.__get_resolution(5, output)
 
-        return self.__render_region_combo_box.current_index() and \
+        return self.__render_region_check_box.is_checked() and \
                (x_reg != 0 or y_reg != 0 or r_reg != x_res - 1 or t_reg != y_res - 1)
 
     def __bucket_scanning_changed(self):
         """ Check if the Bucket Scanning has been overriden
+        :rtype: bool
         """
         return self.__bucket_combo_box.current_index() and \
                self.__bucket_combo_box.current_name() != self.output.bucket_scanning
 
     def __ignore_mbl_changed(self):
         """ Check if the Ignore Motion Blur has been Enabled
+        :rtype: bool
         """
         return self.__motion_blur_check_box.is_checked()
 
     def __ignore_sdv_changed(self):
         """ Check if the Ignore Subdivisions has been Enabled
+        :rtype: bool
         """
         return self.__subdivs_check_box.is_checked()
 
     def __ignore_dsp_changed(self):
         """ Check if the Ignore Displacement has been Enabled
+        :rtype: bool
         """
         return self.__displace_check_box.is_checked()
 
     def __ignore_bmp_changed(self):
         """ Check if the Ignore Bump has been Enabled
+        :rtype: bool
         """
         return self.__bump_check_box.is_checked()
 
     def __ignore_sss_changed(self):
         """ Check if the Ignore Sub Surface Scattering has been Enabled
+        :rtype: bool
         """
         return self.__sss_check_box.is_checked()
 
@@ -1819,23 +1896,24 @@ class Aton(QtWidgets.QWidget):
             aton_outputs = [i.replace(name, AiNodeGetName(aton_node)) for i in outputs if "variance_filter" not in i]
             nodeSetArrayString(options_node, "outputs", aton_outputs)
 
-            if self.__aa_samples_changed():
-                AiNodeSetInt(options_node, "AA_samples", self.__camera_aa_slider.value())
+            if self.__camera_changed():
+                AiNodeSetStr(options_node, "camera", self.__camera_combo_box.current_name())
 
-            AiNodeSetStr(options_node, "camera", self.__camera_combo_box.current_name())
+            if self.__bucket_scanning_changed():
+                AiNodeSetStr(options_node, "bucket_scanning", self.__bucket_combo_box.current_name())
 
             if self.__resolution_changed(output):
                 AiNodeSetInt(options_node, "xres", self.__get_resolution(0, output))
                 AiNodeSetInt(options_node, "yres", self.__get_resolution(1, output))
+
+            if self.__aa_samples_changed():
+                AiNodeSetInt(options_node, "AA_samples", self.__camera_aa_slider.value())
 
             if self.__region_changed(output):
                 AiNodeSetInt(options_node, "region_min_x", self.__get_resolution(2, output))
                 AiNodeSetInt(options_node, "region_min_y", self.__get_resolution(3, output))
                 AiNodeSetInt(options_node, "region_max_x", self.__get_resolution(4, output))
                 AiNodeSetInt(options_node, "region_max_y", self.__get_resolution(5, output))
-
-            if self.__bucket_scanning_changed():
-                AiNodeSetStr(options_node, "bucket_scanning", self.__bucket_combo_box.current_name())
 
             if self.__ignore_mbl_changed():
                 AiNodeSetBool(options_node, "ignore_motion_blur", self.__motion_blur_check_box.is_checked())
@@ -1877,17 +1955,17 @@ class Aton(QtWidgets.QWidget):
             user_options_enabled = self.output.rop.parm("ar_user_options_enable").eval()
             if not user_options_enabled:
                 self.output.rop.parm("ar_user_options_enable").set(True)
+
             # Camera
             if self.__camera_changed():
                 self.output.rop.parm("camera").set(self.__camera_combo_box.current_name())
             else:
                 self.output.rop.parm("camera").set(self.output.cam_path)
 
-            # AA Samples
-            if self.__aa_samples_changed():
-                self.output.rop.parm("ar_AA_samples").set(self.__camera_aa_slider.value())
-            else:
-                self.output.rop.parm("ar_AA_samples").set(self.output.aa_samples)
+            # Bucket Scanning
+            if self.__bucket_scanning_changed():
+                self.output.user_options += "declare aton_bucket constant STRING aton_bucket \"%s\" " % \
+                                self.__bucket_combo_box.current_name()
 
             # Resolution
             if self.__resolution_changed():
@@ -1901,8 +1979,13 @@ class Aton(QtWidgets.QWidget):
                 self.output.rop.parm("res_fraction").set(self.output.res_fraction)
                 self.output.rop.parm("res_overridex").set(self.output.res_x)
                 self.output.rop.parm("res_overridey").set(self.output.res_y)
-
                 self.output.rop.parm("aspect_override").set(self.output.pixel_aspect)
+
+            # AA Samples
+            if self.__aa_samples_changed():
+                self.output.rop.parm("ar_AA_samples").set(self.__camera_aa_slider.value())
+            else:
+                self.output.rop.parm("ar_AA_samples").set(self.output.aa_samples)
 
             # Render Region
             if self.__region_changed():
@@ -1914,11 +1997,6 @@ class Aton(QtWidgets.QWidget):
                                             self.__get_resolution(4, self.output)
                 self.output.user_options += "declare aton_region_max_y constant INT aton_region_max_y %d " % \
                                             self.__get_resolution(5, self.output)
-
-            # Bucket Scanning
-            if self.__bucket_scanning_changed():
-                self.output.user_options += "declare aton_bucket constant STRING aton_bucket \"%s\" " % \
-                                self.__bucket_combo_box.current_name()
 
             # Ignore Features
             if self.__ignore_mbl_changed():
@@ -1960,7 +2038,6 @@ class Aton(QtWidgets.QWidget):
             output.rollback_user_options()
             
             output.add_callbacks()
-
 
     def farm_cpu_menu(self):
         """ Farm CPU list menu to be implemented in sub-classes
@@ -2007,29 +2084,37 @@ class Aton(QtWidgets.QWidget):
         pass
 
     def farm_stop(self):
-        """ Farm submition stop method to be implemented in the sub-classes
+        """ Farm submission stop method to be implemented in the sub-classes
         :rtype: None
         """
         pass
 
     @property
     def output_list_box(self):
+        """ Gets OutputListBox object's widget
+        :return:
+        """
         return self.__output_list_box.widget
 
     @property
     def instance(self):
+        """ Gets UI instance count
+        :rtype: int
+        """
         return self.__instance
 
     @property
     def ipr(self):
-        """ Returns IPRViewer object
+        """ Gets IPRViewer object
+        :rtype: hou.paneTabType.IPRViewer
         """
         desk = hou.ui.curDesktop()
         return desk.paneTabOfType(hou.paneTabType.IPRViewer)
 
     @property
     def output(self):
-        """ Returns output object based on the current Aton UI selection
+        """ Gets output object based on the current selection
+        :rtype: OutputItem
         """
         item = self.__output_list_box.current_item()
         if item is not None:
@@ -2039,7 +2124,8 @@ class Aton(QtWidgets.QWidget):
 
     @property
     def hick_status(self):
-        """ Returns HickStatus object
+        """ Gets HickStatus object
+        :rtype: HickStatus
         """
         if self.__hick_status is None:
             self.__hick_status = HickStatus(self.ipr)
@@ -2049,7 +2135,8 @@ class Aton(QtWidgets.QWidget):
 
     @property
     def port(self):
-        """ Returns Port number based on AtonU UI instance count
+        """ Gets Port number based on UI instance count
+        :rtype: int
         """
         if self.__instance > 0:
             return self.__default_port + self.__instance
@@ -2058,12 +2145,21 @@ class Aton(QtWidgets.QWidget):
 
     @property
     def current_frame(self):
+        """ Gets Current frame number
+        :rtype: float
+        """
         return hou.frame()
 
     @property
     def start_frame(self):
+        """ Gets Start frame number
+        :rtype: float
+        """
         return hou.playbar.frameRange()[0]
 
     @property
     def end_frame(self):
+        """ Gets End frame number
+        :rtype: float
+        """
         return hou.playbar.frameRange()[1]
