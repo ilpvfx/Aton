@@ -3,6 +3,7 @@ import re
 import time
 import psutil
 import socket
+import fnmatch
 
 import hou
 
@@ -233,7 +234,7 @@ def get_rop_list():
     """ Returns a list of all output driver names
     :rtype: list
     """
-    return list(hou.nodeType(hou.ropNodeTypeCategory(), 'arnold').instances())
+    return list(hou.nodeType(hou.ropNodeTypeCategory(), "arnold").instances())
 
 
 def get_bucket_modes():
@@ -293,7 +294,7 @@ class HickStatus(QtCore.QThread):
         :rtype: bool
         """
         for p in psutil.Process(os.getpid()).children(recursive=True):
-            if p.name().startswith('hick'):
+            if p.name().startswith("hick"):
                 try:
                     return p.cpu_percent(interval=1) == 0.0
                 except psutil.NoSuchProcess:
@@ -336,28 +337,32 @@ class LineEditBox(BoxWidget):
         """
         super(LineEditBox, self).__init__(label, first)
 
-        self.lineEditBox = QtWidgets.QLineEdit()
-        self.lineEditBox.setText(text)
-        self._layout.addWidget(self.lineEditBox)
+        self._widget = QtWidgets.QLineEdit()
+        self._widget.setText(text)
+        self._layout.addWidget(self._widget)
 
     def set_enabled(self, value):
         """ Sets Enabled mode
         :param value: bool
         """
         self._label.setEnabled(value)
-        self.lineEditBox.setEnabled(value)
+        self._widget.setEnabled(value)
 
     def text(self):
         """ Gets current text
         :rtype: str
         """
-        return self.lineEditBox.text()
+        return self._widget.text()
 
     def set_text(self, text):
         """ Sets given text
         :param text: str
         """
-        self.lineEditBox.setText(text)
+        self._widget.setText(text)
+
+    @property
+    def text_changed(self):
+        return self._widget.textChanged
 
 
 class SliderBox(BoxWidget):
@@ -371,18 +376,18 @@ class SliderBox(BoxWidget):
         """
         super(SliderBox, self).__init__(label, first)
 
-        self.spinBox = QtWidgets.QSpinBox()
-        self.spinBox.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
-        self.spinBox.setValue(value)
+        self._spinBox = QtWidgets.QSpinBox()
+        self._spinBox.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
+        self._spinBox.setValue(value)
 
-        self.slider = QtWidgets.QSlider()
-        self.slider.setOrientation(QtCore.Qt.Horizontal)
-        self.slider.setValue(value)
+        self._slider = QtWidgets.QSlider()
+        self._slider.setOrientation(QtCore.Qt.Horizontal)
+        self._slider.setValue(value)
 
-        self.slider.valueChanged.connect(self.spinBox.setValue)
+        self._slider.valueChanged.connect(self._spinBox.setValue)
 
-        self._layout.addWidget(self.spinBox)
-        self._layout.addWidget(self.slider)
+        self._layout.addWidget(self._spinBox)
+        self._layout.addWidget(self._slider)
 
     def set_minimum(self, spin_value=None, slider_value=None):
         """ Sets Min limits
@@ -390,9 +395,9 @@ class SliderBox(BoxWidget):
         :param slider_value: int
         """
         if spin_value is not None:
-            self.spinBox.setMinimum(spin_value)
+            self._spinBox.setMinimum(spin_value)
         if slider_value is not None:
-            self.slider.setMinimum(slider_value)
+            self._slider.setMinimum(slider_value)
 
     def set_maximum(self, spin_value=None, slider_value=None):
         """ Set Max limits
@@ -400,9 +405,9 @@ class SliderBox(BoxWidget):
         :param slider_value: int
         """
         if spin_value is not None:
-            self.spinBox.setMaximum(spin_value)
+            self._spinBox.setMaximum(spin_value)
         if slider_value is not None:
-            self.slider.setMaximum(slider_value)
+            self._slider.setMaximum(slider_value)
 
     def set_value(self, spin_value=None, slider_value=None):
         """ Sets current values
@@ -410,36 +415,36 @@ class SliderBox(BoxWidget):
         :param slider_value: int
         """
         if slider_value is not None:
-            self.slider.setValue(slider_value)
+            self._slider.setValue(slider_value)
         if spin_value is not None:
-            self.spinBox.setValue(spin_value)
+            self._spinBox.setValue(spin_value)
 
     def value(self):
         """ Gets current value
         :rtype: int
         """
-        return self.spinBox.value()
+        return self._spinBox.value()
 
     def connect(self, func):
         """ Wraps the signal
         :param func: function
         """
-        self.slider.valueChanged.connect(func)
+        self._slider.valueChanged.connect(func)
 
     def set_enabled(self, value):
         """ Sets Enabled
         :param value: bool
         """
         self._label.setEnabled(value)
-        self.spinBox.setEnabled(value)
-        self.slider.setEnabled(value)
+        self._spinBox.setEnabled(value)
+        self._slider.setEnabled(value)
 
     @property
     def value_changed(self):
         """ Wraps the signal
         :rtype: QtCore.Signal
         """
-        return self.spinBox.valueChanged
+        return self._spinBox.valueChanged
 
 
 class SpinBox(BoxWidget):
@@ -452,31 +457,31 @@ class SpinBox(BoxWidget):
         :param first: bool
         """
         super(SpinBox, self).__init__(label, first)
-        self.spin_box = QtWidgets.QSpinBox()
-        self.spin_box.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
-        self.spin_box.setRange(-99999, 99999)
-        self.spin_box.setMaximumSize(50, 20)
-        self.spin_box.setValue(value)
+        self._spin_box = QtWidgets.QSpinBox()
+        self._spin_box.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
+        self._spin_box.setRange(-99999, 99999)
+        self._spin_box.setMaximumSize(50, 20)
+        self._spin_box.setValue(value)
 
-        self._layout.addWidget(self.spin_box)
+        self._layout.addWidget(self._spin_box)
 
     def value(self):
         """ Gets current value
         :rtype: int
         """
-        return self.spin_box.value()
+        return self._spin_box.value()
 
     def set_value(self, value):
         """ Sets current value
         :param value: int
         """
-        self.spin_box.setValue(value)
+        self._spin_box.setValue(value)
 
     def set_enabled(self, value):
         """ Sets Enabled signal
         :param value: bool
         """
-        self.spin_box.setEnabled(value)
+        self._spin_box.setEnabled(value)
         self._label.setEnabled(value)
 
     @property
@@ -484,7 +489,7 @@ class SpinBox(BoxWidget):
         """ Wraps the signal
         :rtype: QtCore.Signal
         """
-        return self.spin_box.valueChanged
+        return self._spin_box.valueChanged
 
 
 class ComboBox(BoxWidget):
@@ -496,55 +501,54 @@ class ComboBox(BoxWidget):
         :param first: bool
         """
         super(ComboBox, self).__init__(label, first)
-        self.items = list()
+        self._items = list()
 
-        self.combo_box = QtWidgets.QComboBox()
-        self.combo_box.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
-                                     QtWidgets.QSizePolicy.Fixed)
-        self.current_index_changed = self.combo_box.currentIndexChanged
+        self._combo_box = QtWidgets.QComboBox()
+        self._combo_box.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
+                                      QtWidgets.QSizePolicy.Fixed)
 
-        self._layout.addWidget(self.combo_box)
+        self._layout.addWidget(self._combo_box)
 
     def set_enabled(self, value):
         """ Sets Enabled mode
         :param value: bool
         """
         self._label.setEnabled(value)
-        self.combo_box.setEnabled(value)
+        self._combo_box.setEnabled(value)
 
     def set_current_index(self, value):
         """ Sets current index
         :param value:int
         """
-        self.combo_box.setCurrentIndex(value)
+        self._combo_box.setCurrentIndex(value)
 
     def set_current_name(self, value):
         """ Sets given name as the current selection index
         :param value: str
         """
-        for idx, item in enumerate(self.items):
+        for idx, item in enumerate(self._items):
             if item == value:
-                self.combo_box.setCurrentIndex(idx)
+                self._combo_box.setCurrentIndex(idx)
 
     def set_default_name(self, text):
         """ Sets default text next to the name
         :param text: str
         """
-        self.combo_box.setItemText(0, self.items[0] + " (%s) " % text)
+        self._combo_box.setItemText(0, self._items[0] + " (%s) " % text)
 
     def current_index(self):
         """ Gets current index
         :rtype: int
         """
-        return self.combo_box.currentIndex()
+        return self._combo_box.currentIndex()
 
     def current_name(self):
         """ Gets current name
         :rtype: str
         """
-        index = self.combo_box.currentIndex()
-        if self.items:
-            return self.items[index]
+        index = self._combo_box.currentIndex()
+        if self._items:
+            return self._items[index]
 
     def add_items(self, items):
         """ Adds new items
@@ -552,8 +556,8 @@ class ComboBox(BoxWidget):
         """
         if items:
             for i in items:
-                self.combo_box.addItem(i)
-            self.items += items
+                self._combo_box.addItem(i)
+            self._items += items
 
     def new_items(self, items):
         """ Clears and Adds new items
@@ -562,15 +566,19 @@ class ComboBox(BoxWidget):
         self.clear()
         if items:
             for i in items:
-                self.combo_box.addItem(i)
-            self.items += items
+                self._combo_box.addItem(i)
+            self._items += items
 
     def clear(self):
         """ Clears the items list
         :return:
         """
-        self.combo_box.clear()
-        self.items = []
+        self._combo_box.clear()
+        self._items = []
+
+    @property
+    def current_index_changed(self):
+        return self._combo_box.currentIndexChanged
 
 
 class CheckBox(BoxWidget):
@@ -583,41 +591,41 @@ class CheckBox(BoxWidget):
         :param first: bool
         """
         super(CheckBox, self).__init__(label, first)
-        self.widget = QtWidgets.QCheckBox(title)
+        self._widget = QtWidgets.QCheckBox(title)
 
-        self._layout.addWidget(self.widget)
+        self._layout.addWidget(self._widget)
 
     @property
     def state_changed(self):
         """ Wraps the signal
         :rtype: QtCore.Signal
         """
-        return self.widget.stateChanged
+        return self._widget.stateChanged
 
     @property
     def toggled(self):
         """ Wraps the signal
         :rtype: QtCore.Signal
         """
-        return self.widget.toggled
+        return self._widget.toggled
 
     def is_checked(self):
         """ Gets True if checked
         :rtype: bool
         """
-        return self.widget.isChecked()
+        return self._widget.isChecked()
 
     def set_checked(self, value):
         """ Sets Checked mode
         :param value: bool
         """
-        self.widget.setChecked(value)
+        self._widget.setChecked(value)
 
     def set_enabled(self, value):
         """ Sets Enabled mode
         :param value:
         """
-        self.widget.setEnabled(value)
+        self._widget.setEnabled(value)
 
 
 class OutputListBox(BoxWidget):
@@ -630,9 +638,8 @@ class OutputListBox(BoxWidget):
         """
         BoxWidget.__init__(self, label, first)
 
-        self._items = list()
         self._widget = QtWidgets.QListWidget()
-        self._widget.setStyleSheet("background-color:#000000;")
+        self._widget.setStyleSheet("background-color:#131313;")
 
         self._layout.addWidget(self._widget)
 
@@ -686,6 +693,15 @@ class OutputListBox(BoxWidget):
         """ Clears the items list
         """
         self._widget.clear()
+
+    def remove_item_name(self, name):
+        """ Removes given item name from the list
+        :param name: str
+        """
+        items = self._widget.findItems(name, QtCore.Qt.MatchExactly)
+
+        if items:
+            self._widget.takeItem(self._widget.row(items[0]))
 
     @property
     def current_item_changed(self):
@@ -767,50 +783,59 @@ class OutputItem(QtWidgets.QListWidgetItem):
         """ Get Resolution tuple
         :rtype: tuple
         """
-        if self.__rop.parm("override_camerares").eval():
-            res_scale = self.__rop.parm("res_fraction").eval()
+        if self.__rop is not None and self.__cam is not None:
 
-            if res_scale == "specific":
-                return self.__rop.parmTuple("res_override").eval()
-            else:
-                return (int(self.__cam.parmTuple("res").eval()[0] * float(res_scale)),
-                        int(self.__cam.parmTuple("res").eval()[1] * float(res_scale)))
+            if self.__rop.parm("override_camerares").eval():
+                res_scale = self.__rop.parm("res_fraction").eval()
 
-        return self.__cam.parmTuple("res").eval()
+                if res_scale == "specific":
+                    return self.__rop.parmTuple("res_override").eval()
+                else:
+                    return (int(self.__cam.parmTuple("res").eval()[0] * float(res_scale)),
+                            int(self.__cam.parmTuple("res").eval()[1] * float(res_scale)))
+
+            return self.__cam.parmTuple("res").eval()
+        else:
+            return (0, 0)
 
     def __get_origin_resolution(self):
         """ Get Original Resolution tuple
         :rtype: tuple
         """
-        if self.__override_camera_res:
-            res_scale = self.__res_fraction
+        if self.__cam is not None:
 
-            if res_scale == "specific":
-                return self.__res_override
-            else:
-                return (int(self.__cam.parmTuple("res").eval()[0] * float(res_scale)),
-                        int(self.__cam.parmTuple("res").eval()[1] * float(res_scale)))
+            if self.__override_camera_res:
+                res_scale = self.__res_fraction
 
-        return self.__cam.parmTuple("res").eval()
+                if res_scale == "specific":
+                    return self.__res_override
+                else:
+                    return (int(self.__cam.parmTuple("res").eval()[0] * float(res_scale)),
+                            int(self.__cam.parmTuple("res").eval()[1] * float(res_scale)))
+
+            return self.__cam.parmTuple("res").eval()
+        else:
+            return (0, 0)
 
     def __get_pixel_aspect(self):
         """ Get Camera Pixel Aspect Ration
         :param: float
         """
-        if self.__rop.parm("override_camerares").eval():
-            return self.__rop.parm("aspect_override").eval()
-        else:
-            if self.__cam is not None:
-                return self.__cam.parm("aspect").eval()
+        if self.__rop is not None and self.__cam is not None:
+
+            if self.__rop.parm("override_camerares").eval():
+                return self.__rop.parm("aspect_override").eval()
             else:
-                return 1.0
+                return self.__cam.parm("aspect").eval()
+        else:
+            return 1.0
 
     def __name_changed(self, **kwargs):
         """ Name changed callback
         :param kwargs: hou.Node
         :return:
         """
-        node = kwargs['node']
+        node = kwargs["node"]
         self.setText(node.path())
         self.signal.rop_name_changed.emit(node.name())
 
@@ -818,7 +843,7 @@ class OutputItem(QtWidgets.QListWidgetItem):
         """ Parameter changed callback
         :param kwargs: tuple
         """
-        parm_tuple = kwargs['parm_tuple']
+        parm_tuple = kwargs["parm_tuple"]
         parm_name = parm_tuple.name()
 
         if parm_name == "camera":
@@ -879,8 +904,11 @@ class OutputItem(QtWidgets.QListWidgetItem):
         :param kwargs: hou.Node
         :return:
         """
+        node = kwargs["node"]
+
         self.__rop = None
         self.__empty = True
+        self.signal.being_deleted.emit(node.path())
 
     def rollback_camera(self):
         """ Rollback ROP camera to default
@@ -1109,6 +1137,7 @@ class Aton(QtWidgets.QWidget):
         self.__port_slider = SliderBox("Port")
         self.__port_increment_check_box = CheckBox("", "Increment on the Farm", False)
         self.__output_list_box = OutputListBox("Output")
+        self.__filter_line_edit = LineEditBox("Filter")
         self.__camera_combo_box = ComboBox("Camera")
         self.__ipr_update_check_box = CheckBox("IPR", "Auto Update")
         self.__bucket_combo_box = ComboBox("Bucket Scan")
@@ -1141,26 +1170,34 @@ class Aton(QtWidgets.QWidget):
         self.__initialise_ui()
         self.__connect_signals_ui()
         self.__connect_output_signals_ui()
+        self.__add_callbacks()
 
         # Set window title
         self.setWindowTitle("%s %s - %s" % (self.__class__.__name__, __version__, self.output.rop_name))
 
-        # Adding a reset_callback
-        hou.hipFile.addEventCallback(self.__reset_ui_callback)
-
     def closeEvent(self, event):
         """ Called when the UI has been closed
         :param event: QEvent
-        :return:
         """
         if self.ipr.isActive():
             self.ipr.killRender()
+
         self.__remove_aton_overrides()
+        self.__remove_callbacks()
 
         self.setParent(None)
         self.deleteLater()
         self.destroy()
 
+    def __add_callbacks(self):
+        """ Adds callbacks
+        """
+        # Adding a reset_callback
+        hou.hipFile.addEventCallback(self.__reset_ui_callback)
+
+    def __remove_callbacks(self):
+        """ Removes callbacks
+        """
         hou.hipFile.removeEventCallback(self.__reset_ui_callback)
 
         for item in self.__output_list:
@@ -1171,10 +1208,11 @@ class Aton(QtWidgets.QWidget):
         :param event: hou.hipFileEventType
         """
         if event == hou.hipFileEventType.AfterLoad or event == hou.hipFileEventType.AfterClear:
+            self.__output_list = list()
             self.__reset_ui()
 
     def __generate_res_list(self):
-        """ Generate Resolution List for the Aton UI
+        """ Generate Resolution List for the UI
         """
         res_x, res_y = self.output.res_x, self.output.res_y
         l = ["Use ROPs"]
@@ -1204,8 +1242,9 @@ class Aton(QtWidgets.QWidget):
         port_layout.addWidget(self.__port_increment_check_box)
 
         # Output Driver Layout
-        output_driver_layout = QtWidgets.QHBoxLayout()
+        output_driver_layout = QtWidgets.QVBoxLayout()
         output_driver_layout.addWidget(self.__output_list_box)
+        output_driver_layout.addWidget(self.__filter_line_edit)
 
         # Camera Layout
         camera_layout = QtWidgets.QHBoxLayout()
@@ -1360,6 +1399,7 @@ class Aton(QtWidgets.QWidget):
         self.__mode_combo_box.current_index_changed.connect(self.__port_increment_check_box.set_enabled)
         self.__port_slider.connect(self.__port_update_ui)
         self.__output_list_box.current_item_changed.connect(self.__output_update_ui)
+        self.__filter_line_edit.text_changed.connect(self.__output_filter_ui)
         self.__ipr_update_check_box.toggled.connect(self.__set_auto_update)
         self.__camera_combo_box.current_index_changed.connect(self.__add_aton_overrides)
         self.__bucket_combo_box.current_index_changed.connect(self.__add_aton_overrides)
@@ -1398,10 +1438,17 @@ class Aton(QtWidgets.QWidget):
         """
         for output in self.__output_list:
             output.signal.rop_name_changed.connect(self.__output_update_ui)
+            output.signal.being_deleted.connect(self.__remove_output_item)
             output.signal.camera_changed.connect(self.__camera_update_ui)
             output.signal.resolution_changed.connect(self.__res_update_ui)
             output.signal.aa_samples_changed.connect(self.__camera_aa_update_ui)
             output.signal.bucket_scanning_changed.connect(self.__bucket_scanning_update_ui)
+
+    def __remove_output_item(self, output_name):
+        """ Removes output item name from OutputListBox
+        :param output_name: str
+        """
+        self.__output_list_box.remove_item_name(output_name)
 
     def __reset_ui(self):
         """ Reset UI
@@ -1411,7 +1458,7 @@ class Aton(QtWidgets.QWidget):
 
         self.__mode_combo_box.set_current_index(0)
 
-        # # Store current item name
+        # Store current item name
         current_name = self.__output_list_box.current_name()
 
         # Removes callbacks
@@ -1476,7 +1523,19 @@ class Aton(QtWidgets.QWidget):
         """ Update Port UI
         :param: int
         """
-        self.__port_slider.spinBox.setValue(value + self.__default_port)
+        self.__port_slider._spinBox.setValue(value + self.__default_port)
+
+    def __output_filter_ui(self, pattern):
+        """ Output filter update ui
+        :param pattern: str
+        """
+        pattern_list = pattern.strip().split(" ")
+
+        for item in self.__output_list:
+            item.setHidden(True)
+            for text in pattern_list:
+                if fnmatch.fnmatchcase(item.rop_path, "*" + text + "*"):
+                    item.setHidden(False)
 
     def __output_update_ui(self, item):
         """ Update the UI when changing the output rop
@@ -1687,7 +1746,7 @@ class Aton(QtWidgets.QWidget):
             self.__start_render(self.__change_time)
 
     def __export_ass(self):
-        """ Exports an ass file, calls overrides and inits a farm job
+        """ Exports an ass file, calls overrides and submits to the farm job
         """
         port = self.__port_slider.value()
 
@@ -1700,8 +1759,8 @@ class Aton(QtWidgets.QWidget):
                 ass_name = self.export_ass_name(output.rop_name)
 
                 if ass_path and ass_name:
-                    rop_ass_enable_param = output.rop.parm('ar_ass_export_enable')
-                    rop_ass_file_parm = output.rop.parm('ar_ass_file')
+                    rop_ass_enable_param = output.rop.parm("ar_ass_export_enable")
+                    rop_ass_file_parm = output.rop.parm("ar_ass_file")
                     rop_picture_param = output.rop.parm("ar_picture")
 
                     if rop_ass_file_parm is not None:
@@ -1716,7 +1775,7 @@ class Aton(QtWidgets.QWidget):
                         rop_ass_file_parm.set(ass_file_path)
                         ass_file_path = rop_ass_file_parm.eval()
 
-                        output.rop.parm('execute').pressButton()
+                        output.rop.parm("execute").pressButton()
 
                         rop_ass_enable_param.set(default_state)
                         rop_ass_file_parm.set(default_path)
@@ -1827,7 +1886,7 @@ class Aton(QtWidgets.QWidget):
                (x_reg != 0 or y_reg != 0 or r_reg != x_res - 1 or t_reg != y_res - 1)
 
     def __bucket_scanning_changed(self):
-        """ Check if the Bucket Scanning has been overriden
+        """ Check if the Bucket Scanning has been overridden
         :rtype: bool
         """
         return self.__bucket_combo_box.current_index() and \
@@ -1943,14 +2002,14 @@ class Aton(QtWidgets.QWidget):
             return True
 
     def __add_aton_overrides(self):
-        """ Adds Aton overrides as a User Options
+        """ Adds overrides as a User Options
         :rtype: bool
         """
         if self.ipr.isActive():
 
             self.output.remove_callbacks()
 
-            # Aton Attributes
+            # Main Attributes
             self.output.user_options = self.output.origin_user_options
             self.output.user_options += " " if self.output.user_options else ""
             self.output.user_options += "declare aton_enable constant BOOL aton_enable on "
