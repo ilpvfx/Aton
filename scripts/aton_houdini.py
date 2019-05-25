@@ -61,60 +61,73 @@ def aton_update(self):
                     AiNodeSetInt(aton_node, "port", AiNodeGetInt(options_node, "aton_port"))
                     AiNodeSetStr(aton_node, "output", AiNodeGetStr(options_node, "aton_output"))
 
-                    if AiNodeLookUpUserParameter(options_node, "aton_bucket"):
-                        AiNodeSetStr(options_node, "bucket_scanning",
-                                     AiNodeGetStr(options_node, "aton_bucket"))
-
-                    if AiNodeLookUpUserParameter(options_node, "aton_region_min_x"):
-                        AiNodeSetInt(options_node, "region_min_x",
-                                     AiNodeGetInt(options_node, "aton_region_min_x"))
-
-                    if AiNodeLookUpUserParameter(options_node, "aton_region_min_y"):
-                        AiNodeSetInt(options_node, "region_min_y",
-                                     AiNodeGetInt(options_node, "aton_region_min_y"))
-
-                    if AiNodeLookUpUserParameter(options_node, "aton_region_max_x"):
-                        AiNodeSetInt(options_node, "region_max_x",
-                                     AiNodeGetInt(options_node, "aton_region_max_x"))
-
-                    if AiNodeLookUpUserParameter(options_node, "aton_region_max_y"):
-                        AiNodeSetInt(options_node, "region_max_y",
-                                     AiNodeGetInt(options_node, "aton_region_max_y"))
-
-                    if AiNodeLookUpUserParameter(options_node, "aton_ignore_mbl"):
-                        AiNodeSetBool(options_node, "ignore_motion_blur",
-                                      AiNodeGetBool(options_node, "aton_ignore_mbl"))
-
-                    if AiNodeLookUpUserParameter(options_node, "aton_ignore_sdv"):
-                        AiNodeSetBool(options_node, "ignore_subdivision",
-                                      AiNodeGetBool(options_node, "aton_ignore_sdv"))
-
-                    if AiNodeLookUpUserParameter(options_node, "aton_ignore_dsp"):
-                        AiNodeSetBool(options_node, "ignore_displacement",
-                                      AiNodeGetBool(options_node, "aton_ignore_dsp"))
-
-                    if AiNodeLookUpUserParameter(options_node, "aton_ignore_bmp"):
-                        AiNodeSetBool(options_node, "ignore_bump",
-                                      AiNodeGetBool(options_node, "aton_ignore_bmp"))
-
-                    if AiNodeLookUpUserParameter(options_node, "aton_ignore_sss"):
-                        AiNodeSetBool(options_node, "ignore_sss",
-                                      AiNodeGetBool(options_node, "aton_ignore_sss"))
-
                     # Get the outputs string array param (on the options node) as a python list
                     array = AiNodeGetArray(options_node, "outputs")
                     elements = AiArrayGetNumElements(array)
                     outputs = [AiArrayGetStr(array, i) for i in xrange(elements)]
 
-                    # RGBA primary should be the first in outputs--its last string
-                    # should be the node name of the driver_houdini (IPR) main driver
-                    name = outputs[0].split()[-1]
+                    if outputs:
+                        # Replacing the driver
+                        output_list = outputs[0].split()
+                        driver_name = output_list[-1]
+                        aton_name = AiNodeGetName(aton_node)
+                        aton_outputs = [i.replace(driver_name, aton_name) for i in outputs if
+                                        "variance_filter" not in i]
 
-                    # Ignoring variance outputs coming from Noice
-                    aton_outputs = \
-                        [i.replace(name, AiNodeGetName(aton_node)) for i in outputs if "variance_filter" not in i]
-                    nodeSetArrayString(options_node, "outputs", aton_outputs)
+                        # if AiNodeLookUpUserParameter(options_node, "aton_camera"):
+                        #     # Setting camera name
+                        #     camera_name = output_list[0]
+                        #     aton_camera = AiNodeGetStr(options_node, "aton_camera")
+                        #     aton_outputs = [i.replace(camera_name, aton_camera) for i in aton_outputs]
+                        #
+                        #     # Setting camera node
+                        #     iterator = AiUniverseGetNodeIterator(AI_NODE_CAMERA)
+                        #     while not AiNodeIteratorFinished(iterator):
+                        #         node = AiNodeIteratorGetNext(iterator)
+                        #         if AiNodeGetName(node) == aton_camera:
+                        #             AiNodeSetPtr(options_node, "camera", node)
 
+                        if AiNodeLookUpUserParameter(options_node, "aton_bucket"):
+                            AiNodeSetStr(options_node, "bucket_scanning",
+                                         AiNodeGetStr(options_node, "aton_bucket"))
+
+                        if AiNodeLookUpUserParameter(options_node, "aton_region_min_x"):
+                            AiNodeSetInt(options_node, "region_min_x",
+                                         AiNodeGetInt(options_node, "aton_region_min_x"))
+
+                        if AiNodeLookUpUserParameter(options_node, "aton_region_min_y"):
+                            AiNodeSetInt(options_node, "region_min_y",
+                                         AiNodeGetInt(options_node, "aton_region_min_y"))
+
+                        if AiNodeLookUpUserParameter(options_node, "aton_region_max_x"):
+                            AiNodeSetInt(options_node, "region_max_x",
+                                         AiNodeGetInt(options_node, "aton_region_max_x"))
+
+                        if AiNodeLookUpUserParameter(options_node, "aton_region_max_y"):
+                            AiNodeSetInt(options_node, "region_max_y",
+                                         AiNodeGetInt(options_node, "aton_region_max_y"))
+
+                        if AiNodeLookUpUserParameter(options_node, "aton_ignore_mbl"):
+                            AiNodeSetBool(options_node, "ignore_motion_blur",
+                                          AiNodeGetBool(options_node, "aton_ignore_mbl"))
+
+                        if AiNodeLookUpUserParameter(options_node, "aton_ignore_sdv"):
+                            AiNodeSetBool(options_node, "ignore_subdivision",
+                                          AiNodeGetBool(options_node, "aton_ignore_sdv"))
+
+                        if AiNodeLookUpUserParameter(options_node, "aton_ignore_dsp"):
+                            AiNodeSetBool(options_node, "ignore_displacement",
+                                          AiNodeGetBool(options_node, "aton_ignore_dsp"))
+
+                        if AiNodeLookUpUserParameter(options_node, "aton_ignore_bmp"):
+                            AiNodeSetBool(options_node, "ignore_bump",
+                                          AiNodeGetBool(options_node, "aton_ignore_bmp"))
+
+                        if AiNodeLookUpUserParameter(options_node, "aton_ignore_sss"):
+                            AiNodeSetBool(options_node, "ignore_sss",
+                                          AiNodeGetBool(options_node, "aton_ignore_sss"))
+
+                        nodeSetArrayString(options_node, "outputs", aton_outputs)
                 else:
                     warn("Aton Driver was not found.")
             else:
@@ -2052,12 +2065,7 @@ class Aton(QtWidgets.QWidget):
         """
         distribute = output.ui.distribute
 
-        x_res = self.__get_resolution(output)[0]
-        y_res = self.__get_resolution(output)[1]
-        x_reg = self.__get_resolution(output)[2]
-        y_reg = self.__get_resolution(output)[3]
-        r_reg = self.__get_resolution(output)[4]
-        t_reg = self.__get_resolution(output)[5]
+        x_res, y_res, x_reg, y_reg, r_reg, t_reg = self.__get_resolution(output)
 
         if self.__region_changed():
             x_res = r_reg - x_reg
@@ -2109,12 +2117,7 @@ class Aton(QtWidgets.QWidget):
         if output is None:
             output = self.output
 
-        x_res = self.__get_resolution(output)[0]
-        y_res = self.__get_resolution(output)[1]
-        x_reg = self.__get_resolution(output)[2]
-        y_reg = self.__get_resolution(output)[3]
-        r_reg = self.__get_resolution(output)[4]
-        t_reg = self.__get_resolution(output)[5]
+        x_res, y_res, x_reg, y_reg, r_reg, t_reg = self.__get_resolution(output)
 
         if x_res != output.origin_res_x or y_res != output.origin_res_y:
             return True
@@ -2131,12 +2134,7 @@ class Aton(QtWidgets.QWidget):
         if output is None:
             output = self.output
 
-        x_res = self.__get_resolution(output)[0]
-        y_res = self.__get_resolution(output)[1]
-        x_reg = self.__get_resolution(output)[2]
-        y_reg = self.__get_resolution(output)[3]
-        r_reg = self.__get_resolution(output)[4]
-        t_reg = self.__get_resolution(output)[5]
+        x_res, y_res, x_reg, y_reg, r_reg, t_reg = self.__get_resolution(output)
 
         return \
             self.__render_region_check_box.is_checked() and \
@@ -2221,6 +2219,9 @@ class Aton(QtWidgets.QWidget):
             aton_name = AiNodeGetName(aton_node)
             aton_outputs = [i.replace(driver_name, aton_name) for i in outputs if "variance_filter" not in i]
 
+            # Get Resolution
+            x_res, y_res, x_reg, y_reg, r_reg, t_reg = self.__get_resolution(output)
+
             if self.__camera_changed(output):
                 # Get selected camera
                 selected_camera = self.__camera_combo_box.item_text(output.ui.camera)
@@ -2239,17 +2240,17 @@ class Aton(QtWidgets.QWidget):
                 AiNodeSetStr(options_node, "bucket_scanning", self.__bucket_combo_box.item_text(output.ui.bucket_scan))
 
             if self.__resolution_changed(output):
-                AiNodeSetInt(options_node, "xres", self.__get_resolution(output)[0])
-                AiNodeSetInt(options_node, "yres", self.__get_resolution(output)[1])
+                AiNodeSetInt(options_node, "xres", x_res)
+                AiNodeSetInt(options_node, "yres", y_res)
 
             if self.__aa_samples_changed(output):
                 AiNodeSetInt(options_node, "AA_samples", output.ui.aa_samples)
 
             if self.__region_changed(output):
-                AiNodeSetInt(options_node, "region_min_x", self.__get_resolution(output)[2])
-                AiNodeSetInt(options_node, "region_min_y", self.__get_resolution(output)[3])
-                AiNodeSetInt(options_node, "region_max_x", self.__get_resolution(output)[4])
-                AiNodeSetInt(options_node, "region_max_y", self.__get_resolution(output)[5])
+                AiNodeSetInt(options_node, "region_min_x", x_reg)
+                AiNodeSetInt(options_node, "region_min_y", y_reg)
+                AiNodeSetInt(options_node, "region_max_x", r_reg)
+                AiNodeSetInt(options_node, "region_max_y", t_reg)
 
             if self.__ignore_mbl_changed():
                 AiNodeSetBool(options_node, "ignore_motion_blur", self.__motion_blur_check_box.is_checked())
@@ -2293,11 +2294,18 @@ class Aton(QtWidgets.QWidget):
             if not user_options_enabled:
                 self.output.rop.parm("ar_user_options_enable").set(True)
 
+            # Get Resolution
+            x_res, y_res, x_reg, y_reg, r_reg, t_reg = self.__get_resolution()
+
             # Camera
             if self.__camera_changed():
                 self.output.rop.parm("camera").set(self.__camera_combo_box.current_name())
             else:
                 self.output.rop.parm("camera").set(self.output.origin_cam_path)
+
+            # # Camera
+            # if self.__camera_changed():
+            #     self.output.user_options += "declare aton_camera constant STRING aton_camera %s " % self.__camera_combo_box.current_name()
 
             # Bucket Scanning
             if self.__bucket_scanning_changed():
@@ -2308,8 +2316,8 @@ class Aton(QtWidgets.QWidget):
             if self.__resolution_changed():
                 self.output.rop.parm("override_camerares").set(True)
                 self.output.rop.parm("res_fraction").set("specific")
-                self.output.rop.parm("res_overridex").set(self.__get_resolution()[0])
-                self.output.rop.parm("res_overridey").set(self.__get_resolution()[1])
+                self.output.rop.parm("res_overridex").set(x_res)
+                self.output.rop.parm("res_overridey").set(y_res)
                 self.output.rop.parm("aspect_override").set(self.output.pixel_aspect)
             else:
                 self.output.rop.parm("override_camerares").set(self.output.override_camera_res)
@@ -2326,14 +2334,10 @@ class Aton(QtWidgets.QWidget):
 
             # Render Region
             if self.__region_changed():
-                self.output.user_options += "declare aton_region_min_x constant INT aton_region_min_x %d " % \
-                                            self.__get_resolution()[2]
-                self.output.user_options += "declare aton_region_min_y constant INT aton_region_min_y %d " % \
-                                            self.__get_resolution()[3]
-                self.output.user_options += "declare aton_region_max_x constant INT aton_region_max_x %d " % \
-                                            self.__get_resolution()[4]
-                self.output.user_options += "declare aton_region_max_y constant INT aton_region_max_y %d " % \
-                                            self.__get_resolution()[5]
+                self.output.user_options += "declare aton_region_min_x constant INT aton_region_min_x %d " % x_reg
+                self.output.user_options += "declare aton_region_min_y constant INT aton_region_min_y %d " % y_reg
+                self.output.user_options += "declare aton_region_max_x constant INT aton_region_max_x %d " % r_reg
+                self.output.user_options += "declare aton_region_max_y constant INT aton_region_max_y %d " % t_reg
 
             # Ignore Features
             if self.__ignore_mbl_changed():
