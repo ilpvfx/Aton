@@ -74,18 +74,9 @@ def aton_update(self):
                         aton_outputs = [i.replace(driver_name, aton_name) for i in outputs if
                                         "variance_filter" not in i]
 
-                        # if AiNodeLookUpUserParameter(options_node, "aton_camera"):
-                        #     # Setting camera name
-                        #     camera_name = output_list[0]
-                        #     aton_camera = AiNodeGetStr(options_node, "aton_camera")
-                        #     aton_outputs = [i.replace(camera_name, aton_camera) for i in aton_outputs]
-                        #
-                        #     # Setting camera node
-                        #     iterator = AiUniverseGetNodeIterator(AI_NODE_CAMERA)
-                        #     while not AiNodeIteratorFinished(iterator):
-                        #         node = AiNodeIteratorGetNext(iterator)
-                        #         if AiNodeGetName(node) == aton_camera:
-                        #             AiNodeSetPtr(options_node, "camera", node)
+                        if AiNodeLookUpUserParameter(options_node, "aton_camera"):
+                            aton_camera = AiNodeGetStr(options_node, "aton_camera")
+                            aton_outputs = [aton_camera + " " + i for i in aton_outputs]
 
                         if AiNodeLookUpUserParameter(options_node, "aton_bucket"):
                             AiNodeSetStr(options_node, "bucket_scanning",
@@ -719,6 +710,7 @@ class OutputItem(QtWidgets.QListWidgetItem):
         self.__override_camera_res = False
         self.__res_fraction = str()
         self.__res_override = (0, 0)
+        self.__pixel_aspect = 1.0
         self.__aa_samples = 0
         self.__user_options_enable = False
         self.__user_options_string = str()
@@ -740,6 +732,7 @@ class OutputItem(QtWidgets.QListWidgetItem):
             self.__override_camera_res = self.__rop.parm("override_camerares").eval()
             self.__res_fraction = self.__rop.parm("res_fraction").eval()
             self.__res_override = self.__rop.parmTuple("res_override").eval()
+            self.__pixel_aspect = self.__get_pixel_aspect()
             self.__aa_samples = self.__rop.parm("ar_AA_samples").eval()
             self.__user_options_enable = self.__rop.parm("ar_user_options_enable").eval()
             self.__user_options_string = self.__rop.parm("ar_user_options").eval()
@@ -869,9 +862,9 @@ class OutputItem(QtWidgets.QListWidgetItem):
             self.signal.aa_samples_changed.emit(self.__aa_samples)
 
         elif parm_name == "ar_bucket_scanning":
-            self.__bucket_scanning = self.__rop.parm("ar_bucket_scanning").eval()
+            bucket_scanning = self.__rop.parm("ar_bucket_scanning").eval()
 
-            self.signal.bucket_scanning_changed.emit(self.__bucket_scanning)
+            self.signal.bucket_scanning_changed.emit(bucket_scanning)
 
         elif parm_name == "ar_user_options_enable":
             self.__user_options_enable = self.__rop.parm("ar_user_options_enable").eval()
@@ -891,13 +884,6 @@ class OutputItem(QtWidgets.QListWidgetItem):
         self.__empty = True
         self.signal.being_deleted.emit(node.path())
 
-    def rollback_camera(self):
-        """ Rollback ROP camera to default
-        """
-        if self.__rop is not None:
-            if self.__cam is not None:
-                self.__rop.parm("camera").set(self.__cam.path())
-
     def rollback_resolution(self):
         """ Rollback Resolution to default
         """
@@ -905,6 +891,7 @@ class OutputItem(QtWidgets.QListWidgetItem):
             self.__rop.parm("override_camerares").set(self.__override_camera_res)
             self.__rop.parm("res_fraction").set(self.__res_fraction)
             self.__rop.parmTuple("res_override").set(self.__res_override)
+            self.__rop.parm("aspect_override").set(self.__pixel_aspect)
 
     def rollback_aa_samples(self):
         """ Rollback AA Samples to default
@@ -972,21 +959,34 @@ class OutputItem(QtWidgets.QListWidgetItem):
         """ Returns camera path
         """
         if self.__rop is not None:
-            return self.__get_camera()
+            cam = self.__get_camera()
+
+            if cam is not None:
+                return cam.path()
 
     @property
     def origin_cam_path(self):
         """ Returns original camera path
         """
-        if self.__cam is not None:
+        if self.__rop is not None:
+
+            if self.__cam is None:
+                self.__cam = self.__get_camera()
+
+                if self.__cam is None:
+                    return
+
             return self.__cam.path()
 
     @property
     def cam_name(self):
         """ Returns camera name
         """
-        if self.__cam is not None:
-            return self.__cam.name()
+        if self.__rop is not None:
+            cam = self.__get_camera()
+
+            if cam is not None:
+                return cam.name()
 
     @property
     def aa_samples(self):
@@ -1495,14 +1495,14 @@ class Aton(QtWidgets.QWidget):
         self.__filter_line_edit.text_changed.connect(self.__output_filter_ui)
         self.__ipr_update_check_box.toggled.connect(self.__set_auto_update)
         self.__ipr_update_check_box.toggled.connect(self.__ipr_update_ui)
-        self.__camera_combo_box.current_index_changed.connect(self.__add_aton_overrides)
         self.__camera_combo_box.current_index_changed.connect(self.__camera_update_ui)
-        self.__bucket_combo_box.current_index_changed.connect(self.__add_aton_overrides)
+        self.__camera_combo_box.current_index_changed.connect(self.__add_aton_overrides)
         self.__bucket_combo_box.current_index_changed.connect(self.__bucket_scanning_update_ui)
+        self.__bucket_combo_box.current_index_changed.connect(self.__add_aton_overrides)
         self.__resolution_combo_box.current_index_changed.connect(self.__resolution_update_ui)
         self.__resolution_combo_box.current_index_changed.connect(self.__add_aton_overrides)
-        self.__camera_aa_combo_box.current_index_changed.connect(self.__add_aton_overrides)
         self.__camera_aa_combo_box.current_index_changed.connect(self.__camera_aa_update_ui)
+        self.__camera_aa_combo_box.current_index_changed.connect(self.__add_aton_overrides)
         self.__camera_aa_slider.value_changed.connect(self.__camera_samples_update_ui)
         self.__camera_aa_slider.value_changed.connect(self.__add_aton_overrides)
         self.__render_region_check_box.toggled.connect(self.__region_update_ui)
@@ -1649,7 +1649,10 @@ class Aton(QtWidgets.QWidget):
         self.__port_slider.set_value(value)
 
     def __port_update_ui(self, value):
-        # Stores UI value for selected outputs
+        """ Stores UI value for selected outputs
+        :param value: int
+        :return:
+        """
         if self.__ui_update:
             for output in self.selected_outputs:
                 output.ui.port = value
@@ -1731,13 +1734,12 @@ class Aton(QtWidgets.QWidget):
         """ Updates Camera combo box UI
         :param value: str
         """
-
         # Stores UI value for selected outputs
         if self.__ui_update:
             for output in self.selected_outputs:
                 output.ui.camera = self.__camera_combo_box.current_index()
 
-        if type(value) == str():
+        if type(value) is not int:
             self.__camera_combo_box.set_default_name(value)
 
     def __bucket_scanning_update_ui(self, value):
@@ -1749,7 +1751,7 @@ class Aton(QtWidgets.QWidget):
             for output in self.selected_outputs:
                 output.ui.bucket_scan = self.__bucket_combo_box.current_index()
 
-        if type(value) == str():
+        if type(value) is not int:
             self.__bucket_combo_box.set_default_name(value)
 
     def __resolution_update_ui(self):
@@ -1927,10 +1929,10 @@ class Aton(QtWidgets.QWidget):
 
         res_x = output.origin_res_x * res_scale / 100
         res_y = output.origin_res_y * res_scale / 100
-        reg_x = self.__render_region_x_spin_box.value() * res_scale / 100
-        reg_y = res_y - (self.__render_region_t_spin_box.value() * res_scale / 100)
-        reg_r = (self.__render_region_r_spin_box.value() * res_scale / 100) - 1
-        reg_t = (res_y - (self.__render_region_y_spin_box.value() * res_scale / 100)) - 1
+        reg_x = output.ui.region_x * res_scale / 100
+        reg_y = res_y - (output.ui.region_t * res_scale / 100)
+        reg_r = (output.ui.region_r * res_scale / 100) - 1
+        reg_t = (res_y - (output.ui.region_y * res_scale / 100)) - 1
 
         return tuple((res_x, res_y, reg_x, reg_y, reg_r, reg_t))
 
@@ -2026,8 +2028,9 @@ class Aton(QtWidgets.QWidget):
             output.set_status("Exporting ASS...")
 
             if output.rop is not None:
-                ass_path = self.export_ass_path(output.rop_name)
-                ass_name = self.export_ass_name(output.rop_name)
+                session_id = int(time.time())
+                ass_path = self.export_ass_path(output.rop_name, session_id)
+                ass_name = self.export_ass_name(output.rop_name, session_id)
 
                 if ass_path and ass_name:
                     rop_ass_enable_param = output.rop.parm("ar_ass_export_enable")
@@ -2055,13 +2058,14 @@ class Aton(QtWidgets.QWidget):
                         # Exported
                         output.set_status()
 
-                        if self.__add_ass_overrides(output, ass_file_path):
-                            self.__init_farm_job(output, ass_file_path)
+                        if self.__add_ass_overrides(output, ass_file_path, session_id):
+                            self.__init_farm_job(output, ass_file_path, session_id)
 
-    def __init_farm_job(self, output, ass_file_path):
+    def __init_farm_job(self, output, ass_file_path, session_id):
         """ Initialises farm job requirements
         :param output: OutputItem
         :param ass_file_path: str
+        :param session_id: int
         """
         distribute = output.ui.distribute
 
@@ -2088,7 +2092,7 @@ class Aton(QtWidgets.QWidget):
             cpu = str(self.__cpu_combo_box.item_text(output.ui.cpu))
             ram = str(self.__ram_combo_box.item_text(output.ui.ram))
 
-            self.farm_start(ass_file_path, output.rop_name, self.current_frame, cpu, ram, region_list)
+            self.farm_start(ass_file_path, output.rop_name, session_id, self.current_frame, cpu, ram, region_list)
 
     def __aa_samples_changed(self, output=None):
         """ Check if the AA Samples has been overridden
@@ -2181,15 +2185,15 @@ class Aton(QtWidgets.QWidget):
         """
         return self.__sss_check_box.is_checked()
 
-    def __add_ass_overrides(self, output, ass_file_path):
+    def __add_ass_overrides(self, output, ass_file_path, session_id):
         """ Overrides exported ASS files parameters
         :param output: OutputItem
+        :param session_id: int
         :param ass_file_path: str
         :rtype: bool
         """
         AiBegin()
         AiMsgSetConsoleFlags(AI_LOG_ALL)
-
         AiASSLoad(ass_file_path)
 
         # Creates driver_aton node
@@ -2201,7 +2205,7 @@ class Aton(QtWidgets.QWidget):
 
         # Distributive rendering session
         if output.ui.distribute:
-            AiNodeSetInt(aton_node, "session", int(time.time()))
+            AiNodeSetInt(aton_node, "session", session_id)
 
         # Gets option node
         options_node = AiUniverseGetOptions()
@@ -2299,13 +2303,8 @@ class Aton(QtWidgets.QWidget):
 
             # Camera
             if self.__camera_changed():
-                self.output.rop.parm("camera").set(self.__camera_combo_box.current_name())
-            else:
-                self.output.rop.parm("camera").set(self.output.origin_cam_path)
-
-            # # Camera
-            # if self.__camera_changed():
-            #     self.output.user_options += "declare aton_camera constant STRING aton_camera %s " % self.__camera_combo_box.current_name()
+                self.output.user_options += "declare aton_camera constant STRING aton_camera %s " % \
+                                            self.__camera_combo_box.current_name()
 
             # Bucket Scanning
             if self.__bucket_scanning_changed():
@@ -2367,9 +2366,6 @@ class Aton(QtWidgets.QWidget):
 
             output.remove_callbacks()
 
-            if self.__camera_changed():
-                output.rollback_camera()
-
             if self.__resolution_changed():
                 output.rollback_resolution()
 
@@ -2398,24 +2394,27 @@ class Aton(QtWidgets.QWidget):
         """
         pass
 
-    def export_ass_path(self, rop_name):
+    def export_ass_path(self, rop_name, session_id):
         """ Export ASS path to be implemented in sub-classes
         :param rop_name: str
+        :param session_id: int
         :rtype: str
         """
         pass
 
-    def export_ass_name(self, rop_name):
+    def export_ass_name(self, rop_name, session_id):
         """ Export ASS name to be implemented in sub-classes
         :param rop_name: str
+        :param session_id: int
         :rtype: str
         """
         pass
 
-    def farm_start(self, ass_file_path, rop_name, frame, cpu, ram, region):
+    def farm_start(self, ass_file_path, rop_name, session_id, frame, cpu, ram, region):
         """ Farm submission start method to be implemented in the sub-classes
         :param ass_file_path: str
         :param rop_name: str
+        :param session_id: int
         :param frame: float
         :param cpu: int
         :param ram: int
