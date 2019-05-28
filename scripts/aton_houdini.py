@@ -668,6 +668,8 @@ class OutputUI(object):
         self.ignore_bump = False
         self.ignore_sss = False
 
+        self.__cpu = self.cpu
+        self.__ram = self.ram
         self.__port = self.port
         self.__aa_samples = self.aa_samples
         self.__region_r = self.region_r
@@ -676,8 +678,8 @@ class OutputUI(object):
     def reset(self):
         """ Resets UI
         """
-        self.cpu = 0
-        self.ram = 0
+        self.cpu = self.__cpu
+        self.ram = self.__ram
         self.distribute = 0
         self.port = self.__port
         self.ipr_update = True
@@ -696,6 +698,12 @@ class OutputUI(object):
         self.ignore_displace = False
         self.ignore_bump = False
         self.ignore_sss = False
+
+    def set_cpu_default(self, value):
+        self.__cpu = value
+
+    def set_ram_default(self, value):
+        self.__ram = value
 
 
 class OutputItem(QtWidgets.QListWidgetItem):
@@ -1228,6 +1236,7 @@ class Aton(QtWidgets.QWidget):
         self.__output = None
         self.__ui_update = True
         self.__hick_status = None
+        self.__output_list = list()
         self.__default_port = get_port()
         self.__default_host = get_host()
 
@@ -1282,6 +1291,9 @@ class Aton(QtWidgets.QWidget):
         self.__connect_signals_ui()
         self.__connect_output_signals_ui()
         self.__add_callbacks()
+
+        # Set first output as selected
+        self.__output_list_box.set_first_item()
 
         # Set window title
         self.setWindowTitle("%s %s - %s" % (self.__class__.__name__, __version__, self.output.rop_name))
@@ -1425,12 +1437,12 @@ class Aton(QtWidgets.QWidget):
         if not issubclass(Aton, self.__class__):
             self.__mode_combo_box.add_items(["Farm"])
 
+        self.__cpu_combo_box.set_enabled(False)
         self.__cpu_combo_box.add_items(self.farm_cpu_menu())
-        self.__cpu_combo_box.setEnabled(False)
+        self.__ram_combo_box.set_enabled(False)
         self.__ram_combo_box.add_items(self.farm_ram_menu())
-        self.__ram_combo_box.setEnabled(False)
+        self.__distribute_combo_box.set_enabled(False)
         self.__distribute_combo_box.add_items(self.farm_distribute_menu())
-        self.__distribute_combo_box.setEnabled(False)
 
         # Port Layout
         self.__port_slider.set_minimum(0, 0)
@@ -1439,8 +1451,13 @@ class Aton(QtWidgets.QWidget):
         self.__port_increment_button.setEnabled(False)
 
         # Output items list
-        self.__output_list = [OutputItem(rop, self.output_list_box) for rop in get_rop_list()]
-        self.__output_list_box.set_first_item()
+        for rop in get_rop_list():
+            output = OutputItem(rop, self.output_list_box)
+            self.__output_list.append(output)
+
+            output.ui.set_cpu_default(self.farm_cpu_menu_default(rop))
+            output.ui.set_ram_default(self.farm_ram_menu_default(rop))
+            output.ui.reset()
 
         # Camera Layout
         self.__camera_combo_box.add_items(["Use ROPs"] + get_all_cameras(path=True))
@@ -1605,9 +1622,9 @@ class Aton(QtWidgets.QWidget):
         :param value: int
         """
         self.__output_list_box.set_multi_selection(value)
-        self.__cpu_combo_box.setEnabled(value)
-        self.__ram_combo_box.setEnabled(value)
-        self.__distribute_combo_box.setEnabled(value)
+        self.__cpu_combo_box.set_enabled(value)
+        self.__ram_combo_box.set_enabled(value)
+        self.__distribute_combo_box.set_enabled(value)
         self.__ipr_update_check_box.set_enabled(not value)
 
         sequence_checked = self.__sequence_checkbox.is_checked()
@@ -2392,6 +2409,20 @@ class Aton(QtWidgets.QWidget):
         :rtype: list: str
         """
         pass
+
+    def farm_cpu_menu_default(self, rop):
+        """ Farm CPU list menu default index to be implemented in sub-classes
+        :param: rop: hou.RopNode
+        :rtype: int
+        """
+        return 0
+
+    def farm_ram_menu_default(self, rop):
+        """ Farm RAM list menu default index to be implemented in sub-classes
+        :param: rop: hou.RopNode
+        :rtype: int
+        """
+        return 0
 
     def export_ass_path(self, rop_name, session_id):
         """ Export ASS path to be implemented in sub-classes
