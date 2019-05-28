@@ -573,6 +573,9 @@ class ComboBox(BoxWidget):
 
     @property
     def current_index_changed(self):
+        """ Wraps the signal
+        :return: QtCode.QSignal
+        """
         return self._combo_box.currentIndexChanged
 
 
@@ -732,7 +735,7 @@ class OutputItem(QtWidgets.QListWidgetItem):
             self.__override_camera_res = self.__rop.parm("override_camerares").eval()
             self.__res_fraction = self.__rop.parm("res_fraction").eval()
             self.__res_override = self.__rop.parmTuple("res_override").eval()
-            self.__pixel_aspect = self.__get_pixel_aspect()
+            self.__pixel_aspect = self.__rop.parm("aspect_override").eval()
             self.__aa_samples = self.__rop.parm("ar_AA_samples").eval()
             self.__user_options_enable = self.__rop.parm("ar_user_options_enable").eval()
             self.__user_options_string = self.__rop.parm("ar_user_options").eval()
@@ -801,8 +804,6 @@ class OutputItem(QtWidgets.QListWidgetItem):
                 return self.__rop.parm("aspect_override").eval()
             else:
                 return self.__cam.parm("aspect").eval()
-        else:
-            return 1.0
 
     def __name_changed(self, **kwargs):
         """ Name changed callback
@@ -854,7 +855,7 @@ class OutputItem(QtWidgets.QListWidgetItem):
             self.signal.resolution_changed.emit(self.__resolution)
 
         elif parm_name == "aspect_override":
-            self.__pixel_aspect = self.__get_pixel_aspect()
+            self.__pixel_aspect = self.__rop.parm("aspect_override").eval()
 
         elif parm_name == "ar_AA_samples":
             self.__aa_samples = self.__rop.parm("ar_AA_samples").eval()
@@ -2371,9 +2372,9 @@ class Aton(QtWidgets.QWidget):
 
             if self.__aa_samples_changed():
                 output.rollback_aa_samples()
-            
+
             output.rollback_user_options()
-            
+
             output.add_callbacks()
 
     def farm_cpu_menu(self):
