@@ -350,6 +350,9 @@ class LineEditBox(BoxWidget):
 
     @property
     def text_changed(self):
+        """ Wraps the Signal
+        :rtype: QtCore.Signal
+        """
         return self._widget.textChanged
 
 
@@ -445,31 +448,31 @@ class SpinBox(BoxWidget):
         :param first: bool
         """
         super(SpinBox, self).__init__(label, first)
-        self._spin_box = QtWidgets.QSpinBox()
-        self._spin_box.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
-        self._spin_box.setRange(-99999, 99999)
-        self._spin_box.setMaximumSize(50, 20)
-        self._spin_box.setValue(value)
+        self._widget = QtWidgets.QSpinBox()
+        self._widget.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
+        self._widget.setRange(-99999, 99999)
+        self._widget.setMaximumSize(50, 20)
+        self._widget.setValue(value)
 
-        self._layout.addWidget(self._spin_box)
+        self._layout.addWidget(self._widget)
 
     def value(self):
         """ Gets current value
         :rtype: int
         """
-        return self._spin_box.value()
+        return self._widget.value()
 
     def set_value(self, value):
         """ Sets current value
         :param value: int
         """
-        self._spin_box.setValue(value)
+        self._widget.setValue(value)
 
     def set_enabled(self, value):
         """ Sets Enabled signal
         :param value: bool
         """
-        self._spin_box.setEnabled(value)
+        self._widget.setEnabled(value)
         self._label.setEnabled(value)
 
     @property
@@ -477,7 +480,7 @@ class SpinBox(BoxWidget):
         """ Wraps the signal
         :rtype: QtCore.Signal
         """
-        return self._spin_box.valueChanged
+        return self._widget.valueChanged
 
 
 class ComboBox(BoxWidget):
@@ -491,24 +494,24 @@ class ComboBox(BoxWidget):
         super(ComboBox, self).__init__(label, first)
         self._items = list()
 
-        self._combo_box = QtWidgets.QComboBox()
-        self._combo_box.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
-                                      QtWidgets.QSizePolicy.Fixed)
+        self._widget = QtWidgets.QComboBox()
+        self._widget.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
+                                   QtWidgets.QSizePolicy.Fixed)
 
-        self._layout.addWidget(self._combo_box)
+        self._layout.addWidget(self._widget)
 
     def set_enabled(self, value):
         """ Sets Enabled mode
         :param value: bool
         """
         self._label.setEnabled(value)
-        self._combo_box.setEnabled(value)
+        self._widget.setEnabled(value)
 
     def set_current_index(self, value):
         """ Sets current index
         :param value:int
         """
-        self._combo_box.setCurrentIndex(value)
+        self._widget.setCurrentIndex(value)
 
     def set_current_name(self, value):
         """ Sets given name as the current selection index
@@ -516,25 +519,25 @@ class ComboBox(BoxWidget):
         """
         for idx, item in enumerate(self._items):
             if item == value:
-                self._combo_box.setCurrentIndex(idx)
+                self._widget.setCurrentIndex(idx)
 
     def set_default_name(self, text):
         """ Sets default text next to the name
         :param text: str
         """
-        self._combo_box.setItemText(0, self._items[0] + " (%s) " % text)
+        self._widget.setItemText(0, self._items[0] + " (%s) " % text)
 
     def current_index(self):
         """ Gets current index
         :rtype: int
         """
-        return self._combo_box.currentIndex()
+        return self._widget.currentIndex()
 
     def current_name(self):
         """ Gets current name
         :rtype: str
         """
-        index = self._combo_box.currentIndex()
+        index = self._widget.currentIndex()
         if self._items:
             return self._items[index]
 
@@ -543,7 +546,7 @@ class ComboBox(BoxWidget):
         :param idx: int
         :rtype: str
         """
-        return self._combo_box.itemText(idx)
+        return self._widget.itemText(idx)
 
     def add_items(self, items):
         """ Adds new items
@@ -551,7 +554,7 @@ class ComboBox(BoxWidget):
         """
         if items:
             for i in items:
-                self._combo_box.addItem(i)
+                self._widget.addItem(i)
             self._items += items
 
     def new_items(self, items):
@@ -561,22 +564,21 @@ class ComboBox(BoxWidget):
         self.clear()
         if items:
             for i in items:
-                self._combo_box.addItem(i)
+                self._widget.addItem(i)
             self._items += items
 
     def clear(self):
         """ Clears the items list
-        :return:
         """
-        self._combo_box.clear()
+        self._widget.clear()
         self._items = []
 
     @property
     def current_index_changed(self):
         """ Wraps the signal
-        :return: QtCode.QSignal
+        :rtype: QtCore.Signal
         """
-        return self._combo_box.currentIndexChanged
+        return self._widget.currentIndexChanged
 
 
 class CheckBox(BoxWidget):
@@ -808,7 +810,6 @@ class OutputItem(QtWidgets.QListWidgetItem):
     def __name_changed(self, **kwargs):
         """ Name changed callback
         :param kwargs: hou.Node
-        :return:
         """
         node = kwargs["node"]
         self.setText(node.path())
@@ -877,7 +878,6 @@ class OutputItem(QtWidgets.QListWidgetItem):
     def __being_deleted(self, **kwargs):
         """ Being deleted callback
         :param kwargs: hou.Node
-        :return:
         """
         node = kwargs["node"]
 
@@ -1652,7 +1652,6 @@ class Aton(QtWidgets.QWidget):
     def __port_update_ui(self, value):
         """ Stores UI value for selected outputs
         :param value: int
-        :return:
         """
         if self.__ui_update:
             for output in self.selected_outputs:
@@ -1865,9 +1864,8 @@ class Aton(QtWidgets.QWidget):
         """ Generate Resolution List for the UI
         """
         res_x, res_y = self.output.origin_res_x, self.output.origin_res_y
-        l = ["Use ROPs"]
-        l += ["%d%% (%dx%d)" % (i, res_x / 100.0 * i, res_y / 100.0 * i) for i in [100.0, 75.0, 50.0, 25.0, 10.0, 5.0]]
-        return l
+        return ["Use ROPs"] + ["%d%% (%dx%d)" %
+                               (i, res_x / 100.0 * i, res_y / 100.0 * i) for i in [100.0, 75.0, 50.0, 25.0, 10.0, 5.0]]
 
     def __remove_output_item(self, output_name):
         """ Removes output item name from OutputListBox
@@ -2433,7 +2431,6 @@ class Aton(QtWidgets.QWidget):
     @property
     def output_list_box(self):
         """ Gets OutputListBox object's widget
-        :return:
         """
         return self.__output_list_box.widget
 
