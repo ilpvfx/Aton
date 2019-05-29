@@ -1248,7 +1248,7 @@ class Aton(QtWidgets.QWidget):
         self.setWindowIcon(QtGui.QIcon(icon_path))
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setAttribute(QtCore.Qt.WA_AlwaysShowToolTips)
-        self.setWindowTitle("%s %s" % (self.__class__.__name__, __version__))
+        self.setWindowTitle("%s [%s]" % (self.__class__.__name__, __version__))
 
         # Create widgets
         self.__mode_combo_box = ComboBox("Mode")
@@ -1579,7 +1579,17 @@ class Aton(QtWidgets.QWidget):
             output.remove_callbacks()
 
         self.__output_list_box.clear()
-        self.__output_list = [OutputItem(rop, self.output_list_box) for rop in get_rop_list()]
+
+        # Output items list
+        self.__output_list = list()
+        for rop in get_rop_list():
+            output = OutputItem(rop, self.output_list_box)
+            self.__output_list.append(output)
+
+            output.ui.set_cpu_default(self.farm_cpu_menu_default(rop))
+            output.ui.set_ram_default(self.farm_ram_menu_default(rop))
+            output.ui.reset()
+
         self.__connect_output_signals_ui()
 
         # Update to default settings
