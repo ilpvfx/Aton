@@ -1248,6 +1248,7 @@ class Aton(QtWidgets.QWidget):
         self.setWindowIcon(QtGui.QIcon(icon_path))
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         self.setAttribute(QtCore.Qt.WA_AlwaysShowToolTips)
+        self.setWindowTitle("%s %s" % (self.__class__.__name__, __version__))
 
         # Create widgets
         self.__mode_combo_box = ComboBox("Mode")
@@ -1294,9 +1295,6 @@ class Aton(QtWidgets.QWidget):
 
         # Set first output as selected
         self.__output_list_box.set_first_item()
-
-        # Set window title
-        self.setWindowTitle("%s %s - %s" % (self.__class__.__name__, __version__, self.output.rop_name))
 
     def closeEvent(self, event):
         """ Called when the UI has been closed
@@ -1725,8 +1723,6 @@ class Aton(QtWidgets.QWidget):
             self.__render_region_t_spin_box.set_value(output.ui.region_t)
 
             self.__ui_update = True
-
-        self.setWindowTitle("%s %s - %s" % (self.__class__.__name__, __version__, self.output.rop_name))
 
     def __output_filter_ui(self, pattern):
         """ Output filter update ui
