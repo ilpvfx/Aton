@@ -728,6 +728,7 @@ class OutputItem(QtWidgets.QListWidgetItem):
         self.__user_options_enable = False
         self.__user_options_string = str()
         self.__ui = OutputUI()
+        self.__job_ids = list()
         self.__empty = True
 
         if type(rop) == hou.RopNode:
@@ -943,6 +944,11 @@ class OutputItem(QtWidgets.QListWidgetItem):
             except hou.OperationFailed:
                 return
 
+    def reset_job_ids(self):
+        """ Resets job ids list
+        """
+        self.__job_ids = list()
+
     @property
     def rop(self):
         """ Returns rop object
@@ -1094,6 +1100,18 @@ class OutputItem(QtWidgets.QListWidgetItem):
         """
         if self.__rop is not None:
             return self.__rop.parm("override_camerares").eval()
+
+    @property
+    def job_ids(self):
+        """ Returns job ids list
+        """
+        return self.__job_ids
+
+    @job_ids.setter
+    def job_ids(self, value):
+        """ Sets job ids to list
+        """
+        self.__job_ids = value
 
     @property
     def empty(self):
@@ -1453,8 +1471,8 @@ class Aton(QtWidgets.QWidget):
             output = OutputItem(rop, self.output_list_box)
             self.__output_list.append(output)
 
-            output.ui.set_cpu_default(self.farm_cpu_menu_default(rop))
-            output.ui.set_ram_default(self.farm_ram_menu_default(rop))
+            output.ui.set_cpu_default(self.farm_cpu_menu_default(rop.path()))
+            output.ui.set_ram_default(self.farm_ram_menu_default(rop.path()))
             output.ui.reset()
 
         # Camera Layout
@@ -1586,8 +1604,8 @@ class Aton(QtWidgets.QWidget):
             output = OutputItem(rop, self.output_list_box)
             self.__output_list.append(output)
 
-            output.ui.set_cpu_default(self.farm_cpu_menu_default(rop))
-            output.ui.set_ram_default(self.farm_ram_menu_default(rop))
+            output.ui.set_cpu_default(self.farm_cpu_menu_default(rop.path()))
+            output.ui.set_ram_default(self.farm_ram_menu_default(rop.path()))
             output.ui.reset()
 
         self.__connect_output_signals_ui()
@@ -2015,7 +2033,8 @@ class Aton(QtWidgets.QWidget):
             self.__general_ui_set_enabled(True)
             self.output.set_status()
         else:
-            self.farm_stop()
+            for output in self.selected_outputs:
+                self.farm_stop(output.job_ids)
 
     def __change_time(self):
         """ Change time for sequence rendering
@@ -2051,8 +2070,8 @@ class Aton(QtWidgets.QWidget):
 
             if output.rop is not None:
                 session_id = int(time.time())
-                ass_path = self.export_ass_path(output.rop_name, session_id)
-                ass_name = self.export_ass_name(output.rop_name, session_id)
+                ass_path = self.export_ass_path(output.rop_path, session_id)
+                ass_name = self.export_ass_name(output.rop_path, session_id)
 
                 if ass_path and ass_name:
                     rop_ass_enable_param = output.rop.parm("ar_ass_export_enable")
@@ -2089,6 +2108,7 @@ class Aton(QtWidgets.QWidget):
         :param ass_file_path: str
         :param session_id: int
         """
+        output.job_ids = list()
         distribute = output.ui.distribute
 
         x_res, y_res, x_reg, y_reg, r_reg, t_reg = self.__get_resolution(output)
@@ -2114,7 +2134,8 @@ class Aton(QtWidgets.QWidget):
             cpu = str(self.__cpu_combo_box.item_text(output.ui.cpu))
             ram = str(self.__ram_combo_box.item_text(output.ui.ram))
 
-            self.farm_start(ass_file_path, output.rop_name, session_id, self.current_frame, cpu, ram, region_list)
+            output.job_ids += \
+                self.farm_start(ass_file_path, output.rop_path, session_id, self.current_frame, cpu, ram, region_list)
 
     def __aa_samples_changed(self, output=None):
         """ Check if the AA Samples has been overridden
@@ -2416,51 +2437,54 @@ class Aton(QtWidgets.QWidget):
         """
         pass
 
-    def farm_cpu_menu_default(self, rop):
+    def farm_cpu_menu_default(self, rop_path):
         """ Farm CPU list menu default index to be implemented in sub-classes
-        :param: rop: hou.RopNode
+        :param: rop_path: str
         :rtype: int
         """
         return 0
 
-    def farm_ram_menu_default(self, rop):
+    def farm_ram_menu_default(self, rop_path):
         """ Farm RAM list menu default index to be implemented in sub-classes
-        :param: rop: hou.RopNode
+        :param: rop_path: str
         :rtype: int
         """
         return 0
 
-    def export_ass_path(self, rop_name, session_id):
+    def export_ass_path(self, rop_path, session_id):
         """ Export ASS path to be implemented in sub-classes
-        :param rop_name: str
+        :param rop_path: str
         :param session_id: int
         :rtype: str
         """
         pass
 
-    def export_ass_name(self, rop_name, session_id):
+    def export_ass_name(self, rop_path, session_id):
         """ Export ASS name to be implemented in sub-classes
-        :param rop_name: str
+        :param rop_path: str
         :param session_id: int
         :rtype: str
         """
         pass
 
-    def farm_start(self, ass_file_path, rop_name, session_id, frame, cpu, ram, region):
+    def farm_start(self, ass_file_path, rop_path, session_id, frame, cpu, ram, region):
         """ Farm submission start method to be implemented in the sub-classes
+            and return the submitted job ids for each farm submission call
         :param ass_file_path: str
-        :param rop_name: str
+        :param rop_path: str
         :param session_id: int
         :param frame: float
         :param cpu: int
         :param ram: int
-        :param region: list[4]: int
-        :rtype: None
+        :param region: list: int
+        :rtype: list: int
         """
         pass
 
-    def farm_stop(self):
+    def farm_stop(self, job_ids):
         """ Farm submission stop method to be implemented in the sub-classes
+            to remove submitted jobs on the farm based on collected job ids
+        :param job_ids: list
         :rtype: None
         """
         pass
