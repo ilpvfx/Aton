@@ -1710,6 +1710,7 @@ class Aton(QtWidgets.QWidget):
             self.__ui_update = False
             self.__port_slider.set_value(self.output.ui.port,
                                          self.output.ui.port - self.__default_port)
+            self.__ui_update = True
 
     def __output_update_ui(self, output):
         """ Update the UI when changing the output rop
