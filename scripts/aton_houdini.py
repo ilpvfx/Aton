@@ -944,11 +944,6 @@ class OutputItem(QtWidgets.QListWidgetItem):
             except hou.OperationFailed:
                 return
 
-    def reset_job_ids(self):
-        """ Resets job ids list
-        """
-        self.__job_ids = list()
-
     @property
     def rop(self):
         """ Returns rop object
