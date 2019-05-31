@@ -1951,24 +1951,24 @@ class Aton(QtWidgets.QWidget):
         index = output.ui.resolution
 
         if index == 2:
-            res_scale = 75
+            res_scale = 75.0
         elif index == 3:
-            res_scale = 50
+            res_scale = 50.0
         elif index == 4:
-            res_scale = 25
+            res_scale = 25.0
         elif index == 5:
-            res_scale = 10
+            res_scale = 10.0
         elif index == 6:
-            res_scale = 5
+            res_scale = 5.0
         else:
-            res_scale = 100
+            res_scale = 100.0
 
-        res_x = output.origin_res_x * res_scale / 100
-        res_y = output.origin_res_y * res_scale / 100
-        reg_x = output.ui.region_x * res_scale / 100
-        reg_y = res_y - (output.ui.region_t * res_scale / 100)
-        reg_r = (output.ui.region_r * res_scale / 100) - 1
-        reg_t = (res_y - (output.ui.region_y * res_scale / 100)) - 1
+        res_x = int(output.origin_res_x * res_scale / 100.0)
+        res_y = int(output.origin_res_y * res_scale / 100.0)
+        reg_x = int(output.ui.region_x * res_scale / 100.0)
+        reg_y = int(res_y - (output.ui.region_t * res_scale / 100.0))
+        reg_r = int((output.ui.region_r * res_scale / 100.0) - 1)
+        reg_t = int((res_y - (output.ui.region_y * res_scale / 100.0)) - 1)
 
         return tuple((res_x, res_y, reg_x, reg_y, reg_r, reg_t))
 
@@ -2113,18 +2113,22 @@ class Aton(QtWidgets.QWidget):
             x_res = r_reg - x_reg
             y_res = t_reg - y_reg
 
+        region_list = list()
         for tile in generate_tiles(x_res, y_res, distribute):
 
             if distribute:
+                region_list = [tile[0], tile[1], tile[2], tile[3]]
+
                 if self.__region_changed():
-                    region_list = [tile[0] + x_reg,
-                                   tile[1] + y_reg,
-                                   tile[2] + r_reg - x_res + 1,
-                                   tile[3] + t_reg - y_res]
+                    region_list[0] += x_reg
+                    region_list[1] += y_reg
+                    region_list[2] += r_reg - x_res + 1
+                    region_list[3] += t_reg - y_res
+
+                    if distribute > 1:
+                        region_list[3] += 1
                 else:
                     region_list = [tile[0], tile[1], tile[2] - 1, tile[3] - 1]
-            else:
-                region_list = list()
 
             # Unicode to str
             cpu = str(self.__cpu_combo_box.item_text(output.ui.cpu))
@@ -2232,7 +2236,7 @@ class Aton(QtWidgets.QWidget):
         :rtype: bool
         """
         AiBegin()
-        AiMsgSetConsoleFlags(AI_LOG_ALL)
+        AiMsgSetConsoleFlags(AI_LOG_ERRORS)
         AiASSLoad(ass_file_path)
 
         # Creates driver_aton node
