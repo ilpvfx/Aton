@@ -2497,11 +2497,21 @@ class Aton(QtWidgets.QWidget):
 
     @property
     def ipr(self):
-        """ Gets IPRViewer object
-        :rtype: hou.paneTabType.IPRViewer
+        """ Returns IPRViewer object
         """
         desk = hou.ui.curDesktop()
-        return desk.paneTabOfType(hou.paneTabType.IPRViewer)
+        ipr = desk.paneTabOfType(hou.paneTabType.IPRViewer)
+
+        if ipr is not None:
+            return ipr
+        else:
+            for panel in hou.ui.floatingPanels():
+                ipr = panel.paneTabOfType(hou.paneTabType.IPRViewer)
+
+                if ipr is not None:
+                    return ipr
+
+            raise StandardError("Can't find RenderView pane tab!")
 
     @property
     def output(self):
