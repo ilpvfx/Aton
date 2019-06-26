@@ -219,11 +219,10 @@ def get_port():
 
 
 def get_rop_list():
-    """ Returns a list of all visible output driver names
+    """ Returns a list of all output driver names
     :rtype: list
     """
-    return [i for i in hou.nodeType(hou.ropNodeTypeCategory(), "arnold").instances() 
-            if i.parm("soho_viewport_menu").eval()]
+    return list(hou.nodeType(hou.ropNodeTypeCategory(), "arnold").instances())
 
 
 def get_bucket_modes():
@@ -730,6 +729,7 @@ class OutputItem(QtWidgets.QListWidgetItem):
         self.__user_options_string = str()
         self.__ui = OutputUI()
         self.__job_ids = list()
+        self.__visible = True
         self.__empty = True
 
         if type(rop) == hou.RopNode:
@@ -752,9 +752,11 @@ class OutputItem(QtWidgets.QListWidgetItem):
             self.__user_options_enable = self.__rop.parm("ar_user_options_enable").eval()
             self.__user_options_string = self.__rop.parm("ar_user_options").eval()
             self.__ui = OutputUI(self.__aa_samples, self.__get_resolution())
+            self.__visible = self.__rop.parm("soho_viewport_menu").eval()
             self.__empty = False
 
             self.setText(self.__rop.path())
+            self.setHidden(not self.__visible)
             self.add_callbacks()
 
     def __get_camera(self):
@@ -836,6 +838,7 @@ class OutputItem(QtWidgets.QListWidgetItem):
             self.__cam = self.__get_camera()
 
             self.signal.camera_changed.emit(self.__cam.path())
+
             self.signal.resolution_changed.emit(self.__get_resolution())
 
         elif parm_name == "res":
@@ -845,45 +848,50 @@ class OutputItem(QtWidgets.QListWidgetItem):
             self.signal.resolution_changed.emit(self.__resolution)
 
         elif parm_name == "aspect":
-            self.__camera_pixel_aspect = self.__cam.parm("aspect").eval()
+            self.__camera_pixel_aspect = parm_tuple.eval()[0]
 
         elif parm_name == "override_camerares":
-            self.__override_camera_res = self.__rop.parm("override_camerares").eval()
+            self.__override_camera_res = parm_tuple.eval()[0]
             self.__resolution = self.__get_resolution()
 
             self.signal.resolution_changed.emit(self.__resolution)
 
         elif parm_name == "res_fraction":
-            self.__res_fraction = self.__rop.parm("res_fraction").eval()
+            self.__res_fraction = parm_tuple.eval()[0]
             self.__resolution = self.__get_resolution()
 
             self.signal.resolution_changed.emit(self.__resolution)
 
         elif parm_name == "res_override":
-            self.__res_override = self.__rop.parmTuple("res_override").eval()
+            self.__res_override = parm_tuple.eval()[0]
             self.__resolution = self.__get_resolution()
 
             self.signal.resolution_changed.emit(self.__resolution)
 
         elif parm_name == "aspect_override":
-            self.__pixel_aspect = self.__rop.parm("aspect_override").eval()
+            self.__pixel_aspect = parm_tuple.eval()[0]
 
         elif parm_name == "ar_AA_samples":
-            self.__aa_samples = self.__rop.parm("ar_AA_samples").eval()
+            self.__aa_samples = parm_tuple.eval()[0]
 
             self.signal.aa_samples_changed.emit(self.__aa_samples)
 
         elif parm_name == "ar_bucket_scanning":
-            bucket_scanning = self.__rop.parm("ar_bucket_scanning").eval()
+            bucket_scanning = parm_tuple.eval()[0]
 
             self.signal.bucket_scanning_changed.emit(bucket_scanning)
 
         elif parm_name == "ar_user_options_enable":
-            self.__user_options_enable = self.__rop.parm("ar_user_options_enable").eval()
+            self.__user_options_enable = parm_tuple.eval()[0]
 
         elif parm_name == "ar_user_options":
-            self.__user_options_parm = self.__rop.parm("ar_user_options")
+            self.__user_options_parm = parm_tuple.eval()[0]
             self.__user_options_str = self.__user_options_parm.eval()
+
+        elif parm_name == "soho_viewport_menu":
+            self.__visible = parm_tuple.eval()[0]
+
+            self.setHidden(not self.__visible)
 
     def __being_deleted(self, **kwargs):
         """ Being deleted callback
@@ -1114,6 +1122,12 @@ class OutputItem(QtWidgets.QListWidgetItem):
         """ Returns True if empty
         """
         return self.__empty
+
+    @property
+    def visible(self):
+        """ Returns True if visible
+        """
+        return self.__visible
 
     @property
     def ui(self):
@@ -1759,7 +1773,8 @@ class Aton(QtWidgets.QWidget):
             item.setHidden(True)
             for text in pattern_list:
                 if fnmatch.fnmatchcase(item.rop_path, "*" + text + "*"):
-                    item.setHidden(False)
+                    if item.visible:
+                        item.setHidden(False)
 
     def __ipr_update_ui(self):
         """ Stores UI value for selected outputs
