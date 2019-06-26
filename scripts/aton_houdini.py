@@ -833,12 +833,12 @@ class OutputItem(QtWidgets.QListWidgetItem):
         """
         parm_tuple = kwargs["parm_tuple"]
         parm_name = parm_tuple.name()
+        parm_eval = parm_tuple.eval()[0]
 
         if parm_name == "camera":
             self.__cam = self.__get_camera()
 
             self.signal.camera_changed.emit(self.__cam.path())
-
             self.signal.resolution_changed.emit(self.__get_resolution())
 
         elif parm_name == "res":
@@ -848,48 +848,48 @@ class OutputItem(QtWidgets.QListWidgetItem):
             self.signal.resolution_changed.emit(self.__resolution)
 
         elif parm_name == "aspect":
-            self.__camera_pixel_aspect = parm_tuple.eval()[0]
+            self.__camera_pixel_aspect = parm_eval
 
         elif parm_name == "override_camerares":
-            self.__override_camera_res = parm_tuple.eval()[0]
+            self.__override_camera_res = parm_eval
             self.__resolution = self.__get_resolution()
 
             self.signal.resolution_changed.emit(self.__resolution)
 
         elif parm_name == "res_fraction":
-            self.__res_fraction = parm_tuple.eval()[0]
+            self.__res_fraction = parm_eval
             self.__resolution = self.__get_resolution()
 
             self.signal.resolution_changed.emit(self.__resolution)
 
         elif parm_name == "res_override":
-            self.__res_override = parm_tuple.eval()[0]
+            self.__res_override = parm_eval
             self.__resolution = self.__get_resolution()
 
             self.signal.resolution_changed.emit(self.__resolution)
 
         elif parm_name == "aspect_override":
-            self.__pixel_aspect = parm_tuple.eval()[0]
+            self.__pixel_aspect = parm_eval
 
         elif parm_name == "ar_AA_samples":
-            self.__aa_samples = parm_tuple.eval()[0]
+            self.__aa_samples = parm_eval
 
             self.signal.aa_samples_changed.emit(self.__aa_samples)
 
         elif parm_name == "ar_bucket_scanning":
-            bucket_scanning = parm_tuple.eval()[0]
+            bucket_scanning = parm_eval
 
             self.signal.bucket_scanning_changed.emit(bucket_scanning)
 
         elif parm_name == "ar_user_options_enable":
-            self.__user_options_enable = parm_tuple.eval()[0]
+            self.__user_options_enable = parm_eval
 
         elif parm_name == "ar_user_options":
-            self.__user_options_parm = parm_tuple.eval()[0]
+            self.__user_options_parm = self.__rop.parm("ar_user_options")
             self.__user_options_str = self.__user_options_parm.eval()
 
         elif parm_name == "soho_viewport_menu":
-            self.__visible = parm_tuple.eval()[0]
+            self.__visible = parm_eval
 
             self.setHidden(not self.__visible)
 
@@ -1328,8 +1328,9 @@ class Aton(QtWidgets.QWidget):
         """ Called when the UI has been closed
         :param event: QEvent
         """
-        if self.ipr.isActive():
-            self.ipr.killRender()
+        if self.ipr is not None:
+            if self.ipr.isActive():
+                self.ipr.killRender()
 
         self.__remove_aton_overrides()
         self.__remove_callbacks()
