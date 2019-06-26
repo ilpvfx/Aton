@@ -2511,7 +2511,7 @@ class Aton(QtWidgets.QWidget):
                 if ipr is not None:
                     return ipr
 
-            raise StandardError("Can't find RenderView pane tab!")
+        raise StandardError("Can't find RenderView pane tab!")
 
     @property
     def output(self):
