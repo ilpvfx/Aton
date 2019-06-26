@@ -222,7 +222,8 @@ def get_rop_list():
     """ Returns a list of all visible output driver names
     :rtype: list
     """
-    return [i for i in hou.nodeType(hou.ropNodeTypeCategory(), "arnold").instances() if i.parm("soho_viewport_menu").eval()]
+    return [i for i in hou.nodeType(hou.ropNodeTypeCategory(), "arnold").instances() 
+            if i.parm("soho_viewport_menu").eval()]
 
 
 def get_bucket_modes():
