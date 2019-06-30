@@ -194,12 +194,8 @@ void Client::send_header(DataHeader& header)
     mIsConnected = true;
 }
 
-void Client::send_pixels(DataPixels& pixels, bool reconnect)
+void Client::send_pixels(DataPixels& pixels)
 {
-    // Reconnect to port!
-    if (reconnect)
-        connect();
-    
     // Send data for image_id
     int key = 1;
     write(mSocket, buffer(reinterpret_cast<char*>(&key), sizeof(int)));

@@ -233,7 +233,7 @@ public:
     // pixel blocks to the Server. The Data object passed must correctly
     // specify the block position and dimensions as well as provide a
     // pointer to pixel data.
-    void send_pixels(DataPixels& data, bool reconnect = false);
+    void send_pixels(DataPixels& data);
     
     // Sends a message to the Server that the Clients has finished
     // This tells the Server that a Client has finished sending pixel
@@ -242,9 +242,9 @@ public:
     
     bool connected() { return mIsConnected; }
 
-private:
     void connect();
     void disconnect();
+private:
     void quit();
     
     // Store the port we should connect to

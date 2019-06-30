@@ -207,8 +207,7 @@ driver_write_bucket
     ShaderData* data = (ShaderData*)AiDriverGetLocalData(node);
 #endif
 
-    int pixel_type;
-    int spp = 0;
+    int pixel_type, spp = 0;
     const void* bucket_data;
     const char* aov_name;
     
@@ -217,6 +216,9 @@ driver_write_bucket
     if (data->min_y < 0)
         bucket_yo = bucket_yo - data->min_y;
     
+    // Connect to server
+    data->client->connect();
+        
     while (AiOutputIteratorGetNext(iterator, &aov_name, &pixel_type, &bucket_data))
     {
         const float* ptr = reinterpret_cast<const float*>(bucket_data);
@@ -251,12 +253,10 @@ driver_write_bucket
                       aov_name,
                       ptr);
 
-        // Send it to the server
-        if (strncmp(aov_name, "RGBA", 4) == 0)
-            data->client->send_pixels(dp, true);
-        else
-            data->client->send_pixels(dp);
+        data->client->send_pixels(dp);
     }
+    // Disconnect from server
+    data->client->disconnect();
 }
 
 driver_close {}
