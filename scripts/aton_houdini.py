@@ -2081,41 +2081,48 @@ class Aton(QtWidgets.QWidget):
         """
         for output in self.__output_list_box.selected_items():
 
-            output.set_status("Exporting ASS...")
-
             if output.rop is not None:
                 session_id = int(time.time())
                 ass_path = self.export_ass_path(output.rop_path, session_id)
                 ass_name = self.export_ass_name(output.rop_path, session_id)
 
                 if ass_path and ass_name:
-                    rop_ass_enable_param = output.rop.parm("ar_ass_export_enable")
-                    rop_ass_file_parm = output.rop.parm("ar_ass_file")
-                    rop_picture_param = output.rop.parm("ar_picture")
 
-                    if rop_ass_file_parm is not None:
+                    if os.path.isdir(ass_path):
 
-                        default_state = rop_ass_enable_param.eval()
-                        default_path = rop_ass_file_parm.rawValue()
-                        default_picture = rop_picture_param.eval()
+                        output.set_status("Exporting ASS...")
 
-                        rop_picture_param.set("")
-                        rop_ass_enable_param.set(1)
-                        ass_file_path = os.path.join(ass_path, ass_name)
-                        rop_ass_file_parm.set(ass_file_path)
-                        ass_file_path = rop_ass_file_parm.eval()
+                        rop_ass_enable_param = output.rop.parm("ar_ass_export_enable")
+                        rop_ass_file_parm = output.rop.parm("ar_ass_file")
+                        rop_picture_param = output.rop.parm("ar_picture")
 
-                        output.rop.parm("execute").pressButton()
+                        if rop_ass_file_parm is not None:
 
-                        rop_ass_enable_param.set(default_state)
-                        rop_ass_file_parm.set(default_path)
-                        rop_picture_param.set(default_picture)
+                            default_state = rop_ass_enable_param.eval()
+                            default_path = rop_ass_file_parm.rawValue()
+                            default_picture = rop_picture_param.eval()
 
-                        # Exported
-                        output.set_status()
+                            rop_picture_param.set("")
+                            rop_ass_enable_param.set(1)
+                            ass_file_path = os.path.join(ass_path, ass_name)
+                            rop_ass_file_parm.set(ass_file_path)
+                            ass_file_path = rop_ass_file_parm.eval()
 
-                        if self.__add_ass_overrides(output, ass_file_path, session_id):
-                            self.__init_farm_job(output, ass_file_path, session_id)
+                            output.rop.parm("execute").pressButton()
+
+                            rop_ass_enable_param.set(default_state)
+                            rop_ass_file_parm.set(default_path)
+                            rop_picture_param.set(default_picture)
+
+                            # Exported
+                            output.set_status()
+
+                            if self.__add_ass_overrides(output, ass_file_path, session_id):
+                                self.__init_farm_job(output, ass_file_path, session_id)
+                    else:
+                        output.set_status("Error: Invalid ASS path!")
+                else:
+                    output.set_status("Error: ASS path or ASS name is None!")
 
     def __init_farm_job(self, output, ass_file_path, session_id):
         """ Initialises farm job requirements
