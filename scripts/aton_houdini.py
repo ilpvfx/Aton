@@ -1160,14 +1160,23 @@ class OutputListBox(BoxWidget):
         """
         menu = QtWidgets.QMenu(self)
 
+        select_node = menu.addAction("Select node(s)")
         reset_overrides = menu.addAction("Reset settings")
 
         action = menu.exec_(self.mapToGlobal(event.pos()))
 
         if action == reset_overrides:
-            self.reset_selected()
+            self.reset_settings()
+        elif action == select_node:
+            self.select_node()
 
-    def reset_selected(self):
+    def select_node(self):
+        """ Selects selected OutputItems
+        """
+        for output in self._widget.selectedItems():
+            output.rop.setSelected(True)
+
+    def reset_settings(self):
         """ Resets selected OutputItems
         """
         for output in self._widget.selectedItems():
