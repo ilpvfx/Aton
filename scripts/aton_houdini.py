@@ -2382,11 +2382,12 @@ class Aton(QtWidgets.QWidget):
 
             # Resolution
             if self.__resolution_changed():
+                pixel_aspect = self.output.pixel_aspect
                 self.output.rop.parm("override_camerares").set(True)
                 self.output.rop.parm("res_fraction").set("specific")
                 self.output.rop.parm("res_overridex").set(x_res)
                 self.output.rop.parm("res_overridey").set(y_res)
-                self.output.rop.parm("aspect_override").set(self.output.pixel_aspect)
+                self.output.rop.parm("aspect_override").set(pixel_aspect)
             else:
                 self.output.rop.parm("override_camerares").set(self.output.override_camera_res)
                 self.output.rop.parm("res_fraction").set(self.output.res_fraction)
