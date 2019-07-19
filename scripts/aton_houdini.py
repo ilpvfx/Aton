@@ -1678,6 +1678,7 @@ class Aton(QtWidgets.QWidget):
         self.__ram_combo_box.set_enabled(value)
         self.__distribute_combo_box.set_enabled(value)
         self.__ipr_update_check_box.set_enabled(not value)
+        self.__progrssive_check_box.set_enabled(not value)
 
         sequence_checked = self.__sequence_checkbox.is_checked()
         self.__sequence_checkbox.set_enabled(not value)
