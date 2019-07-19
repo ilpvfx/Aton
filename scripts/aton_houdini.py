@@ -2045,6 +2045,8 @@ class Aton(QtWidgets.QWidget):
                     self.ipr.setPreview(False)
                     if caller is None:
                         hou.setFrame(self.__seq_start_spin_box.value())
+                else:
+                    self.ipr.setPreview(self.output.ui.progressive)
 
                 self.ipr.startRender()
                 self.ipr.pauseRender()
