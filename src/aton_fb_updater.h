@@ -13,17 +13,17 @@ All rights reserved. See COPYING.txt for more details.
 static void fb_updater(unsigned index, unsigned nthreads, void* data)
 {
     Aton* node = reinterpret_cast<Aton*>(data);
-    double frame, prevFrame = 0;
+    double frame, prev_frame = 0;
     const int ms = 20;
     
     while (node->m_legit && node->m_multiframes)
     {
-        frame = node->outputContext().frame();
+        frame = node->uiContext().frame();
         
-        if (!node->m_framebuffers.empty() && frame != prevFrame)
+        if (!node->m_framebuffers.empty() && frame != prev_frame)
         {
             node->flag_update();
-            prevFrame = frame;
+            prev_frame = frame;
         }
         else
             SleepMS(ms);
