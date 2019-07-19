@@ -284,7 +284,7 @@ class HickStatus(QtCore.QThread):
         for p in psutil.Process(os.getpid()).children(recursive=True):
             if p.name().startswith("hick"):
                 try:
-                    return p.cpu_percent(interval=1) == 0.0
+                    return p.cpu_percent(interval=2) == 0.0
                 except psutil.NoSuchProcess:
                     return
 
@@ -652,6 +652,7 @@ class OutputUI(object):
         self.distribute = 0
         self.port = get_port()
         self.ipr_update = True
+        self.progressive = True
         self.camera = 0
         self.bucket_scan = 0
         self.resolution = 0
@@ -683,6 +684,7 @@ class OutputUI(object):
         self.distribute = 0
         self.port = self.__port
         self.ipr_update = True
+        self.progressive = True
         self.camera = 0
         self.bucket_scan = 0
         self.resolution = 0
@@ -1298,6 +1300,7 @@ class Aton(QtWidgets.QWidget):
         self.__filter_line_edit = LineEditBox("Filter")
         self.__camera_combo_box = ComboBox("Camera")
         self.__ipr_update_check_box = CheckBox("IPR", "Auto Update")
+        self.__progrssive_check_box = CheckBox("", "Progressive", False)
         self.__bucket_combo_box = ComboBox("Bucket Scan")
         self.__resolution_combo_box = ComboBox("Resolution")
         self.__camera_aa_combo_box = ComboBox("Camera (AA)")
@@ -1394,6 +1397,7 @@ class Aton(QtWidgets.QWidget):
         # IPR Update Layout
         ipr_update_layout = QtWidgets.QHBoxLayout()
         ipr_update_layout.addWidget(self.__ipr_update_check_box)
+        ipr_update_layout.addWidget(self.__progrssive_check_box)
 
         # Bucket Layout
         bucket_layout = QtWidgets.QHBoxLayout()
@@ -1499,9 +1503,6 @@ class Aton(QtWidgets.QWidget):
         self.__camera_combo_box.add_items(["Use ROPs"] + get_all_cameras(path=True))
         self.__camera_combo_box.set_default_name(self.output.origin_cam_path)
 
-        # IPR Update Layout
-        self.__ipr_update_check_box.set_checked(self.ipr.isAutoUpdateOn())
-
         # Bucket Layout
         self.__bucket_combo_box.add_items(["Use ROPs"] + get_bucket_modes())
         self.__bucket_combo_box.set_default_name(self.output.bucket_scanning)
@@ -1549,6 +1550,8 @@ class Aton(QtWidgets.QWidget):
         self.__filter_line_edit.text_changed.connect(self.__output_filter_ui)
         self.__ipr_update_check_box.toggled.connect(self.__set_auto_update)
         self.__ipr_update_check_box.toggled.connect(self.__ipr_update_ui)
+        self.__progrssive_check_box.toggled.connect(self.__set_progressive)
+        self.__progrssive_check_box.toggled.connect(self.__progressive_update_ui)
         self.__camera_combo_box.current_index_changed.connect(self.__camera_update_ui)
         self.__camera_combo_box.current_index_changed.connect(self.__add_aton_overrides)
         self.__bucket_combo_box.current_index_changed.connect(self.__bucket_scanning_update_ui)
@@ -1634,6 +1637,7 @@ class Aton(QtWidgets.QWidget):
         self.__port_slider.set_value(self.__default_port, 0)
         self.__filter_line_edit.set_text("")
         self.__ipr_update_check_box.set_checked(True)
+        self.__progrssive_check_box.set_checked(True)
         self.__camera_combo_box.new_items(["Use ROPs"] + get_all_cameras(path=True))
         self.__camera_combo_box.set_default_name(self.output.origin_cam_path)
         self.__bucket_combo_box.new_items(["Use ROPs"] + get_bucket_modes())
@@ -1762,6 +1766,7 @@ class Aton(QtWidgets.QWidget):
             self.__distribute_combo_box.set_current_index(output.ui.distribute)
             self.__port_slider.set_value(output.ui.port, output.ui.port - self.__default_port)
             self.__ipr_update_check_box.set_checked(output.ui.ipr_update)
+            self.__progrssive_check_box.set_checked(output.ui.progressive)
             self.__camera_combo_box.set_current_index(output.ui.camera)
             self.__bucket_combo_box.set_current_index(output.ui.bucket_scan)
             self.__resolution_combo_box.set_current_index(output.ui.resolution)
@@ -1794,6 +1799,13 @@ class Aton(QtWidgets.QWidget):
         if self.__ui_update:
             for output in self.selected_outputs:
                 output.ui.ipr_update = self.__ipr_update_check_box.is_checked()
+
+    def __progressive_update_ui(self):
+        """ Stores UI value for selected outputs
+        """
+        if self.__ui_update:
+            for output in self.selected_outputs:
+                output.ui.progressive = self.__progrssive_check_box.is_checked()
 
     def __camera_update_ui(self, value):
         """ Updates Camera combo box UI
@@ -2006,6 +2018,12 @@ class Aton(QtWidgets.QWidget):
         """
         self.ipr.setAutoUpdate(value)
 
+    def __set_progressive(self, value):
+        """ Sets Preview on in
+        :param value:
+        """
+        self.ipr.setPreview(value)
+
     def __start_render(self, caller=None):
         """ Start Button Command
         :param caller: function
@@ -2027,8 +2045,6 @@ class Aton(QtWidgets.QWidget):
                     self.ipr.setPreview(False)
                     if caller is None:
                         hou.setFrame(self.__seq_start_spin_box.value())
-                else:
-                    self.ipr.setPreview(True)
 
                 self.ipr.startRender()
                 self.ipr.pauseRender()
