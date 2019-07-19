@@ -449,7 +449,7 @@ RenderBuffer* Aton::current_renderbuffer()
     {
         double frame;
         if  (m_multiframes)
-            frame = outputContext().frame();
+            frame = uiContext().frame();
         else
             frame = fb->get_frame();
         return fb->get_renderbuffer(frame);
@@ -709,7 +709,7 @@ void Aton::multiframe_cmd()
     FrameBuffer* fb = current_framebuffer();
    
     if (fb != NULL)
-        fb->set_frame(outputContext().frame());
+        fb->set_frame(uiContext().frame());
 
     if (m_node->m_multiframes)
         Thread::spawn(::fb_updater, 1, m_node);
