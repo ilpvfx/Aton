@@ -1175,6 +1175,7 @@ class OutputListBox(BoxWidget):
     def select_node(self):
         """ Selects selected OutputItems
         """
+        hou.clearAllSelected()
         for output in self._widget.selectedItems():
             output.rop.setSelected(True)
 
