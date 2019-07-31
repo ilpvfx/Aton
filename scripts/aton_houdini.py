@@ -1967,20 +1967,16 @@ class Aton(QtWidgets.QWidget):
         crop_data = data.split(",")
 
         if crop_data is not None:
+            if len(crop_data) == 4:
+                reg_x = int(float(crop_data[0]) * float(self.output.origin_res_x))
+                reg_y = int(float(crop_data[1]) * float(self.output.origin_res_y))
+                reg_r = int(float(crop_data[2]) * float(self.output.origin_res_x))
+                reg_t = int(float(crop_data[3]) * float(self.output.origin_res_y))
 
-            if len(crop_data) == 5:
-                nk_x = float(crop_data[0])
-                nk_y = float(crop_data[1])
-                nk_r = float(crop_data[2])
-                nk_t = float(crop_data[3])
-                nk_res = float(crop_data[4])
-
-                region_mult = self.output.origin_res_x / nk_res
-
-                self.__render_region_x_spin_box.set_value(int(nk_x * region_mult))
-                self.__render_region_y_spin_box.set_value(int(nk_y * region_mult))
-                self.__render_region_r_spin_box.set_value(int(nk_r * region_mult))
-                self.__render_region_t_spin_box.set_value(int(nk_t * region_mult))
+                self.__render_region_x_spin_box.set_value(reg_x)
+                self.__render_region_y_spin_box.set_value(reg_y)
+                self.__render_region_r_spin_box.set_value(reg_r)
+                self.__render_region_t_spin_box.set_value(reg_t)
 
     def __get_resolution(self, output=None):
         """ Get Resolution and Region overrides

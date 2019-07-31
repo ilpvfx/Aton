@@ -822,30 +822,26 @@ void Aton::reset_region_cmd()
 
 void Aton::copy_region_cmd()
 {
-    m_node->m_mutex.readLock();
-    RenderBuffer* rb = current_renderbuffer();
+    int w = m_node->m_fmt.width();
+    int h = m_node->m_fmt.height();
     
-    if (rb != NULL)
+    if (w > 0 || h > 0)
     {
-        int res_width = rb->get_width();
-        m_node->m_mutex.unlock();
-        
+        float ux = m_region[0] / float(w);
+        float uy = m_region[1] / float(h);
+        float ur = m_region[2] / float(w);
+        float ut = m_region[3] / float(h);
+
         std::string cmd; // Our python command buffer
         cmd = (boost::format("exec('''try:\n\t"
                                          "from PySide import QtGui as QtWidgets\n"
                                      "except ImportError:\n\t"
                                          "from PySide2 import QtWidgets\n"
                                      "clipboard = QtWidgets.QApplication.clipboard()\n"
-                                     "clipboard.setText('%s,%s,%s,%s,%s')''')" )%m_region[0]
-                                                                                %m_region[1]
-                                                                                %m_region[2]
-                                                                                %m_region[3]
-                                                                                %res_width).str();
+                                     "clipboard.setText('%s,%s,%s,%s')''')" )%ux%uy%ur%ut).str();
         script_command(cmd.c_str(), true, false);
         script_unlock();
     }
-    else
-        m_node->m_mutex.unlock();
 }
 
 bool Aton::path_valid(std::string f_path)
