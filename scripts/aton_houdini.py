@@ -840,8 +840,9 @@ class OutputItem(QtWidgets.QListWidgetItem):
         if parm_name == "camera":
             self.__cam = self.__get_camera()
 
-            self.signal.camera_changed.emit(self.__cam.path())
-            self.signal.resolution_changed.emit(self.__get_resolution())
+            if self.__cam is not None:
+                self.signal.camera_changed.emit(self.__cam.path())
+                self.signal.resolution_changed.emit(self.__get_resolution())
 
         elif parm_name == "res":
             self.__camera_resolution = self.__cam.parmTuple("res").eval()
