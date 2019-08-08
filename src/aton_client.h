@@ -249,6 +249,7 @@ private:
     
     // Store the port we should connect to
     std::string mHost;
+    std::string mPort_str;
     int mPort, mImageId;
     bool mIsConnected;
     

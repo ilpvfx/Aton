@@ -133,7 +133,10 @@ Client::Client(std::string hostname, int port): mHost(hostname),
                                                 mPort(port),
                                                 mImageId(-1),
                                                 mSocket(mIoService),
-                                                mIsConnected(false) {}
+                                                mIsConnected(false)
+{
+    mPort_str = std::to_string(port);
+}
 
 Client::~Client()
 {
@@ -144,7 +147,7 @@ void Client::connect()
 {
     using boost::asio::ip::tcp;
     tcp::resolver resolver(mIoService);
-    tcp::resolver::query query(mHost.c_str(), boost::lexical_cast<std::string>(mPort).c_str());
+    tcp::resolver::query query(mHost.c_str(), mPort_str.c_str());
     tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
     tcp::resolver::iterator end;
     boost::system::error_code error = boost::asio::error::host_not_found;
