@@ -432,7 +432,7 @@ FrameBuffer* Aton::current_framebuffer()
     
     if (!fbs.empty())
     {
-        int idx = m_node->current_fb_index(false);
+        const int idx = m_node->current_fb_index(false);
         if (idx < 0)
             return &fbs[0];
         else
@@ -462,8 +462,8 @@ int Aton::current_fb_index(bool direction)
 {
     Table_KnobI* outputKnob = m_node->m_outputKnob->tableKnob();
 
-    int size = outputKnob->getRowCount();
-    int idx = outputKnob->getSelectedRow();
+    const int size = outputKnob->getRowCount();
+    const int idx = outputKnob->getSelectedRow();
 
     if (size > 0 && idx >= 0 && !direction)
         return size - idx - 1;
@@ -476,7 +476,7 @@ std::vector<int> Aton::selected_fb_indexes()
     Table_KnobI* outputKnob = m_node->m_outputKnob->tableKnob();
     
     std::vector<int> indexes;
-    int size = outputKnob->getRowCount();
+    const int size = outputKnob->getRowCount();
     std::vector<int> rows = outputKnob->getSelectedRows();
 
     std::vector<int>::iterator it;
@@ -532,7 +532,7 @@ void Aton::set_outputs()
             std::vector<FrameBuffer>::reverse_iterator it;
             for(it = fbs.rbegin(); it != fbs.rend(); ++it)
             {
-                int row = outputKnob->addRow();
+                const int row = outputKnob->addRow();
                 outputKnob->setCellString(row, 0, it->get_output_name());
             }
         }
@@ -722,7 +722,7 @@ void Aton::select_output_cmd()
     FrameBuffer* fb = current_framebuffer();
     Table_KnobI* outputKnob = m_outputKnob->tableKnob();
     
-    int idx = outputKnob->getSelectedRow();
+    const int idx = outputKnob->getSelectedRow();
     std::vector<int> sel_rows = outputKnob->getSelectedRows();
     
     if (fb != NULL && sel_rows.size() == 1 && idx >= 0)
@@ -735,7 +735,7 @@ void Aton::select_output_cmd()
                 fb->set_output_name(row_name);
         }
         
-        double frame = fb->get_frame();
+        const double& frame = fb->get_frame();
         m_node->m_mutex.unlock();
         
         // Update UI Frame
@@ -773,7 +773,7 @@ void Aton::move_cmd(bool direction)
     std::vector<FrameBuffer>& fbs = m_node->m_framebuffers;
     if (!fbs.empty())
     {
-        int idx = m_node->current_fb_index(false);
+        const int idx = m_node->current_fb_index(false);
         if (idx >= 0)
         {
             if (direction && idx < (fbs.size()-1))
@@ -822,15 +822,15 @@ void Aton::reset_region_cmd()
 
 void Aton::copy_region_cmd()
 {
-    int w = m_node->m_fmt.width();
-    int h = m_node->m_fmt.height();
+    const int w = m_node->m_fmt.width();
+    const int h = m_node->m_fmt.height();
     
     if (w > 0 || h > 0)
     {
-        float ux = m_region[0] / float(w);
-        float uy = m_region[1] / float(h);
-        float ur = m_region[2] / float(w);
-        float ut = m_region[3] / float(h);
+        const float ux = m_region[0] / float(w);
+        const float uy = m_region[1] / float(h);
+        const float ur = m_region[2] / float(w);
+        const float ut = m_region[3] / float(h);
 
         std::string cmd; // Our python command buffer
         cmd = (boost::format("exec('''try:\n\t"

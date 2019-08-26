@@ -236,7 +236,7 @@ public:
     // Check if RenderBuffer already exists
     bool renderbuffer_exists(double frame);
     
-    double get_frame() { return _frame; }
+    double& get_frame() { return _frame; }
     void set_frame(double frame) { _frame = frame; }
     
     // Check if Frame has been changed

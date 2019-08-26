@@ -275,7 +275,7 @@ void RenderBuffer::set_progress(const int& area)
 {
     // Calculate the progress percentage
     _rendered_area -= area;
-    float progress = 100.0f - (_rendered_area * 100.0f) / _region_area;
+    const float progress = 100.0f - (_rendered_area * 100.0f) / _region_area;
     _progress = progress > 100 ? 100 : static_cast<int>(progress);
 }
 
