@@ -1291,6 +1291,11 @@ class Aton(QtWidgets.QWidget):
         self.__default_port = get_port()
         self.__default_host = get_host()
 
+        # Reconnect modes
+        self.__reconnect_local = 0
+        self.__reconnect_farm = 1
+        self.__reconnect_distribute = 2
+
         # Init UI
         self.setObjectName(self.__obj_name)
         self.setProperty("saveWindowPref", True)
@@ -2307,11 +2312,11 @@ class Aton(QtWidgets.QWidget):
         AiNodeSetStr(aton_node, "host", socket.gethostbyname(socket.gethostname()))
         AiNodeSetInt(aton_node, "port", output.ui.port)
         AiNodeSetStr(aton_node, "output", output.rop_name)
-        AiNodeSetStr(aton_node, "reconnect", 1)
+        AiNodeSetStr(aton_node, "reconnect", self.__reconnect_farm)
 
         # Distributive rendering session
         if output.ui.distribute:
-            AiNodeSetStr(aton_node, "reconnect", 2)
+            AiNodeSetStr(aton_node, "reconnect", self.__reconnect_distribute)
             AiNodeSetInt(aton_node, "session", session_id)
 
         # Gets option node
@@ -2399,7 +2404,8 @@ class Aton(QtWidgets.QWidget):
             self.output.user_options += "declare aton_host constant STRING aton_host \"%s\" " % self.__default_host
             self.output.user_options += "declare aton_port constant INT aton_port %d " % self.__port_slider.value()
             self.output.user_options += "declare aton_output constant STRING aton_output \"%s\" " % self.output.rop_name
-            self.output.user_options += "declare aton_reconnect constant INT aton_reconnect 1 "
+            self.output.user_options += "declare aton_reconnect constant INT aton_reconnect %d " % \
+                                        self.__reconnect_local
 
             # Enable User Options Overrides
             user_options_enabled = self.output.rop.parm("ar_user_options_enable").eval()
