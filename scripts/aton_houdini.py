@@ -1163,15 +1163,24 @@ class OutputListBox(BoxWidget):
         """
         menu = QtWidgets.QMenu(self)
 
+        open_node = menu.addAction("Open node(s)")
         select_node = menu.addAction("Select node(s)")
         reset_overrides = menu.addAction("Reset settings")
 
         action = menu.exec_(self.mapToGlobal(event.pos()))
 
-        if action == reset_overrides:
-            self.reset_settings()
+        if action == open_node:
+            self.open_node()
         elif action == select_node:
             self.select_node()
+        elif action == reset_overrides:
+            self.reset_settings()
+
+    def open_node(self):
+        """ Open selected OutputItems
+        """
+        for output in self._widget.selectedItems():
+            hou.hscript(("oppane -t parmeditor " + output.rop.path()))
 
     def select_node(self):
         """ Selects selected OutputItems
@@ -1298,7 +1307,7 @@ class Aton(QtWidgets.QWidget):
         self.__distribute_combo_box = ComboBox("Distribute:", False)
         self.__port_slider = SliderBox("Port")
         self.__port_increment_button = QtWidgets.QPushButton("Increment ports")
-        self.__output_list_box = OutputListBox("Output")
+        self.__output_list_box = OutputListBox("Outputs")
         self.__filter_line_edit = LineEditBox("Filter")
         self.__camera_combo_box = ComboBox("Camera")
         self.__ipr_update_check_box = CheckBox("IPR", "Auto Update")
