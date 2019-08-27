@@ -60,6 +60,7 @@ def aton_update(self):
                     AiNodeSetStr(aton_node, "host", AiNodeGetStr(options_node, "aton_host"))
                     AiNodeSetInt(aton_node, "port", AiNodeGetInt(options_node, "aton_port"))
                     AiNodeSetStr(aton_node, "output", AiNodeGetStr(options_node, "aton_output"))
+                    AiNodeSetInt(aton_node, "reconnect", AiNodeGetInt(options_node, "aton_reconnect"))
 
                     # Get the outputs string array param (on the options node) as a python list
                     array = AiNodeGetArray(options_node, "outputs")
@@ -2306,6 +2307,7 @@ class Aton(QtWidgets.QWidget):
         AiNodeSetStr(aton_node, "host", socket.gethostbyname(socket.gethostname()))
         AiNodeSetInt(aton_node, "port", output.ui.port)
         AiNodeSetStr(aton_node, "output", output.rop_name)
+        AiNodeSetStr(aton_node, "reconnect", 2)
 
         # Distributive rendering session
         if output.ui.distribute:
@@ -2396,6 +2398,7 @@ class Aton(QtWidgets.QWidget):
             self.output.user_options += "declare aton_host constant STRING aton_host \"%s\" " % self.__default_host
             self.output.user_options += "declare aton_port constant INT aton_port %d " % self.__port_slider.value()
             self.output.user_options += "declare aton_output constant STRING aton_output \"%s\" " % self.output.rop_name
+            self.output.user_options += "declare aton_reconnect constant INT aton_reconnect 1 "
 
             # Enable User Options Overrides
             user_options_enabled = self.output.rop.parm("ar_user_options_enable").eval()

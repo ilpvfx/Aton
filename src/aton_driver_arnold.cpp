@@ -37,12 +37,20 @@ struct ShaderData
     int xres, yres, min_x, min_y, max_x, max_y;
 };
 
+enum reconnect
+{
+    disabled = 0,
+    once,
+    always,
+};
+
 node_parameters
 {
     AiParameterStr("host", get_host().c_str());
     AiParameterInt("port", get_port());
     AiParameterStr("output", "");
     AiParameterInt("session", 0);
+    AiParameterInt("reconnect", reconnect::disabled);
     
 #ifdef ARNOLD_5
     AiMetaDataSetStr(nentry, NULL, AtString("maya.translator"), AtString("aton"));
@@ -210,14 +218,16 @@ driver_write_bucket
     int pixel_type, spp = 0;
     const void* bucket_data;
     const char* aov_name;
-    
+    const int reconnect = AiNodeGetInt(node, AtString("reconnect"));
+
     if (data->min_x < 0)
         bucket_xo = bucket_xo - data->min_x;
     if (data->min_y < 0)
         bucket_yo = bucket_yo - data->min_y;
     
-    // Connect to server
-    data->client->connect();
+    // Reconnect to server
+    if (reconnect)
+        data->client->connect();
         
     while (AiOutputIteratorGetNext(iterator, &aov_name, &pixel_type, &bucket_data))
     {
@@ -255,8 +265,10 @@ driver_write_bucket
 
         data->client->send_pixels(dp);
     }
+    
     // Disconnect from server
-    data->client->disconnect();
+    if (reconnect == reconnect::always)
+        data->client->disconnect();
 }
 
 driver_close {}
