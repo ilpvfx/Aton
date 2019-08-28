@@ -1293,7 +1293,7 @@ class Aton(QtWidgets.QWidget):
 
         # Reconnect modes
         self.__reconnect_local = 0
-        self.__reconnect_farm = 1
+        self.__reconnect_farm = 2
         self.__reconnect_distribute = 2
 
         # Init UI
@@ -2312,11 +2312,11 @@ class Aton(QtWidgets.QWidget):
         AiNodeSetStr(aton_node, "host", socket.gethostbyname(socket.gethostname()))
         AiNodeSetInt(aton_node, "port", output.ui.port)
         AiNodeSetStr(aton_node, "output", output.rop_name)
-        AiNodeSetStr(aton_node, "reconnect", self.__reconnect_farm)
+        AiNodeSetInt(aton_node, "reconnect", self.__reconnect_farm)
 
         # Distributive rendering session
         if output.ui.distribute:
-            AiNodeSetStr(aton_node, "reconnect", self.__reconnect_distribute)
+            AiNodeSetInt(aton_node, "reconnect", self.__reconnect_distribute)
             AiNodeSetInt(aton_node, "session", session_id)
 
         # Gets option node
