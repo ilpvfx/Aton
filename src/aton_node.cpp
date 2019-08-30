@@ -822,8 +822,8 @@ void Aton::reset_region_cmd()
 
 void Aton::copy_region_cmd()
 {
-    const int& w = m_fmtp.format()->width();
-    const int& h = m_fmtp.format()->height();
+    const int& w = m_node->m_fmtp.format()->width();
+    const int& h = m_node->m_fmtp.format()->height();
 
     if (w > 0 || h > 0)
     {
