@@ -825,7 +825,7 @@ void Aton::copy_region_cmd()
     const int& w = m_node->m_fmtp.format()->width();
     const int& h = m_node->m_fmtp.format()->height();
 
-    if (w > 0 || h > 0)
+    if (w > 0 && h > 0)
     {
         const float ux = m_region[0] / float(w);
         const float uy = m_region[1] / float(h);
