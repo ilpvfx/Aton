@@ -218,7 +218,7 @@ driver_write_bucket
     int pixel_type, spp = 0;
     const void* bucket_data;
     const char* aov_name;
-    const int reconnect = AiNodeGetInt(node, AtString("reconnect"));
+    const int reconnect_mode = AiNodeGetInt(node, AtString("reconnect"));
 
     if (data->min_x < 0)
         bucket_xo = bucket_xo - data->min_x;
@@ -226,7 +226,7 @@ driver_write_bucket
         bucket_yo = bucket_yo - data->min_y;
     
     // Reconnect to server
-    if (reconnect)
+    if (reconnect_mode)
         data->client->connect();
         
     while (AiOutputIteratorGetNext(iterator, &aov_name, &pixel_type, &bucket_data))
@@ -267,7 +267,7 @@ driver_write_bucket
     }
     
     // Disconnect from server
-    if (reconnect == reconnect::always)
+    if (reconnect_mode == reconnect::always)
         data->client->disconnect();
 }
 
