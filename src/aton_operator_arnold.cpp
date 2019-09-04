@@ -11,9 +11,12 @@ All rights reserved. See COPYING.txt for more details.
 #include <ai.h>
 #include <stdio.h>
 
-using namespace std;
+#define operator_post_cook \
+static bool OperatorPostCook(AtNode* op, void* user_data)
 
 AI_OPERATOR_NODE_EXPORT_METHODS(AtonOperatorMtd);
+
+using namespace std;
 
 const int get_port()
 {

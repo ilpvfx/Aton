@@ -80,20 +80,20 @@ if( ARNOLD_FOUND )
       ${Arnold_ai_LIBRARY}
       )
 
-    # # Aton Operator
-    # add_library( arnold_operator
-    #   SHARED
-    #   ${CMAKE_SOURCE_DIR}/src/aton_operator_arnold.cpp
-    #   )
+    # Aton Operator
+    add_library( arnold_operator
+      SHARED
+      ${CMAKE_SOURCE_DIR}/src/aton_operator_arnold.cpp
+      )
 
-    # set_target_properties( arnold_operator
-    #   PROPERTIES
-    #   PREFIX ""
-    #   OUTPUT_NAME "operator_aton"
-    #   COMPILE_FLAGS "${Arnold_COMPILE_FLAGS}"
-    # )
+    set_target_properties( arnold_operator
+      PROPERTIES
+      PREFIX ""
+      OUTPUT_NAME "operator_aton"
+      COMPILE_FLAGS "${Arnold_COMPILE_FLAGS}"
+    )
 
-    # target_link_libraries( arnold_operator
-    #   ${Arnold_ai_LIBRARY}
-    #   )
+    target_link_libraries( arnold_operator
+      ${Arnold_ai_LIBRARY}
+      )
 endif( ARNOLD_FOUND )
