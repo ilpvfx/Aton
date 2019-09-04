@@ -67,11 +67,20 @@ struct OpData
     AtString driver_name;
 };
 
+enum reconnect
+{
+    disabled = 0,
+    once,
+    always,
+};
+
 node_parameters
 {
     AiParameterStr("host", get_host().c_str());
     AiParameterInt("port", get_port());
     AiParameterStr("output", "");
+    AiParameterInt("session", 0);
+    AiParameterInt("reconnect", reconnect::disabled);
 }
 
 operator_init
@@ -85,6 +94,8 @@ operator_init
     AiNodeSetStr(driver, "host", AiNodeGetStr(op, "host"));
     AiNodeSetInt(driver, "port", AiNodeGetInt(op, "port"));
     AiNodeSetStr(driver, "output", AiNodeGetStr(op, "output"));
+    AiNodeSetInt(driver, "session", AiNodeGetInt(op, "session"));
+    AiNodeSetInt(driver, "reconnect", AiNodeGetInt(op, "reconnect"));
     AiNodeSetLocalData(op, data);
     
     return true;
@@ -117,6 +128,8 @@ operator_post_cook
 
 operator_cleanup
 {
+    OpData* data = (OpData*)AiNodeGetLocalData(op);
+    AiFree(data);
     return true;
 }
 
