@@ -124,8 +124,6 @@ def aton_update(self):
                     warn("Aton Driver was not found.")
             else:
                 warn("Aton is not Enabled.")
-        else:
-            warn("Aton User Options was not found.")
 
 
 def generate_decorated(func):
