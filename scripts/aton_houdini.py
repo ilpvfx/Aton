@@ -1291,8 +1291,8 @@ class Aton(QtWidgets.QWidget):
 
         # Reconnect modes
         self.__reconnect_local = 0
-        self.__reconnect_farm = 2
-        self.__reconnect_distribute = 2
+        self.__reconnect_farm = 1
+        self.__reconnect_distribute = 1
 
         # Init UI
         self.setObjectName(self.__obj_name)
