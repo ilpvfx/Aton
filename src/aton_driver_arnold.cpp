@@ -40,8 +40,8 @@ struct ShaderData
 enum reconnect
 {
     disabled = 0,
-    once,
     always,
+    next_bucket,
 };
 
 node_parameters
