@@ -11,12 +11,16 @@ All rights reserved. See COPYING.txt for more details.
 #include <ai.h>
 #include <stdio.h>
 
+
 #define operator_post_cook \
 static bool OperatorPostCook(AtNode* op, void* user_data)
 
+
 AI_OPERATOR_NODE_EXPORT_METHODS(AtonOperatorMtd);
 
+
 using namespace std;
+
 
 const int get_port()
 {
@@ -64,14 +68,7 @@ vector<string> split_str(string str, string token)
 
 struct OpData
 {
-    AtString driver_name;
-};
-
-enum reconnect
-{
-    disabled = 0,
-    once,
-    always,
+    AtNode* driver;
 };
 
 node_parameters
@@ -80,22 +77,20 @@ node_parameters
     AiParameterInt("port", get_port());
     AiParameterStr("output", "");
     AiParameterInt("session", 0);
-    AiParameterInt("reconnect", reconnect::disabled);
+    AiParameterInt("reconnect", 0);
 }
 
 operator_init
 {
     OpData* data = (OpData*)AiMalloc(sizeof(OpData));
     
-    data->driver_name = AtString("defaultAtonDriver");
+    data->driver = AiNode("driver_aton", AtString("defaultAtonDriver"));
     
-    AtNode* driver = AiNode("driver_aton", data->driver_name);
-    
-    AiNodeSetStr(driver, "host", AiNodeGetStr(op, "host"));
-    AiNodeSetInt(driver, "port", AiNodeGetInt(op, "port"));
-    AiNodeSetStr(driver, "output", AiNodeGetStr(op, "output"));
-    AiNodeSetInt(driver, "session", AiNodeGetInt(op, "session"));
-    AiNodeSetInt(driver, "reconnect", AiNodeGetInt(op, "reconnect"));
+    AiNodeSetStr(data->driver, "host", AiNodeGetStr(op, "host"));
+    AiNodeSetInt(data->driver, "port", AiNodeGetInt(op, "port"));
+    AiNodeSetStr(data->driver, "output", AiNodeGetStr(op, "output"));
+    AiNodeSetInt(data->driver, "session", AiNodeGetInt(op, "session"));
+    AiNodeSetInt(data->driver, "reconnect", AiNodeGetInt(op, "reconnect"));
     AiNodeSetLocalData(op, data);
     
     return true;
@@ -114,7 +109,7 @@ operator_cook
     {
         string output_string = AiArrayGetStr(outputs, i).c_str();
         string name = split_str(output_string, string(" ")).back();
-        output_string.replace(output_string.find(name), name.length(), data->driver_name);
+        output_string.replace(output_string.find(name), name.length(), AiNodeGetStr(data->driver, "name"));
         AiArraySetStr(outputs, i, AtString(output_string.c_str()));
     }
     
