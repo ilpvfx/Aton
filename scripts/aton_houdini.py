@@ -2350,7 +2350,7 @@ class Aton(QtWidgets.QWidget):
                     if AiNodeGetName(node) == selected_camera:
                         AiNodeSetPtr(options_node, "camera", node)
 
-            if self.__bucket_scanning_changed():
+            if self.__bucket_scanning_changed(output):
                 AiNodeSetStr(options_node, "bucket_scanning", self.__bucket_combo_box.item_text(output.ui.bucket_scan))
 
             if self.__resolution_changed(output):
@@ -2359,6 +2359,9 @@ class Aton(QtWidgets.QWidget):
 
             if self.__aa_samples_changed(output):
                 AiNodeSetInt(options_node, "AA_samples", output.ui.aa_samples)
+
+                if self.__adaptive_sampling_enabled(output):
+                    AiNodeSetBool(options_node, "enable_adaptive_sampling", False)
 
             if self.__region_changed(output):
                 AiNodeSetInt(options_node, "region_min_x", x_reg)
@@ -2441,6 +2444,11 @@ class Aton(QtWidgets.QWidget):
             # AA Samples
             if self.__aa_samples_changed():
                 self.output.rop.parm("ar_AA_samples").set(self.__camera_aa_slider.value())
+
+                if self.__adaptive_sampling_enabled():
+                    self.output.user_options += "declare aton_enable_adaptive_sampling constant BOOL " \
+                                                "aton_enable_adaptive_sampling off "
+
             else:
                 self.output.rop.parm("ar_AA_samples").set(self.output.origin_aa_samples)
 
