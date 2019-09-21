@@ -83,6 +83,10 @@ def aton_update(self):
                             AiNodeSetStr(options_node, "bucket_scanning",
                                          AiNodeGetStr(options_node, "aton_bucket"))
 
+                        if AiNodeLookUpUserParameter(options_node, "aton_enable_adaptive_sampling"):
+                            AiNodeSetBool(options_node, "enable_adaptive_sampling",
+                                          AiNodeGetBool(options_node, "aton_enable_adaptive_sampling"))
+
                         if AiNodeLookUpUserParameter(options_node, "aton_region_min_x"):
                             AiNodeSetInt(options_node, "region_min_x",
                                          AiNodeGetInt(options_node, "aton_region_min_x"))
@@ -124,6 +128,8 @@ def aton_update(self):
                     warn("Aton Driver was not found.")
             else:
                 warn("Aton is not Enabled.")
+        else:
+            warn("Aton User Options was not found.")
 
 
 def generate_decorated(func):
@@ -1071,6 +1077,13 @@ class OutputItem(QtWidgets.QListWidgetItem):
         """
         if self.__rop is not None:
             return self.__rop.parm("ar_bucket_scanning").eval()
+
+    @property
+    def enable_adaptive_sampling(self):
+        """ Returns Enable adaptive sampling
+        """
+        if self.__rop is not None:
+            return self.__rop.parm("ar_enable_adaptive_sampling").eval()
 
     @property
     def origin_user_options(self):
@@ -2262,6 +2275,15 @@ class Aton(QtWidgets.QWidget):
         return \
             output.ui.bucket_scan and \
             self.__bucket_combo_box.item_text(output.ui.bucket_scan) != self.output.bucket_scanning
+
+    def __adaptive_sampling_enabled(self, output=None):
+        """ Check if the adaptive sampling is enabled
+        :rtype: bool
+        """
+        if output is None:
+            output = self.output
+
+        return output.enable_adaptive_sampling
 
     def __ignore_mbl_changed(self):
         """ Check if the Ignore Motion Blur has been Enabled
