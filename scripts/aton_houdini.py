@@ -2222,7 +2222,8 @@ class Aton(QtWidgets.QWidget):
         if output is None:
             output = self.output
 
-        return output.ui.camera_aa_enabled and output.ui.aa_samples != self.output.origin_aa_samples
+        return output.ui.camera_aa_enabled and (output.ui.aa_samples != output.origin_aa_samples or
+                                                output.enable_adaptive_sampling)
 
     def __camera_changed(self, output=None):
         """ Check if the Camera has been overridden
@@ -2232,7 +2233,7 @@ class Aton(QtWidgets.QWidget):
             output = self.output
 
         return \
-            output.ui.camera and self.__camera_combo_box.item_text(output.ui.camera) != self.output.origin_cam_path
+            output.ui.camera and self.__camera_combo_box.item_text(output.ui.camera) != output.origin_cam_path
 
     def __resolution_changed(self, output=None):
         """ Check if the Resolution and Region have been overridden
@@ -2509,10 +2510,10 @@ class Aton(QtWidgets.QWidget):
 
             output.remove_callbacks()
 
-            if self.__resolution_changed():
+            if self.__resolution_changed(output):
                 output.rollback_resolution()
 
-            if self.__aa_samples_changed():
+            if self.__aa_samples_changed(output):
                 output.rollback_aa_samples()
 
             output.rollback_user_options()
