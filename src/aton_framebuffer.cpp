@@ -288,6 +288,12 @@ void RenderBuffer::set_time(const int& time,
                             const int& dtime)
 {
     _time = dtime > time ? time : time - dtime;
+    
+    const int hour = _time / 3600000;
+    const int minute = (_time % 3600000) / 60000;
+    const int second = ((_time % 3600000) % 60000) / 1000;
+    
+    _time_str = (boost::format("%02ih:%02im:%02is")%hour%minute%second).str();
 }
 
 // Set Version

@@ -107,8 +107,8 @@ void Aton::_validate(bool for_real)
         set_status(rb->get_progress(),
                    rb->get_memory(),
                    rb->get_peak_memory(),
-                   rb->get_time(),
                    rb->get_frame(),
+                   rb->get_time_str(),
                    rb->get_name(),
                    rb->get_version_str(),
                    rb->get_samples());
@@ -127,6 +127,25 @@ void Aton::_validate(bool for_real)
     info_.full_size_format(*m_node->m_fmtp.fullSizeFormat());
     info_.channels(m_node->m_channels);
     info_.set(m_node->info().format());
+}
+
+const MetaData::Bundle& Aton::_fetchMetaData(const char* keyname)
+{
+    m_node->m_metadata = Iop::_fetchMetaData(keyname);
+    
+    RenderBuffer* rb = current_renderbuffer();
+   
+    if (rb != NULL)
+    {
+        m_node->m_metadata.setData(std::string("exr/aton/name"), rb->get_name());
+        m_node->m_metadata.setData(std::string("exr/aton/frame"), rb->get_frame());
+        m_node->m_metadata.setData(std::string("exr/aton/time"), rb->get_time_str());
+        m_node->m_metadata.setData(std::string("exr/aton/memory"), int(rb->get_peak_memory()));
+        m_node->m_metadata.setData(std::string("exr/aton/sampling"), rb->get_samples());
+        m_node->m_metadata.setData(std::string("exr/aton/version"), rb->get_version_str());
+    }
+    
+    return m_node->m_metadata;
 }
 
 void Aton::engine(int y, int x, int r, ChannelMask channels, Row& out)
@@ -195,6 +214,7 @@ void Aton::knobs(Knob_Callback f)
     Divider(f, "Render Region");
     Knob* region_knob = BBox_knob(f, m_region, "region_knob", "Area");
     Button(f, "reset_region_knob", "Reset");
+    Button(f, "fit_region_knob", "Fit");
     Button(f, "copy_region_knob", "Copy");
     
     // Write knobs
@@ -289,6 +309,11 @@ int Aton::knob_changed(Knob* _knob)
     if (_knob->is("reset_region_knob"))
     {
         reset_region_cmd();
+        return 1;
+    }
+    if (_knob->is("fit_region_knob"))
+    {
+        fit_region_cmd();
         return 1;
     }
     if (_knob->is("copy_region_knob"))
@@ -675,27 +700,22 @@ void Aton::set_current_frame(const double& frame)
 void Aton::set_status(const long long& progress,
                       const long long& ram,
                       const long long& p_ram,
-                      const int& time,
                       const double& frame,
+                      const char* time,
                       const char* name,
                       const char* version,
                       const char* samples)
 {
-    const int hour = time / 3600000;
-    const int minute = (time % 3600000) / 60000;
-    const int second = ((time % 3600000) % 60000) / 1000;
-    
     FrameBuffer* fb = current_framebuffer();
     
     size_t fb_size = fb == NULL ? 0 : fb->size();
     std::string status_str = (boost::format("Arnold %s | "
                                             "Memory: %sMB / %sMB | "
-                                            "Time: %02ih:%02im:%02is | "
+                                            "Time: %s | "
                                             "Name: %s | "
                                             "Frame: %s(%s) | "
                                             "Sampling: %s | "
-                                            "Progress: %s%%")%version%ram%p_ram
-                                                             %hour%minute%second%name
+                                            "Progress: %s%%")%version%ram%p_ram%time%name
                                                              %frame%fb_size%samples%progress).str();
     
     Knob* statusKnob = m_node->knob("status_knob");
@@ -820,6 +840,18 @@ void Aton::reset_region_cmd()
     knob("region_knob")->set_value(0);
 }
 
+void Aton::fit_region_cmd()
+{
+    const double w = double(m_node->m_fmtp.format()->width());
+    const double h = double(m_node->m_fmtp.format()->height());
+    
+    if (w > 0 && h > 0)
+    {
+        double fit_region[4] = {0, 0, w, h};
+        knob("region_knob")->set_values(fit_region, 4);
+    }
+}
+        
 void Aton::copy_region_cmd()
 {
     const int& w = m_node->m_fmtp.format()->width();
@@ -898,7 +930,6 @@ void Aton::capture_cmd()
         double startFrame;
         double endFrame;
         
-
         std::vector<double> sortedFrames = fb->frames();
         std::stable_sort(sortedFrames.begin(), sortedFrames.end());
 

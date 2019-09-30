@@ -86,7 +86,11 @@ node_update {}
 
 driver_supports_pixel_type { return true; }
 
-driver_extension { return NULL; }
+driver_extension
+{
+    static const char* extensions[] = { NULL };
+    return extensions;
+}
 
 driver_open
 {
@@ -228,7 +232,7 @@ driver_write_bucket
     // Reconnect to server
     if (reconnect_mode)
         data->client->connect();
-        
+
     while (AiOutputIteratorGetNext(iterator, &aov_name, &pixel_type, &bucket_data))
     {
         const float* ptr = reinterpret_cast<const float*>(bucket_data);

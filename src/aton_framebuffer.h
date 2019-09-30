@@ -155,6 +155,7 @@ public:
     void set_memory(const long long& ram = 0);
     
     const int& get_time() { return _time; }
+    const char* get_time_str() { return _time_str.c_str(); }
     void set_time(const int& time = 0,
                   const int& dtime = 0);
     
@@ -202,6 +203,7 @@ private:
     int _version_int;
     std::string _name;
     std::vector<int> _samples;
+    std::string _time_str;
     std::string _version_str;
     std::string _samples_str;
     std::vector<AOVBuffer> _buffers;

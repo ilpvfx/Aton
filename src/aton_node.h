@@ -13,6 +13,7 @@ All rights reserved. See COPYING.txt for more details.
 #include <DDImage/Thread.h>
 #include <DDImage/Version.h>
 #include <DDImage/TableKnobI.h>
+#include <DDImage/MetaData.h>
 
 using namespace DD::Image;
 
@@ -76,6 +77,7 @@ class Aton: public Iop
         std::string               m_connection_error;   // Connection error report
         Knob*                     m_outputKnob;         // Shapshots Knob
         std::vector<FrameBuffer>  m_framebuffers;       // Framebuffers List
+        MetaData::Bundle          m_metadata;           // Metadata object
 
         Aton(Node* node): Iop(node),
                           m_node(first_node()),
@@ -112,6 +114,7 @@ class Aton: public Iop
         void append(Hash& hash);
 
         void _validate(bool for_real);
+        const MetaData::Bundle& _fetchMetaData(const char* keyname);
         void engine(int y, int x, int r, ChannelMask channels, Row& out);
         void knobs(Knob_Callback f);
         int knob_changed(Knob* _knob);
@@ -154,8 +157,8 @@ class Aton: public Iop
         void set_status(const long long& progress = 0,
                         const long long& ram = 0,
                         const long long& p_ram = 0,
-                        const int& time = 0,
                         const double& frame = 0,
+                        const char* time = "",
                         const char* version = "",
                         const char* samples = "",
                         const char* output = "");
@@ -170,6 +173,7 @@ class Aton: public Iop
         void move_cmd(bool direction);
         void remove_selected_cmd();
         void reset_region_cmd();
+        void fit_region_cmd();
         void copy_region_cmd();
         void capture_cmd();
         void import_cmd(bool all);
