@@ -57,9 +57,6 @@ find_package( Arnold )
 
 if( ARNOLD_FOUND )
     include_directories( ${Arnold_INCLUDE_DIR} )
-   
-    # To compile against Arnold 5
-    add_definitions(-DARNOLD_5)
     
     # Aton Driver
     add_library( arnold_plugin

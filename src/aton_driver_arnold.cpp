@@ -52,17 +52,10 @@ node_parameters
     AiParameterInt("session", 0);
     AiParameterInt("reconnect", reconnect::disabled);
     
-#ifdef ARNOLD_5
     AiMetaDataSetStr(nentry, NULL, AtString("maya.translator"), AtString("aton"));
     AiMetaDataSetStr(nentry, NULL, AtString("maya.attr_prefix"), AtString(""));
     AiMetaDataSetBool(nentry, NULL, AtString("display_driver"), true);
     AiMetaDataSetBool(nentry, NULL, AtString("single_layer_driver"), false);
-#else
-    AiMetaDataSetStr(mds, NULL, AtString("maya.translator"), AtString("aton"));
-    AiMetaDataSetStr(mds, NULL, AtString("maya.attr_prefix"), AtString(""));
-    AiMetaDataSetBool(mds, NULL, AtString("display_driver"), true);
-    AiMetaDataSetBool(mds, NULL, AtString("single_layer_driver"), false);
-#endif
 }
 
 node_initialize
@@ -74,12 +67,8 @@ node_initialize
     if (data->session == 0)
         data->session = get_unique_id();
 
-#ifdef ARNOLD_5
     AiDriverInitialize(node, true);
     AiNodeSetLocalData(node, data);
-#else
-    AiDriverInitialize(node, true, data);
-#endif
 }
 
 node_update {}
@@ -94,11 +83,7 @@ driver_extension
 
 driver_open
 {
-#ifdef ARNOLD_5
     ShaderData* data = (ShaderData*)AiNodeGetLocalData(node);
-#else
-    ShaderData* data = (ShaderData*)AiDriverGetLocalData(node);
-#endif
     
     // Get Options Node
     AtNode* options = AiUniverseGetOptions();
@@ -141,12 +126,7 @@ driver_open
     const float cam_fov = AiNodeGetFlt(camera, AtString("fov"));
     
     // Get Camera Matrix
-#ifdef ARNOLD_5
     const AtMatrix& cMat = AiNodeGetMatrix(camera, AtString("matrix"));
-#else
-    AtMatrix cMat;
-    AiNodeGetMatrix(camera, "matrix", cMat);
-#endif
     
     const float cam_matrix[16] = {cMat[0][0], cMat[1][0], cMat[2][0], cMat[3][0],
                                   cMat[0][1], cMat[1][1], cMat[2][1], cMat[3][1],
@@ -212,12 +192,7 @@ driver_process_bucket {}
 
 driver_write_bucket
 {
-    
-#ifdef ARNOLD_5
     ShaderData* data = (ShaderData*)AiNodeGetLocalData(node);
-#else
-    ShaderData* data = (ShaderData*)AiDriverGetLocalData(node);
-#endif
 
     int pixel_type, spp = 0;
     const void* bucket_data;
@@ -279,19 +254,11 @@ driver_close {}
 
 node_finish
 {
-// Release the driver
-#ifdef ARNOLD_5
+    // Release the driver
     ShaderData* data = (ShaderData*)AiNodeGetLocalData(node);
-#else
-    ShaderData* data = (ShaderData*)AiDriverGetLocalData(node);
-#endif
     
     delete data->client;
     AiFree(data);
-
-#ifndef ARNOLD_5
-    AiDriverDestroy(node);
-#endif
 }
 
 node_loader
