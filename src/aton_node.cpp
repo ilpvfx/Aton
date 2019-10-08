@@ -213,6 +213,7 @@ void Aton::knobs(Knob_Callback f)
     // Render Region
     Divider(f, "Render Region");
     Knob* region_knob = BBox_knob(f, m_region, "region_knob", "Area");
+    Newline(f);
     Button(f, "reset_region_knob", "Reset");
     Button(f, "fit_region_knob", "Fit");
     Button(f, "copy_region_knob", "Copy");
