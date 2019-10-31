@@ -26,7 +26,7 @@ static const char* const CLASS = "Aton";
 
 // Help
 static const char* const HELP =
-    "Aton v1.3.6 \n"
+    "Aton v1.3.7 \n"
     "Listens for renders coming from the Aton display driver. "
     "For more info go to http://sosoyan.github.io/Aton/";
 
