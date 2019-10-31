@@ -1,6 +1,6 @@
 __author__ = "Peter Horvath, Vahan Sosoyan"
 __copyright__ = "2019 All rights reserved. See Copyright.txt for more details."
-__version__ = "1.3.6"
+__version__ = "1.3.7"
 
 import c4d, os
 from c4d import bitmaps, documents, gui, plugins
