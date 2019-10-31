@@ -2363,7 +2363,7 @@ class Aton(QtWidgets.QWidget):
 
                 self.ipr.startRender()
                 self.ipr.pauseRender()
-
+                
                 if self.__add_aton_overrides():
 
                     self.ipr.resumeRender()
@@ -2727,108 +2727,110 @@ class Aton(QtWidgets.QWidget):
         @return: bool
         """
         if self.ipr.isActive():
+            with hou.undos.disabler():
 
-            self.output.remove_callbacks()
+                self.output.remove_callbacks()
 
-            # Main Attributes
-            self.output.user_options = self.output.origin_user_options
-            self.output.user_options += " " if self.output.user_options else ""
-            self.output.user_options += "declare aton_enable constant BOOL aton_enable on "
-            self.output.user_options += "declare aton_host constant STRING aton_host \"%s\" " % self.__default_host
-            self.output.user_options += "declare aton_port constant INT aton_port %d " % self.__port_slider.value()
-            self.output.user_options += "declare aton_output constant STRING aton_output \"%s\" " % self.output.rop_name
-            self.output.user_options += "declare aton_reconnect constant INT aton_reconnect %d " % \
-                                        self.__reconnect_local
+                # Main Attributes
+                self.output.user_options = self.output.origin_user_options
+                self.output.user_options += " " if self.output.user_options else ""
+                self.output.user_options += "declare aton_enable constant BOOL aton_enable on "
+                self.output.user_options += "declare aton_host constant STRING aton_host \"%s\" " % self.__default_host
+                self.output.user_options += "declare aton_port constant INT aton_port %d " % self.__port_slider.value()
+                self.output.user_options += "declare aton_output constant STRING aton_output \"%s\" " % self.output.rop_name
+                self.output.user_options += "declare aton_reconnect constant INT aton_reconnect %d " % \
+                                            self.__reconnect_local
 
-            # Enable User Options Overrides
-            user_options_enabled = self.output.rop.parm("ar_user_options_enable").eval()
-            if not user_options_enabled:
-                self.output.rop.parm("ar_user_options_enable").set(True)
+                # Enable User Options Overrides
+                user_options_enabled = self.output.rop.parm("ar_user_options_enable").eval()
+                if not user_options_enabled:
+                    self.output.rop.parm("ar_user_options_enable").set(True)
 
-            # Get Resolution
-            x_res, y_res, x_reg, y_reg, r_reg, t_reg = self.__get_resolution()
+                # Get Resolution
+                x_res, y_res, x_reg, y_reg, r_reg, t_reg = self.__get_resolution()
 
-            # Camera
-            if self.__camera_changed():
-                self.output.user_options += "declare aton_camera constant STRING aton_camera %s " % \
-                                            self.__camera_combo_box.current_name()
+                # Camera
+                if self.__camera_changed():
+                    self.output.user_options += "declare aton_camera constant STRING aton_camera %s " % \
+                                                self.__camera_combo_box.current_name()
 
-            # Bucket Scanning
-            if self.__bucket_scanning_changed():
-                self.output.user_options += "declare aton_bucket constant STRING aton_bucket \"%s\" " % \
-                                self.__bucket_combo_box.current_name()
+                # Bucket Scanning
+                if self.__bucket_scanning_changed():
+                    self.output.user_options += "declare aton_bucket constant STRING aton_bucket \"%s\" " % \
+                                    self.__bucket_combo_box.current_name()
 
-            # Resolution
-            if self.__resolution_changed():
-                pixel_aspect = self.output.pixel_aspect
-                self.output.rop.parm("override_camerares").set(True)
-                self.output.rop.parm("res_fraction").set("specific")
-                self.output.rop.parm("res_overridex").set(x_res)
-                self.output.rop.parm("res_overridey").set(y_res)
-                self.output.rop.parm("aspect_override").set(pixel_aspect)
-            else:
-                self.output.rop.parm("override_camerares").set(self.output.override_camera_res)
-                self.output.rop.parm("res_fraction").set(self.output.res_fraction)
-                self.output.rop.parm("res_overridex").set(self.output.origin_res_x)
-                self.output.rop.parm("res_overridey").set(self.output.origin_res_y)
-                self.output.rop.parm("aspect_override").set(self.output.pixel_aspect)
+                # Resolution
+                if self.__resolution_changed():
+                    pixel_aspect = self.output.pixel_aspect
+                    self.output.rop.parm("override_camerares").set(True)
+                    self.output.rop.parm("res_fraction").set("specific")
+                    self.output.rop.parm("res_overridex").set(x_res)
+                    self.output.rop.parm("res_overridey").set(y_res)
+                    self.output.rop.parm("aspect_override").set(pixel_aspect)
+                else:
+                    self.output.rop.parm("override_camerares").set(self.output.override_camera_res)
+                    self.output.rop.parm("res_fraction").set(self.output.res_fraction)
+                    self.output.rop.parm("res_overridex").set(self.output.origin_res_x)
+                    self.output.rop.parm("res_overridey").set(self.output.origin_res_y)
+                    self.output.rop.parm("aspect_override").set(self.output.pixel_aspect)
 
-            # AA Samples
-            if self.__aa_samples_changed():
-                self.output.rop.parm("ar_AA_samples").set(self.__camera_aa_slider.value())
+                # AA Samples
+                if self.__aa_samples_changed():
+                    self.output.rop.parm("ar_AA_samples").set(self.__camera_aa_slider.value())
 
-                if self.__adaptive_sampling_enabled():
-                    self.output.user_options += "declare aton_enable_adaptive_sampling constant BOOL " \
-                                                "aton_enable_adaptive_sampling off "
+                    if self.__adaptive_sampling_enabled():
+                        self.output.user_options += "declare aton_enable_adaptive_sampling constant BOOL " \
+                                                    "aton_enable_adaptive_sampling off "
 
-            else:
-                self.output.rop.parm("ar_AA_samples").set(self.output.origin_aa_samples)
+                else:
+                    self.output.rop.parm("ar_AA_samples").set(self.output.origin_aa_samples)
 
-            # Render Region
-            if self.__region_changed():
-                self.output.user_options += "declare aton_region_min_x constant INT aton_region_min_x %d " % x_reg
-                self.output.user_options += "declare aton_region_min_y constant INT aton_region_min_y %d " % y_reg
-                self.output.user_options += "declare aton_region_max_x constant INT aton_region_max_x %d " % r_reg
-                self.output.user_options += "declare aton_region_max_y constant INT aton_region_max_y %d " % t_reg
+                # Render Region
+                if self.__region_changed():
+                    self.output.user_options += "declare aton_region_min_x constant INT aton_region_min_x %d " % x_reg
+                    self.output.user_options += "declare aton_region_min_y constant INT aton_region_min_y %d " % y_reg
+                    self.output.user_options += "declare aton_region_max_x constant INT aton_region_max_x %d " % r_reg
+                    self.output.user_options += "declare aton_region_max_y constant INT aton_region_max_y %d " % t_reg
 
-            # Ignore Features
-            if self.__ignore_mbl_changed():
-                self.output.user_options += "declare aton_ignore_mbl constant BOOL aton_ignore_mbl %s  " % \
-                                ("on" if self.__motion_blur_check_box.is_checked() else "off")
-            if self.__ignore_sdv_changed():
-                self.output.user_options += "declare aton_ignore_sdv constant BOOL aton_ignore_sdv %s " % \
-                                ("on" if self.__subdivs_check_box.is_checked() else "off")
-            if self.__ignore_dsp_changed():
-                self.output.user_options += "declare aton_ignore_dsp constant BOOL aton_ignore_dsp %s " % \
-                                ("on" if self.__displace_check_box.is_checked() else "off")
-            if self.__ignore_bmp_changed():
-                self.output.user_options += "declare aton_ignore_bmp constant BOOL aton_ignore_bmp %s " % \
-                                ("on" if self.__bump_check_box.is_checked() else "off")
-            if self.__ignore_sss_changed():
-                self.output.user_options += "declare aton_ignore_sss constant BOOL aton_ignore_sss %s " % \
-                                ("on" if self.__sss_check_box.is_checked() else "off")
+                # Ignore Features
+                if self.__ignore_mbl_changed():
+                    self.output.user_options += "declare aton_ignore_mbl constant BOOL aton_ignore_mbl %s  " % \
+                                    ("on" if self.__motion_blur_check_box.is_checked() else "off")
+                if self.__ignore_sdv_changed():
+                    self.output.user_options += "declare aton_ignore_sdv constant BOOL aton_ignore_sdv %s " % \
+                                    ("on" if self.__subdivs_check_box.is_checked() else "off")
+                if self.__ignore_dsp_changed():
+                    self.output.user_options += "declare aton_ignore_dsp constant BOOL aton_ignore_dsp %s " % \
+                                    ("on" if self.__displace_check_box.is_checked() else "off")
+                if self.__ignore_bmp_changed():
+                    self.output.user_options += "declare aton_ignore_bmp constant BOOL aton_ignore_bmp %s " % \
+                                    ("on" if self.__bump_check_box.is_checked() else "off")
+                if self.__ignore_sss_changed():
+                    self.output.user_options += "declare aton_ignore_sss constant BOOL aton_ignore_sss %s " % \
+                                    ("on" if self.__sss_check_box.is_checked() else "off")
 
-            self.output.add_callbacks()
+                self.output.add_callbacks()
 
-            return True
+                return True
 
     def __remove_aton_overrides(self):
         """ Remove all Aton Overrides
         @return:
         """
-        for output in self.__output_list:
+        with hou.undos.disabler():
+            for output in self.__output_list:
 
-            output.remove_callbacks()
+                output.remove_callbacks()
 
-            if self.__resolution_changed(output):
-                output.rollback_resolution()
+                if self.__resolution_changed(output):
+                    output.rollback_resolution()
 
-            if self.__aa_samples_changed(output):
-                output.rollback_aa_samples()
+                if self.__aa_samples_changed(output):
+                    output.rollback_aa_samples()
 
-            output.rollback_user_options()
+                output.rollback_user_options()
 
-            output.add_callbacks()
+                output.add_callbacks()
 
     def farm_cpu_menu(self):
         """
