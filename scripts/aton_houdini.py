@@ -37,6 +37,7 @@ from htoa.node.node import nodeSetArrayString
 from arnold import *
 
 
+
 __author__ = "Vahan Sosoyan"
 __copyright__ = "2019 All rights reserved. See Copyright.txt for more details."
 __version__ = "1.3.7"
@@ -76,7 +77,7 @@ def aton_update(self):
     """
     if self.session.isInteractiveRender():
 
-        options_node = AiUniverseGetOptions()
+        options_node = AiUniverseGetOptions(self.session.universe)
 
         if AiNodeLookUpUserParameter(options_node, "aton_enable"):
 
@@ -191,7 +192,7 @@ def get_aton_driver(self, node_entry_name, new_sub_str):
     """
     from htoa.object.camera import cameraTag
 
-    node_iter = AiUniverseGetNodeIterator(AI_NODE_DRIVER)
+    node_iter = AiUniverseGetNodeIterator(self.session.universe, AI_NODE_DRIVER)
 
     while not AiNodeIteratorFinished(node_iter):
         node = AiNodeIteratorGetNext(node_iter)
@@ -199,7 +200,7 @@ def get_aton_driver(self, node_entry_name, new_sub_str):
         if node_entry_name == AiNodeEntryGetName(node_entry):
             return node
 
-    driver_aton_node = AiNode(node_entry_name)
+    driver_aton_node = AiNode(self.session.universe, node_entry_name)
     cam_tag = cameraTag(self.session.camera_name)
     HaNodeSetStr(driver_aton_node, "name",
                  (self.path + ":" + new_sub_str + (":%s" % cam_tag if cam_tag else "")))
@@ -2386,8 +2387,11 @@ class Aton(QtWidgets.QWidget):
         """
         if not self.__mode_combo_box.current_index():
             self.ipr.killRender()
+
             self.__remove_aton_overrides()
             self.__general_ui_set_enabled(True)
+            self.__terminate_hick()
+
             self.output.set_status()
         else:
             for output in self.selected_outputs:
@@ -2831,6 +2835,21 @@ class Aton(QtWidgets.QWidget):
                 output.rollback_user_options()
 
                 output.add_callbacks()
+
+    def __terminate_hick(self):
+        """
+        Terminates running hickbin processes
+        @return:
+        """
+        hick_procs = [i for i in psutil.Process(os.getpid()).children() if i.name().startswith("hick")]
+
+        for p in hick_procs:
+            p.terminate()
+
+        gone, alive = psutil.wait_procs(hick_procs, timeout=1)
+
+        for p in alive:
+            p.terminate()
 
     def farm_cpu_menu(self):
         """
