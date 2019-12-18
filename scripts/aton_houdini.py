@@ -2841,15 +2841,22 @@ class Aton(QtWidgets.QWidget):
         Terminates running hickbin processes
         @return:
         """
+        def terminate(procs):
+            """
+            Terminates given list of processes
+            @param procs: list
+            @return:
+            """
+            for p in procs:
+                p.terminate()
+
+            gone, alive = psutil.wait_procs(procs, timeout=1)
+            return alive
+
         hick_procs = [i for i in psutil.Process(os.getpid()).children() if i.name().startswith("hick")]
 
-        for p in hick_procs:
-            p.terminate()
-
-        gone, alive = psutil.wait_procs(hick_procs, timeout=1)
-
-        for p in alive:
-            p.terminate()
+        while hick_procs:
+            hick_procs = terminate(hick_procs)
 
     def farm_cpu_menu(self):
         """
