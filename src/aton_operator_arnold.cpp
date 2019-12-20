@@ -78,6 +78,7 @@ node_parameters
     AiParameterStr("output", "");
     AiParameterInt("session", 0);
     AiParameterInt("reconnect", 0);
+    AiParameterBool("skip_id_aov", true);
 }
 
 operator_init
@@ -110,6 +111,11 @@ operator_cook
         string output_string = AiArrayGetStr(outputs, i).c_str();
         string name = split_str(output_string, string(" ")).back();
         output_string.replace(output_string.find(name), name.length(), AiNodeGetStr(data->driver, "name"));
+        
+        if (AiNodeGetBool(op, "skip_id_aov"))
+            if (output_string.rfind("ID", 0) == 0)
+                continue;
+
         AiArraySetStr(outputs, i, AtString(output_string.c_str()));
     }
     
