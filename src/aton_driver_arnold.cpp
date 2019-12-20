@@ -250,7 +250,11 @@ driver_write_bucket
         data->client->disconnect();
 }
 
-driver_close {}
+driver_close 
+{
+    ShaderData* data = (ShaderData*)AiNodeGetLocalData(node);
+    data->client->close_image();
+}
 
 node_finish
 {
