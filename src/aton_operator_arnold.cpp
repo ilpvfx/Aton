@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2019,
+Copyright (c) 2020,
 Vahan Sosoyan.
 All rights reserved. See COPYING.txt for more details.
 */
@@ -78,7 +78,7 @@ node_parameters
     AiParameterStr("output", "");
     AiParameterInt("session", 0);
     AiParameterInt("reconnect", 0);
-    AiParameterBool("skip_id_aov", true);
+    AiParameterBool("keep_existing_outputs", true);
 }
 
 operator_init
@@ -103,27 +103,31 @@ operator_cook
 
     AtNode* options = AiUniverseGetOptions();
     AtArray* outputs = AiNodeGetArray(options, "outputs");
-    
-    int elements = AiArrayGetNumElements(outputs);
 
+    int offset = 0;
+    int elements = AiArrayGetNumElements(outputs);
+    
+    if (AiNodeGetBool(op, "keep_existing_outputs"))
+    {
+        AiArrayResize(outputs, 2 * elements, 0);
+        offset = elements;
+    }
+    
     for (int i=0; i<elements; ++i)
     {
         string output_string = AiArrayGetStr(outputs, i).c_str();
         string name = split_str(output_string, string(" ")).back();
         output_string.replace(output_string.find(name), name.length(), AiNodeGetStr(data->driver, "name"));
-        
-        if (AiNodeGetBool(op, "skip_id_aov"))
-            if (output_string.rfind("ID", 0) == 0)
-                continue;
 
-        AiArraySetStr(outputs, i, AtString(output_string.c_str()));
+        AiArraySetStr(outputs, i + offset, AtString(output_string.c_str()));
     }
-    
+
     return true;
 }
 
 operator_post_cook
 {
+    
     return true;
 }
 
