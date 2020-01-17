@@ -78,7 +78,7 @@ node_parameters
     AiParameterStr("output", "");
     AiParameterInt("session", 0);
     AiParameterInt("reconnect", 0);
-    AiParameterBool("keep_existing_outputs", true);
+    AiParameterBool("keep_existing_outputs", false);
 }
 
 operator_init
@@ -127,7 +127,6 @@ operator_cook
 
 operator_post_cook
 {
-    
     return true;
 }
 
