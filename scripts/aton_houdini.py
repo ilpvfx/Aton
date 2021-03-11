@@ -5,7 +5,7 @@ Copy aton_houdini.py to HtoA's scripts folder.
 $HTOA_PATH/scripts/python/htoa/aton_houdini.py
 
 It's necessary to inject an extra code into HtoA to be able to add a custom driver.
-Therefore insert the following python patch after the line 71 of
+Therefore insert the following python patch after the line 5 of
 
 $HTOA_PATH/soho/arnold.py
 
