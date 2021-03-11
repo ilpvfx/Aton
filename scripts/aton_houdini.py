@@ -360,8 +360,8 @@ class BoxWidget(QtWidgets.QFrame):
 
         if first:
             self._label.setText(label + ":")
-            self._label.setMinimumSize(75, 20)
-            self._label.setMaximumSize(75, 20)
+            self._label.setMinimumSize(120, 20)
+            self._label.setMaximumSize(120, 20)
 
         self._label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignCenter)
         self._layout.addWidget(self._label)
@@ -1513,7 +1513,7 @@ class Aton(QtWidgets.QWidget):
         self.__default_host = get_host()
 
         # Reconnect modes
-        self.__reconnect_local = 0
+        self.__reconnect_local = 2
         self.__reconnect_farm = 1
         self.__reconnect_distribute = 1
 
