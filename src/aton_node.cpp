@@ -632,16 +632,6 @@ void Aton::set_channels(std::vector<std::string>& aovs,
                 channels.insert(Chan_Z);
                 continue;
             }
-            else if (*it == N || *it == P)
-            {
-                if (!channels.contains(channel((*it + _X).c_str())))
-                {
-                    channels.insert(channel((*it + _X).c_str()));
-                    channels.insert(channel((*it + _Y).c_str()));
-                    channels.insert(channel((*it + _Z).c_str()));
-                }
-                continue;
-            }
             else if (*it == ID)
             {
                 if (!channels.contains(channel((*it + _red).c_str())))
