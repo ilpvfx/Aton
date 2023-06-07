@@ -51,6 +51,8 @@ target_link_libraries( nuke_plugin
   ${Nuke_LIBRARIES}
   )
 
+install(TARGETS nuke_plugin DESTINATION nuke)
+
 #=====
 # Build the Arnold plugin
 find_package( Arnold )
@@ -93,4 +95,6 @@ if( ARNOLD_FOUND )
     target_link_libraries( arnold_operator
       ${Arnold_ai_LIBRARY}
       )
+
+    install(TARGETS arnold_plugin arnold_operator DESTINATION arnold)
 endif( ARNOLD_FOUND )
