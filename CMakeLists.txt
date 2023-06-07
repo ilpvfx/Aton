@@ -16,14 +16,14 @@ project( aton )
 set( CMAKE_BUILD_TYPE Release )
 set( Boost_USE_STATIC_LIBS ON )
 set( CMAKE_CXX_COMPILER g++ )
-set( CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake )
+set( CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake )
 set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -include cstddef" )
 
 find_package( Boost 1.54.0 COMPONENTS regex filesystem system REQUIRED )
 find_package( Nuke REQUIRED )
 
 include_directories(
-  ${CMAKE_SOURCE_DIR}/src
+  ${PROJECT_SOURCE_DIR}/src
   ${Boost_INCLUDE_DIRS}
   ${Nuke_INCLUDE_DIR}
   ) 
@@ -32,10 +32,10 @@ include_directories(
 # Build the Nuke plugin
 add_library( nuke_plugin 
   SHARED
-  ${CMAKE_SOURCE_DIR}/src/aton_node.cpp 
-  ${CMAKE_SOURCE_DIR}/src/aton_framebuffer.cpp
-  ${CMAKE_SOURCE_DIR}/src/aton_server.cpp
-  ${CMAKE_SOURCE_DIR}/src/aton_client.cpp
+  ${PROJECT_SOURCE_DIR}/src/aton_node.cpp 
+  ${PROJECT_SOURCE_DIR}/src/aton_framebuffer.cpp
+  ${PROJECT_SOURCE_DIR}/src/aton_server.cpp
+  ${PROJECT_SOURCE_DIR}/src/aton_client.cpp
   )
 
 set_target_properties( nuke_plugin
@@ -61,8 +61,8 @@ if( ARNOLD_FOUND )
     # Aton Driver
     add_library( arnold_plugin
       SHARED
-      ${CMAKE_SOURCE_DIR}/src/aton_driver_arnold.cpp
-      ${CMAKE_SOURCE_DIR}/src/aton_client.cpp
+      ${PROJECT_SOURCE_DIR}/src/aton_driver_arnold.cpp
+      ${PROJECT_SOURCE_DIR}/src/aton_client.cpp
       )
     
     set_target_properties( arnold_plugin
@@ -80,7 +80,7 @@ if( ARNOLD_FOUND )
     # Aton Operator
     add_library( arnold_operator
       SHARED
-      ${CMAKE_SOURCE_DIR}/src/aton_operator_arnold.cpp
+      ${PROJECT_SOURCE_DIR}/src/aton_operator_arnold.cpp
       )
 
     set_target_properties( arnold_operator
